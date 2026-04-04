@@ -69,16 +69,74 @@ html, body
   cursor: pointer;
 }
 
-#detail .timespan .videoContainer .column
+#detail .timespan .videoContainer .cam-grid
 {
-  width: calc( 100% / 3 );
+  width: 100%;
 }
 
-#detail .timespan .videoContainer .column video
+#detail .timespan .videoContainer .cam-row-top
+{
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  gap: 0.175rem;
+  margin-bottom: 0.175rem;
+}
+
+#detail .timespan .videoContainer .cam-row-bottom
+{
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.175rem;
+}
+
+#detail .timespan .videoContainer .cam-row-extras
+{
+  margin-top: 0.175rem;
+  gap: 0.175rem;
+}
+
+#detail .timespan .videoContainer .cam-cell
+{
+  min-width: 0;
+}
+
+#detail .timespan .videoContainer .cam-cell-extra
+{
+  flex: 1 1 calc( 33.333% - 0.175rem );
+  min-width: 120px;
+}
+
+#detail .timespan .videoContainer .cam-label
+{
+  font-size: 0.875rem;
+  margin-bottom: 0.2rem;
+}
+
+#detail .timespan .videoContainer .cam-row-bottom .cam-label
+{
+  margin-bottom: 0;
+  margin-top: 0.2rem;
+}
+
+#detail .timespan .videoContainer .cam-video-wrap
+{
+  min-height: 80px;
+}
+
+#detail .timespan .videoContainer .cam-placeholder
+{
+  min-height: 80px;
+  background: #e9ecef;
+  border-radius: 0.2rem;
+}
+
+#detail .timespan .videoContainer .cam-cell video,
+#detail .timespan .videoContainer .cam-video-wrap video
 {
   width: 100%;
   height: auto;
   cursor: pointer;
+  display: block;
 }
 .custom-range
 {

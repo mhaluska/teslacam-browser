@@ -5,6 +5,10 @@
 	else root.ui = factory();
 }( typeof self !== 'undefined' ? self : this, function ()
 {
+    var CAM_GRID_TOP = [ "left_pillar", "front", "right_pillar" ]
+    var CAM_GRID_BOTTOM = [ "right_repeater", "back", "left_repeater" ]
+    var CAM_GRID_ALL = CAM_GRID_TOP.concat( CAM_GRID_BOTTOM )
+
     function createVueApp( handlers )
     {
         var args = { version: null };
@@ -66,10 +70,19 @@
                 {
                     function makeTimespan( key, value )
                     {
-                        var viewOrder = [ "left_repeater", "front", "back", "right_repeater" ]
                         var views = Array.from( value )
 
-                        views.sort( ( v1, v2 ) => viewOrder.indexOf( v1.camera ) - viewOrder.indexOf( v2.camera ) )
+                        views.sort( function( v1, v2 )
+                        {
+                            var i1 = CAM_GRID_ALL.indexOf( v1.camera )
+                            var i2 = CAM_GRID_ALL.indexOf( v2.camera )
+                            var k1 = i1 >= 0 ? i1 : CAM_GRID_ALL.length
+                            var k2 = i2 >= 0 ? i2 : CAM_GRID_ALL.length
+
+                            if ( k1 !== k2 ) return k1 - k2
+
+                            return v1.camera.localeCompare( v2.camera )
+                        } )
 
                         return {    // Timespan
                             title: key,
@@ -321,16 +334,38 @@
             {
                 return {
                     error: null,
-                    duration: null
+                    duration: null,
+                    camGridTop: CAM_GRID_TOP,
+                    camGridBottom: CAM_GRID_BOTTOM
                 }
             },
             template:
                 `<div>
                     <div v-for="timespan in timespans" v-show="timespan === controls.timespan">
-                        <div class="d-flex">
-                            <div v-for="view in timespan.views" class="column ml-1">
-                                <div :title="view.fileName" class="text-center">{{ view.fileName }}</div>
-                                <synchronized-video :timespan="timespan" :view="view" :playbackRate="controls.speed"></synchronized-video>
+                        <div class="cam-grid">
+                            <div class="cam-row cam-row-top">
+                                <div v-for="camera in camGridTop" :key="camera + '-top'" class="cam-cell">
+                                    <div class="text-center cam-label" :title="labelTitle( timespan, camera )">{{ camera }}</div>
+                                    <div class="cam-video-wrap">
+                                        <synchronized-video v-if="viewFor( timespan, camera )" :timespan="timespan" :view="viewFor( timespan, camera )" :playbackRate="controls.speed"></synchronized-video>
+                                        <div v-else class="cam-placeholder"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="cam-row cam-row-bottom">
+                                <div v-for="camera in camGridBottom" :key="camera + '-bottom'" class="cam-cell">
+                                    <div class="cam-video-wrap">
+                                        <synchronized-video v-if="viewFor( timespan, camera )" :timespan="timespan" :view="viewFor( timespan, camera )" :playbackRate="controls.speed"></synchronized-video>
+                                        <div v-else class="cam-placeholder"></div>
+                                    </div>
+                                    <div class="text-center cam-label" :title="labelTitle( timespan, camera )">{{ camera }}</div>
+                                </div>
+                            </div>
+                            <div v-if="extraViews( timespan ).length" class="cam-row cam-row-extras d-flex flex-wrap">
+                                <div v-for="view in extraViews( timespan )" :key="view.camera + '-' + view.fileName" class="cam-cell cam-cell-extra">
+                                    <div class="text-center cam-label" :title="view.fileName">{{ view.camera }}</div>
+                                    <synchronized-video :timespan="timespan" :view="view" :playbackRate="controls.speed"></synchronized-video>
+                                </div>
                             </div>
                         </div>
                         <div class="alert alert-danger error" v-show="error">
@@ -357,6 +392,26 @@
                 openBrowser: function()
                 {
                     handlers.openBrowser()
+                },
+                viewFor: function( timespan, camera )
+                {
+                    for ( var i = 0; i < timespan.views.length; i++ )
+                    {
+                        if ( timespan.views[ i ].camera === camera ) return timespan.views[ i ]
+                    }
+                },
+                labelTitle: function( timespan, camera )
+                {
+                    var v = this.viewFor( timespan, camera )
+
+                    return v ? v.fileName : ""
+                },
+                extraViews: function( timespan )
+                {
+                    return timespan.views.filter( function( v )
+                    {
+                        return CAM_GRID_ALL.indexOf( v.camera ) < 0
+                    } )
                 },
                 currentTime: function( scrub, view )
                 {
@@ -398,15 +453,37 @@
             {
                 return {
                     error: null,
-                    duration: null
+                    duration: null,
+                    camGridTop: CAM_GRID_TOP,
+                    camGridBottom: CAM_GRID_BOTTOM
                 }
             },
             template:
                 `<div>
-                    <div class="d-flex">
-                        <div v-for="view in timespan.views" class="column ml-1">
-                            <div :title="view.fileName" class="text-center">{{ view.fileName }}</div>
-                            <synchronized-video :timespan="timespan" :view="view" :playbackRate="controls.speed"></synchronized-video>
+                    <div class="cam-grid">
+                        <div class="cam-row cam-row-top">
+                            <div v-for="camera in camGridTop" :key="camera + '-top'" class="cam-cell">
+                                <div class="text-center cam-label" :title="labelTitle( timespan, camera )">{{ camera }}</div>
+                                <div class="cam-video-wrap">
+                                    <synchronized-video v-if="viewFor( timespan, camera )" :timespan="timespan" :view="viewFor( timespan, camera )" :playbackRate="controls.speed"></synchronized-video>
+                                    <div v-else class="cam-placeholder"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="cam-row cam-row-bottom">
+                            <div v-for="camera in camGridBottom" :key="camera + '-bottom'" class="cam-cell">
+                                <div class="cam-video-wrap">
+                                    <synchronized-video v-if="viewFor( timespan, camera )" :timespan="timespan" :view="viewFor( timespan, camera )" :playbackRate="controls.speed"></synchronized-video>
+                                    <div v-else class="cam-placeholder"></div>
+                                </div>
+                                <div class="text-center cam-label" :title="labelTitle( timespan, camera )">{{ camera }}</div>
+                            </div>
+                        </div>
+                        <div v-if="extraViews( timespan ).length" class="cam-row cam-row-extras d-flex flex-wrap">
+                            <div v-for="view in extraViews( timespan )" :key="view.camera + '-' + view.fileName" class="cam-cell cam-cell-extra">
+                                <div class="text-center cam-label" :title="view.fileName">{{ view.camera }}</div>
+                                <synchronized-video :timespan="timespan" :view="view" :playbackRate="controls.speed"></synchronized-video>
+                            </div>
                         </div>
                     </div>
                     <div class="alert alert-danger error" v-show="error">
@@ -420,6 +497,26 @@
                 {
                     handlers.openBrowser()
                 },
+                viewFor: function( timespan, camera )
+                {
+                    for ( var i = 0; i < timespan.views.length; i++ )
+                    {
+                        if ( timespan.views[ i ].camera === camera ) return timespan.views[ i ]
+                    }
+                },
+                labelTitle: function( timespan, camera )
+                {
+                    var v = this.viewFor( timespan, camera )
+
+                    return v ? v.fileName : ""
+                },
+                extraViews: function( timespan )
+                {
+                    return timespan.views.filter( function( v )
+                    {
+                        return CAM_GRID_ALL.indexOf( v.camera ) < 0
+                    } )
+                }
             }
         } )
     }
