@@ -207,10 +207,10 @@
 
       var vueApp = ui.initialize(
         {
-          openFolders: success => success(ipcRenderer.sendSync("openFolders")),
-          reopenFolders: success => success(ipcRenderer.sendSync("reopenFolders")),
-          openFolder: (p, success) => success(ipcRenderer.sendSync("openFolder", p)),
-          getFiles: (p, success) => success(ipcRenderer.sendSync("getFiles", p)),
+          openFolders: success => ipcRenderer.invoke("openFolders").then(success),
+          reopenFolders: success => ipcRenderer.invoke("reopenFolders").then(success),
+          openFolder: (p, success) => ipcRenderer.invoke("openFolder", p).then(success),
+          getFiles: (p, success) => ipcRenderer.invoke("getFiles", p).then(success),
           openBrowser: () => ipcRenderer.send("openBrowser"),
           deleteFiles: files => ipcRenderer.send("deleteFiles", files),
           deleteFolder: folder => ipcRenderer.send("deleteFolder", folder),

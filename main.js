@@ -6,13 +6,28 @@ const { autoUpdater } = require( "electron-updater" )
 const settings = require( "electron-settings" )
 const fs = require( "fs" )
 const path = require( "path" )
-const express = require( "express" )
 
-autoUpdater.checkForUpdatesAndNotify()
+if ( app.isPackaged )
+{
+	autoUpdater.checkForUpdatesAndNotify()
+}
 
-// Keep a global reference of the window object, if you don't, the window will
+// Keep a global reference to the window object, if you don't, the window will
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow
+let backendInitialized = false
+
+function selectFolders( webContents )
+{
+	const folders = dialog.showOpenDialogSync( { properties: [ "openDirectory" ] } )
+
+	if ( !folders || folders.length < 1 ) return
+
+	settings.set( "folders", folders )
+	services.openFolders( folders )
+
+	if ( webContents && !webContents.isDestroyed() ) webContents.reload()
+}
 
 function createWindow()
 {
@@ -23,7 +38,8 @@ function createWindow()
 		height: 700,
 		webPreferences:
 		{
-			nodeIntegration: true
+			nodeIntegration: true,
+			contextIsolation: false
 		}
 	} )
 
@@ -47,10 +63,7 @@ function createWindow()
 	initialize()
 }
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
-app.on( "ready", createWindow )
+app.whenReady().then( createWindow )
 
 // Quit when all windows are closed.
 app.on( "window-all-closed", function ()
@@ -94,7 +107,7 @@ function initialize()
 				services.setFolder( "" )
 			}
 		});
-	} 
+	}
 	else
 	{
 		services.setFolder( "" )
@@ -110,18 +123,9 @@ function initialize()
 
 	function open()
 	{
-		var folders = dialog.showOpenDialog( { properties: [ "openDirectory" ] } )
+		const folders = dialog.showOpenDialogSync( { properties: [ "openDirectory" ] } )
 
-		if ( folders ) settings.set( "folders", folders )
-
-		return openFolders( folders )
-	}
-
-	services.initializeExpress( port )
-
-	function open()
-	{
-		var folders = dialog.showOpenDialog( { properties: [ "openDirectory" ] } )
+		if ( folders && folders.length > 0 ) settings.set( "folders", folders )
 
 		return services.openFolders( folders )
 	}
@@ -132,15 +136,22 @@ function initialize()
 		shell.openExternal( `http://localhost:${port}` )
 	}
 
-	ipcMain.on( "args", event => event.returnValue = services.args() )
-	ipcMain.on( "openFolders", event => event.returnValue = open() )
-	ipcMain.on( "reopenFolders", event => event.returnValue = services.reopenFolders() )
-	ipcMain.on( "openFolder", ( event, folder ) => event.returnValue = setFolder( services.openFolder( folder ) ) )
-	ipcMain.on( "getFiles", ( event, p ) => event.returnValue = services.getFiles( p, f => path.join( services.args().folder, f ) ) )
-	ipcMain.on( "openBrowser", event => browse() )
-	ipcMain.on( "deleteFiles", ( event, files ) => services.deleteFiles( files ) )
-	ipcMain.on( "copyFilePaths", ( event, filePaths ) => clipboard.writeText( services.copyFilePaths( filePaths ) ) )
-	ipcMain.on( "deleteFolder", ( event, folder ) => services.deleteFolder( folder ) )
-	ipcMain.on( "copyPath", ( event, p ) => clipboard.writeText( services.copyPath( p ) ) )
-	ipcMain.on( "openExternal", ( event, p ) => shell.showItemInFolder( p ) )
+	if ( !backendInitialized )
+	{
+		services.initializeExpress( port )
+
+		ipcMain.handle( "openFolders", () => open() )
+		ipcMain.handle( "reopenFolders", () => services.reopenFolders() )
+		ipcMain.handle( "openFolder", ( _event, folder ) => setFolder( services.openFolder( folder ) ) )
+		ipcMain.handle( "getFiles", ( _event, p ) => services.getFiles( p, f => path.join( services.args().folder, f ) ) )
+
+		ipcMain.on( "openBrowser", () => browse() )
+		ipcMain.on( "deleteFiles", ( _event, files ) => services.deleteFiles( files ) )
+		ipcMain.on( "copyFilePaths", ( _event, filePaths ) => clipboard.writeText( services.copyFilePaths( filePaths ) ) )
+		ipcMain.on( "deleteFolder", ( _event, folder ) => services.deleteFolder( folder ) )
+		ipcMain.on( "copyPath", ( _event, p ) => clipboard.writeText( services.copyPath( p ) ) )
+		ipcMain.on( "openExternal", ( _event, p ) => shell.showItemInFolder( p ) )
+
+		backendInitialized = true
+	}
 }

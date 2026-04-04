@@ -20,6 +20,9 @@
   ],
   "author": "Chris Cavanagh <teslacam@chriscavanagh.com>",
   "license": "CC0-1.0",
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "build": {
     "appId": "cjc-teslacam-browser",
     "publish": [
@@ -57,26 +60,20 @@
     }
   },
   "devDependencies": {
-    "@popperjs/core": "^2.1.0",
-    "bootstrap-vue": "^2.6.1",
-    "electron": "^9.4.0",
-    "electron-builder": "^22.4.0",
-    "mime": "^2.4.4"
+    "electron": "^41.0.0",
+    "electron-builder": "^26.8.2"
   },
   "dependencies": {
-    "bootstrap": "^4.4.1",
-    "buffer-alloc-unsafe": "^1.1.0",
+    "bootstrap": "^4.6.2",
     "electron-settings": "^3.2.0",
-    "electron-updater": "^4.2.4",
-    "express": "^4.17.1",
-    "flatpickr": "^4.6.3",
-    "jquery": "^3.3.1",
+    "electron-updater": "^6.8.3",
+    "express": "^4.22.1",
+    "flatpickr": "^4.6.13",
+    "jquery": "^3.7.1",
     "open-iconic": "^1.1.1",
     "popper.js": "^1.16.1",
-    "rimraf": "^3.0.2",
-    "serve-index": "^1.9.1",
-    "vue": "^2.6.11",
-    "yarn": "^1.22.4"
+    "serve-index": "^1.9.2",
+    "vue": "^2.7.16"
   },
   "postinstall": "electron-builder install-app-deps"
 }
