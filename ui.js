@@ -104,7 +104,6 @@
                             currentTime: 0,
                             duration: null,
                             ended: false,
-                            loaded: false,
                             views: views
                         }
                     }
@@ -198,13 +197,21 @@
                 {
                     if ( !this.timespans || this.timespans.length < 1 ) return 0
 
-                    var loading = this.timespans.filter( t => !t.loaded )
+                    var pending = this.timespans.filter( function( t )
+                    {
+                        return !( t.duration != null && isFinite( t.duration ) && t.duration > 0 )
+                    } )
 
-                    this.loading = ( loading.length > 0 )
-                        ? Math.round( ( 1.0 - ( loading.length / this.timespans.length ) ) * 100 )
+                    this.loading = ( pending.length > 0 )
+                        ? Math.round( ( 1.0 - ( pending.length / this.timespans.length ) ) * 100 )
                         : null
 
-                    return this.timespans.reduce( ( t, ts ) => t + ts.duration, 0 )
+                    return this.timespans.reduce( function( t, ts )
+                    {
+                        var d = ts.duration
+
+                        return t + ( ( d != null && isFinite( d ) ) ? d : 0 )
+                    }, 0 )
                 },
                 currentTime:
                 {
@@ -485,8 +492,8 @@
             },
             template:
                 `<div>
-                    <div v-for="timespan in timespans" v-show="timespan === controls.timespan">
-                        <div class="cam-grid">
+                    <div v-for="timespan in timespans" :key="timespan.title">
+                        <div v-if="timespan === controls.timespan" class="cam-grid">
                             <div class="cam-row cam-row-top">
                                 <div v-for="camera in camGridTop" :key="camera + '-top'" class="cam-cell">
                                     <div class="text-center cam-label" :title="labelTitle( timespan, camera )">{{ camera }}</div>
@@ -512,7 +519,18 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="alert alert-danger error" v-show="error">
+                        <video v-else-if="metadataProbeView( timespan )"
+                            :src="metadataProbeView( timespan ).file"
+                            preload="metadata"
+                            muted
+                            playsinline
+                            crossorigin="anonymous"
+                            tabindex="-1"
+                            aria-hidden="true"
+                            style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;clip:rect(0,0,0,0)"
+                            @durationchange="inactiveTimespanDuration( timespan, $event )"
+                        ></video>
+                        <div class="alert alert-danger error" v-if="timespan === controls.timespan" v-show="error">
                             <div>{{ error }}</div>
                             <div @click="openBrowser" style="cursor: pointer;">Try external browser</div>
                         </div>
@@ -556,6 +574,24 @@
                     {
                         return CAM_GRID_ALL.indexOf( v.camera ) < 0
                     } )
+                },
+                metadataProbeView: function( timespan )
+                {
+                    var v = this.viewFor( timespan, "front" )
+
+                    if ( v ) return v
+
+                    if ( timespan.views && timespan.views.length > 0 ) return timespan.views[ 0 ]
+
+                    return null
+                },
+                inactiveTimespanDuration: function( timespan, event )
+                {
+                    var video = event.target
+
+                    if ( !video.duration || !isFinite( video.duration ) ) return
+
+                    timespan.duration = Math.max( timespan.duration || 0, video.duration )
                 },
                 currentTime: function( scrub, view )
                 {
@@ -679,7 +715,7 @@
                 }
             },
             template:
-                `<video ref="video" class="video" :class="view.camera" :src="view.file" :autoplay="timespan.playing" :playbackRate.prop="playbackRate" crossorigin="anonymous" @durationchange="durationChanged" @timeupdate="timeChanged" @ended="ended" title="Open in file explorer" @click="openExternal" @canplaythrough="loaded" playsinline></video>`,
+                `<video ref="video" class="video" :class="view.camera" :src="view.file" :autoplay="timespan.playing" :playbackRate.prop="playbackRate" crossorigin="anonymous" preload="auto" @durationchange="durationChanged" @timeupdate="timeChanged" @ended="ended" title="Open in file explorer" @click="openExternal" playsinline></video>`,
             watch:
             {
                 "timespan.playing":
@@ -765,11 +801,7 @@
                 {
                     var video = event.target
 
-                    this.timespan.duration = Math.max( this.timespan.duration, video.duration )
-                },
-                loaded: function( event )
-                {
-                    this.timespan.loaded = true
+                    this.timespan.duration = Math.max( this.timespan.duration || 0, video.duration )
                 },
                 timeChanged: function( event )
                 {
