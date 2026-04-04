@@ -24,7 +24,18 @@
 
 	function reopenFolders()
 	{
-		return lastArgs ? openFolders( lastArgs.folders ) : lastArgs
+		if ( !lastArgs ) return lastArgs
+
+		if ( lastArgs.folders && lastArgs.folders.length > 0 )
+			return openFolders( lastArgs.folders )
+
+		if ( lastArgs.folder )
+		{
+			Object.assign( lastArgs, openFolder( lastArgs.folder ) )
+			return lastArgs
+		}
+
+		return lastArgs
 	}
 
 	function openFolders( folders )
@@ -82,10 +93,17 @@
 
 	function deleteFolder( folder )
 	{
-		var folderPath = path.join( lastArgs.folders[ 0 ], folder )
+		if ( !lastArgs.folder || typeof folder !== "string" || !folder.length )
+		{
+			console.log( `deleteFolder: invalid root or relative path (root=${lastArgs.folder}, folder=${folder})` )
+			return false
+		}
+
+		var folderPath = path.join( lastArgs.folder, folder )
 		var files = fs.readdirSync( folderPath )
 
 		deleteFiles( files.map( f => path.join( folderPath, f ) ) )
+		return true
 	}
 
 	function copyFilePaths( filePaths )
@@ -245,8 +263,47 @@
         expressApp.use( "/copyPath", ( request, response ) => response.send( copyPath( decodeURIComponent( request.path ) ) ) )
         expressApp.use( "/files", ( request, response ) => response.send( getFiles( decodeURIComponent( request.path ), p => "videos/" + p ) ) )
 
-        expressApp.post( "/deleteFiles", ( request, response ) => deleteFiles( request.body ) )
-        expressApp.post( "/deleteFolder", ( request, response ) => deleteFolder( request.body ) )
+        expressApp.use( express.json( { limit: "1mb" } ) )
+
+        expressApp.post( "/deleteFiles", ( request, response ) =>
+        {
+            var paths = request.body && request.body.paths
+
+            if ( !Array.isArray( paths ) )
+                return response.status( 400 ).send( "Expected JSON object { paths: string[] }" )
+
+            try
+            {
+                deleteFiles( paths )
+                response.sendStatus( 200 )
+            }
+            catch ( e )
+            {
+                console.log( e )
+                response.status( 500 ).send( String( e ) )
+            }
+        } )
+
+        expressApp.post( "/deleteFolder", ( request, response ) =>
+        {
+            var rel = request.body && request.body.path
+
+            if ( typeof rel !== "string" || !rel.length )
+                return response.status( 400 ).send( "Expected JSON object { path: string }" )
+
+            try
+            {
+                if ( !deleteFolder( rel ) )
+                    return response.status( 400 ).send( "No root folder open or invalid path" )
+
+                response.sendStatus( 200 )
+            }
+            catch ( e )
+            {
+                console.log( e )
+                response.status( 500 ).send( String( e ) )
+            }
+        } )
 
         expressApp.use( "/content", express.static( __dirname ) )
         expressApp.use( "/node_modules", express.static( __dirname + "/node_modules" ) )

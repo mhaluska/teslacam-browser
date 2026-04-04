@@ -286,7 +286,7 @@
                     if ( confirm( `Are you sure you want to delete ${files.length} files from ${timespan.title}?` ) )
                     {
                         handlers.deleteFiles( files )
-                        handlers.reopenFolder( this.loaded )
+                        handlers.reopenFolders( this.loaded )
                     }
                 },
                 copyFilePaths: function( timespan )
@@ -302,7 +302,7 @@
                     if ( confirm( `Are you sure you want to delete ${folder}?` ) )
                     {
                         handlers.deleteFolder( folder )
-                        handlers.reopenFolder( this.loaded )
+                        handlers.reopenFolders( this.loaded )
                     }
                 },
                 copyPath: function( path )

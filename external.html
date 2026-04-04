@@ -229,6 +229,16 @@
         $temp.remove();
       }
 
+      function postJson( url, body )
+      {
+        return fetch( url,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify( body )
+          } )
+      }
+
       var vueApp = ui.initialize(
         {
           openFolders: success => $.getJSON("openFolders", success),
@@ -236,8 +246,8 @@
           openFolder: (p, success) => $.getJSON( p ? "openFolder" + p : "openDefaultFolder", a => success( lastArgs = a ) ),
           getFiles: (p, success) => $.getJSON("files/" + p, success),
           openBrowser: () => $.post("openBrowser"),
-          deleteFiles: files => $.post("deleteFiles", files),
-          deleteFolder: folder => $.post("deleteFolder", folder),
+          deleteFiles: files => postJson( "/deleteFiles", { paths: files } ),
+          deleteFolder: folder => postJson( "/deleteFolder", { path: folder } ),
           copyFilePaths: filePaths => copyToClipboard( joinFilePaths( filePaths ) ),
           copyPath: path => copyToClipboard( joinFolderPath( path ) ),
           openExternal: path => window.open(path)
