@@ -48,20 +48,17 @@
             </div>
           </div>
 
-          <div class="p-2 donate mt-2">
-            <div class="d-flex flex-row-reverse">
-              <form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_blank">
-                <input type="hidden" name="cmd" value="_donations" />
-                <input type="hidden" name="business" value="32J86B5QYPD6Y" />
-                <input type="hidden" name="currency_code" value="USD" />
-                <input type="image" src="https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif" border="0"
-                  name="submit" title="PayPal - The safer, easier way to pay online!" alt="Donate with PayPal button" />
-                <img alt="" border="0" src="https://www.paypal.com/en_US/i/scr/pixel.gif" width="1" height="1" />
-              </form>
-            </div>
-            <div class="d-flex flex-row custom-control custom-switch mr-2">
-              <input type="checkbox" v-model="combineClips" class="custom-control-input" id="combineClips">
-              <label class="custom-control-label" for="combineClips">Combine clips</label>
+          <div class="p-2 theme-toolbar mt-2">
+            <div class="d-flex align-items-center justify-content-between">
+              <div class="custom-control custom-switch pr-2">
+                <input type="checkbox" v-model="combineClips" class="custom-control-input" id="combineClips">
+                <label class="custom-control-label" for="combineClips">Combine clips</label>
+              </div>
+              <button type="button" class="btn btn-outline-secondary theme-cycle-btn flex-shrink-0"
+                @click.prevent="cycleThemePreference" :title="themeCycleTitle">
+                <span :class="themeCycleIconClass" aria-hidden="true"></span>
+                <span class="sr-only">{{ themeCycleTitle }}</span>
+              </button>
             </div>
           </div>
 
@@ -234,7 +231,9 @@
           deleteFolder: folder => ipcRenderer.send("deleteFolder", folder),
           copyFilePaths: filePaths => ipcRenderer.send("copyFilePaths", filePaths),
           copyPath: path => ipcRenderer.send("copyPath", path),
-          openExternal: path => ipcRenderer.send("openExternal", path)
+          openExternal: path => ipcRenderer.send("openExternal", path),
+          getThemePreference: success => ipcRenderer.invoke("getThemePreference").then(success),
+          setThemePreference: (mode, success) => ipcRenderer.invoke("setThemePreference", mode).then(() => { if (success) success() })
         } )
     })();
 

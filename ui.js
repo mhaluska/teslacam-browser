@@ -9,6 +9,13 @@
     var CAM_GRID_BOTTOM = [ "right_repeater", "back", "left_repeater" ]
     var CAM_GRID_ALL = CAM_GRID_TOP.concat( CAM_GRID_BOTTOM )
 
+    function normalizeThemePreference( p )
+    {
+        if ( p === "light" || p === "dark" || p === "system" ) return p
+
+        return "system"
+    }
+
     function createVueApp( handlers )
     {
         var args = { version: null };
@@ -39,7 +46,8 @@
                     speed: 1
                 },
                 playing: null,
-                loading: null
+                loading: null,
+                themePreference: "system"
             },
             watch:
             {
@@ -256,10 +264,90 @@
                     if ( !isFinite( lat ) || !isFinite( lon ) ) return ""
 
                     return "https://www.openstreetmap.org/?mlat=" + lat + "&mlon=" + lon + "#map=17/" + lat + "/" + lon
+                },
+                themeCycleIconClass: function()
+                {
+                    if ( this.themePreference === "light" ) return "oi oi-sun"
+                    if ( this.themePreference === "dark" ) return "oi oi-moon"
+
+                    return "oi oi-monitor"
+                },
+                themeCycleTitle: function()
+                {
+                    if ( this.themePreference === "system" ) return "Theme: System — click for Light"
+                    if ( this.themePreference === "light" ) return "Theme: Light — click for Dark"
+
+                    return "Theme: Dark — click for System"
+                }
+            },
+            mounted: function()
+            {
+                var self = this
+
+                self._systemMq = window.matchMedia( "(prefers-color-scheme: dark)" )
+                self._systemThemeListener = function()
+                {
+                    if ( self.themePreference === "system" ) self.applyDocumentTheme()
+                }
+
+                if ( self._systemMq.addEventListener ) self._systemMq.addEventListener( "change", self._systemThemeListener )
+                else if ( self._systemMq.addListener ) self._systemMq.addListener( self._systemThemeListener )
+
+                function applyLoaded( pref )
+                {
+                    self.themePreference = normalizeThemePreference( pref )
+                    self.applyDocumentTheme()
+                }
+
+                if ( handlers.getThemePreference ) handlers.getThemePreference( applyLoaded )
+                else applyLoaded( "system" )
+            },
+            beforeDestroy: function()
+            {
+                var self = this
+
+                if ( self._systemMq && self._systemThemeListener )
+                {
+                    if ( self._systemMq.removeEventListener ) self._systemMq.removeEventListener( "change", self._systemThemeListener )
+                    else if ( self._systemMq.removeListener ) self._systemMq.removeListener( self._systemThemeListener )
                 }
             },
             methods:
             {
+                effectiveTheme: function()
+                {
+                    if ( this.themePreference === "light" ) return "light"
+                    if ( this.themePreference === "dark" ) return "dark"
+
+                    return this._systemMq && this._systemMq.matches ? "dark" : "light"
+                },
+                applyDocumentTheme: function()
+                {
+                    document.documentElement.setAttribute( "data-theme", this.effectiveTheme() )
+                },
+                setThemePreference: function( mode )
+                {
+                    var self = this
+                    var m = normalizeThemePreference( mode )
+
+                    function done()
+                    {
+                        self.themePreference = m
+                        self.applyDocumentTheme()
+                    }
+
+                    if ( handlers.setThemePreference ) handlers.setThemePreference( m, done )
+                    else done()
+                },
+                cycleThemePreference: function()
+                {
+                    var order = [ "system", "light", "dark" ]
+                    var i = order.indexOf( this.themePreference )
+
+                    if ( i < 0 ) i = 0
+
+                    this.setThemePreference( order[ ( i + 1 ) % order.length ] )
+                },
                 formatEventReason: function( reason )
                 {
                     if ( reason == null || reason === "" ) return "—"

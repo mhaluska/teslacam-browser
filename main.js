@@ -1,5 +1,5 @@
 // Modules to control application life and create native browser window
-const { app, BrowserWindow, dialog, ipcMain, shell, clipboard } = require( "electron" )
+const { app, BrowserWindow, dialog, ipcMain, shell, clipboard, nativeTheme } = require( "electron" )
 const menu = require( "./menu" )
 const services = require( "./services" )
 const { autoUpdater } = require( "electron-updater" )
@@ -16,6 +16,22 @@ if ( app.isPackaged )
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow
 let backendInitialized = false
+
+function normalizeThemePreference( p )
+{
+	if ( p === "light" || p === "dark" || p === "system" ) return p
+
+	return "system"
+}
+
+function syncNativeThemeSource( preference )
+{
+	var p = normalizeThemePreference( preference )
+
+	if ( p === "light" ) nativeTheme.themeSource = "light"
+	else if ( p === "dark" ) nativeTheme.themeSource = "dark"
+	else nativeTheme.themeSource = "system"
+}
 
 function selectFolders( webContents )
 {
@@ -145,6 +161,19 @@ function initialize()
 		ipcMain.handle( "openFolder", ( _event, folder ) => setFolder( services.openFolder( folder ) ) )
 		ipcMain.handle( "getFiles", ( _event, p ) => services.getFiles( p, f => path.join( services.args().folder, f ) ) )
 		ipcMain.handle( "readEventJson", ( _event, p ) => services.readEventJson( p ) )
+
+		ipcMain.handle( "getThemePreference", () => normalizeThemePreference( settings.get( "themePreference" ) ) )
+		ipcMain.handle( "setThemePreference", ( _event, mode ) =>
+		{
+			var m = normalizeThemePreference( mode )
+
+			settings.set( "themePreference", m )
+			syncNativeThemeSource( m )
+
+			return m
+		} )
+
+		syncNativeThemeSource( normalizeThemePreference( settings.get( "themePreference" ) ) )
 
 		ipcMain.on( "openBrowser", () => browse() )
 		ipcMain.on( "deleteFiles", ( _event, files ) => services.deleteFiles( files ) )
