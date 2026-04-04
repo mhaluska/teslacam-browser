@@ -162,6 +162,8 @@ function initialize()
 		ipcMain.handle( "getFiles", ( _event, p ) => services.getFiles( p, f => path.join( services.args().folder, f ) ) )
 		ipcMain.handle( "readEventJson", ( _event, p ) => services.readEventJson( p ) )
 
+		ipcMain.handle( "getClipTelemetry", ( _event, p ) => services.readClipTelemetry( p ) )
+
 		ipcMain.handle( "getThemePreference", () => normalizeThemePreference( settings.get( "themePreference" ) ) )
 		ipcMain.handle( "setThemePreference", ( _event, mode ) =>
 		{

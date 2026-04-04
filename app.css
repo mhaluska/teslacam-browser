@@ -497,3 +497,156 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
 	/* HACK: fix the custom scrub bar slow expansion in Edge */
 	width: 98% !important;
 }
+
+/* Front camera SEI dashboard overlay */
+#detail .timespan .videoContainer .tc-cam-stack
+{
+  position: relative;
+  width: 100%;
+}
+
+.tc-dash-overlay
+{
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0.35rem;
+  z-index: 2;
+  pointer-events: none;
+  display: flex;
+  justify-content: center;
+  padding: 0 0.25rem;
+}
+
+.tc-dash-msg
+{
+  background: rgba( 74, 85, 85, 0.88 );
+  color: #fff;
+  padding: 0.35rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.tc-dash-err
+{
+  color: #ffb4b4;
+}
+
+.tc-dash-cluster
+{
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: min( 100%, 22rem );
+  max-width: 100%;
+  padding: 0.4rem 0.65rem;
+  background: rgba( 74, 85, 85, 0.88 );
+  border-radius: 0.65rem;
+  color: rgba( 255, 255, 255, 0.55 );
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.tc-dash-col
+{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 2.5rem;
+}
+
+.tc-dash-col-center
+{
+  flex: 1;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.tc-dash-gear
+{
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+}
+
+.tc-speed-block
+{
+  text-align: center;
+  color: #fff;
+}
+
+.tc-speed-val
+{
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.tc-speed-unit
+{
+  font-size: 0.65rem;
+  font-weight: 400;
+  opacity: 0.9;
+}
+
+.tc-arrow
+{
+  width: 1.1rem;
+  height: 1.1rem;
+  flex-shrink: 0;
+}
+
+.tc-arrow.on
+{
+  color: #fff;
+}
+
+.tc-ico-pedal
+{
+  width: 1.4rem;
+  height: 1.75rem;
+  color: rgba( 255, 255, 255, 0.35 );
+}
+
+.tc-ico-pedal.on
+{
+  color: #fff;
+}
+
+.tc-ico-wheel
+{
+  width: 1.6rem;
+  height: 1.6rem;
+  color: rgba( 255, 255, 255, 0.35 );
+}
+
+.tc-ico-wheel.on
+{
+  color: #fff;
+}
+
+.tc-throttle
+{
+  position: relative;
+  width: 1.25rem;
+  height: 2rem;
+  border: 2px solid rgba( 255, 255, 255, 0.35 );
+  border-radius: 0.25rem;
+  overflow: hidden;
+  margin-top: 0.15rem;
+}
+
+.tc-throttle-fill
+{
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient( to top, #2b8a3e, #69db7c );
+  transition: height 0.08s linear;
+}
+

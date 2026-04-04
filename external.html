@@ -262,6 +262,7 @@
           openFolder: (p, success) => $.getJSON( p ? "openFolder" + p : "openDefaultFolder", a => success( lastArgs = a ) ),
           getFiles: (p, success) => $.getJSON("files/" + p, success),
           readEventJson: (p, success) => $.getJSON("eventJson/" + p).done(data => success(data)).fail(() => success(null)),
+          getClipTelemetry: (p, success) => $.getJSON("clipTelemetry/" + encodeURI(p)).done(data => success(data)).fail(() => success({ success: false, error: "request_failed", samples: [] })),
           openBrowser: () => $.post("openBrowser"),
           deleteFiles: files => postJson( "/deleteFiles", { paths: files } ),
           deleteFolder: folder => postJson( "/deleteFolder", { path: folder } ),

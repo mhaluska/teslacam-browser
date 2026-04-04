@@ -226,6 +226,7 @@
           openFolder: (p, success) => ipcRenderer.invoke("openFolder", p).then(success),
           getFiles: (p, success) => ipcRenderer.invoke("getFiles", p).then(success),
           readEventJson: (p, success) => ipcRenderer.invoke("readEventJson", p).then(success).catch(() => success(null)),
+          getClipTelemetry: (p, success) => ipcRenderer.invoke("getClipTelemetry", p).then(success).catch(e => success({ success: false, error: String(e.message || e), samples: [] })),
           openBrowser: () => ipcRenderer.send("openBrowser"),
           deleteFiles: files => ipcRenderer.send("deleteFiles", files),
           deleteFolder: folder => ipcRenderer.send("deleteFolder", folder),

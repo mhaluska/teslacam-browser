@@ -9,6 +9,98 @@
     var CAM_GRID_BOTTOM = [ "right_repeater", "back", "left_repeater" ]
     var CAM_GRID_ALL = CAM_GRID_TOP.concat( CAM_GRID_BOTTOM )
 
+    /** Below this (km/h), treat as standstill for the overlay. CAN creep / wheel noise often reads ~2–10 km/h while parked; SavedClips can mix driving + stationary in one file. */
+    var TELEMETRY_STANDSTILL_MAX_KMH = 15
+
+    /** Seconds — camera durations differ slightly per file; only the longest track(s) should drive timespan.currentTime. */
+    var DURATION_MATCH_EPSILON_SEC = 0.03
+
+    /** Map video currentTime to two SEI samples + blend factor (uses tSec from server when present). */
+    function pickSeiInterpolationBracket( samples, t, dur )
+    {
+        var n = samples.length
+
+        if ( !n ) return null
+
+        if ( n === 1 ) return { cur: samples[ 0 ], next: samples[ 0 ], alpha: 0 }
+
+        if ( samples[ 0 ].tSec != null && samples[ n - 1 ].tSec != null && isFinite( samples[ 0 ].tSec ) )
+        {
+            if ( typeof t !== "number" || !isFinite( t ) || t < 0 ) t = 0
+
+            if ( t <= samples[ 0 ].tSec ) return { cur: samples[ 0 ], next: samples[ 0 ], alpha: 0 }
+
+            if ( t >= samples[ n - 1 ].tSec ) return { cur: samples[ n - 1 ], next: samples[ n - 1 ], alpha: 0 }
+
+            var lo = 0
+            var hi = n - 1
+
+            while ( lo < hi - 1 )
+            {
+                var mid = ( lo + hi ) >> 1
+
+                if ( samples[ mid ].tSec <= t ) lo = mid
+                else hi = mid
+            }
+
+            var cur = samples[ lo ]
+            var next = samples[ lo + 1 ]
+            var denom = next.tSec - cur.tSec
+            var alpha = denom > 0 ? ( t - cur.tSec ) / denom : 0
+
+            return { cur: cur, next: next, alpha: Math.max( 0, Math.min( 1, alpha ) ) }
+        }
+
+        if ( !dur || dur <= 0 || !isFinite( dur ) ) return { cur: samples[ 0 ], next: samples[ 0 ], alpha: 0 }
+
+        var u = Math.max( 0, Math.min( 1, t / dur ) )
+        var f = u * ( n - 1 )
+        var i0 = Math.floor( f )
+        var i1 = Math.min( n - 1, i0 + 1 )
+        var alpha = f - i0
+
+        return { cur: samples[ i0 ], next: samples[ i1 ], alpha: alpha }
+    }
+
+    function blendDashSamples( cur, next, alpha )
+    {
+        function lerpNum( a, b, al )
+        {
+            if ( a == null && b == null ) return null
+
+            if ( a == null ) return b
+
+            if ( b == null ) return a
+
+            return a * ( 1 - al ) + b * al
+        }
+
+        var speedBlended = lerpNum( cur.speedKmh, next.speedKmh, alpha )
+        var pedalBlended = lerpNum( cur.acceleratorPedal, next.acceleratorPedal, alpha )
+        var spd = speedBlended != null ? Math.round( speedBlended ) : null
+        var pedal = pedalBlended != null ? Math.max( 0, Math.min( 1, pedalBlended ) ) : null
+        var gr = cur.gear
+
+        if ( speedBlended != null && Math.abs( speedBlended ) < TELEMETRY_STANDSTILL_MAX_KMH )
+        {
+            spd = 0
+            pedal = 0
+
+            if ( gr === "D" ) gr = "P"
+        }
+
+        return {
+            gear: gr,
+            speedKmh: spd,
+            acceleratorPedal: pedal,
+            blinkerLeft: cur.blinkerLeft,
+            blinkerRight: cur.blinkerRight,
+            brakeApplied: cur.brakeApplied,
+            autopilot: cur.autopilot,
+            steeringWheelAngle: cur.steeringWheelAngle
+        }
+    }
+
     function normalizeThemePreference( p )
     {
         if ( p === "light" || p === "dark" || p === "system" ) return p
@@ -711,13 +803,87 @@
                 return {
                     error: null,
                     duration: null,
-                    timeout: null
+                    timeout: null,
+                    telemetryStatus: "idle",
+                    telemetrySamples: [],
+                    telemetryError: null,
+                    telemetryReqId: 0,
+                    overlayVideoTime: 0,
+                    overlayVideoDuration: 0
                 }
             },
             template:
-                `<video ref="video" class="video" :class="view.camera" :src="view.file" :autoplay="timespan.playing" :playbackRate.prop="playbackRate" crossorigin="anonymous" preload="auto" @durationchange="durationChanged" @timeupdate="timeChanged" @ended="ended" title="Open in file explorer" @click="openExternal" playsinline></video>`,
+                `<div :class="[ 'tc-cam-stack', view.camera === 'front' ? 'tc-cam-front' : '' ]">
+                    <div v-if="view.camera === 'front'" class="tc-dash-overlay" aria-hidden="true">
+                        <div v-if="telemetryStatus === 'loading'" class="tc-dash-msg">Loading telemetry…</div>
+                        <div v-else-if="telemetryStatus === 'error'" class="tc-dash-msg tc-dash-err">{{ telemetryError }}</div>
+                        <div v-else-if="telemetryStatus === 'empty'" class="tc-dash-msg">No telemetry in this clip</div>
+                        <div v-else-if="telemetryStatus === 'ready' && dashDisplay" class="tc-dash-cluster">
+                            <div class="tc-dash-col tc-dash-col-left">
+                                <div class="tc-dash-gear">{{ dashDisplay.gear || "—" }}</div>
+                                <svg class="tc-ico-pedal tc-ico-brake" :class="{ on: dashDisplay.brakeApplied }" viewBox="0 0 32 40" aria-hidden="true">
+                                    <rect x="6" y="4" width="20" height="32" rx="5" fill="none" stroke="currentColor" stroke-width="2"/>
+                                    <line x1="9" y1="12" x2="23" y2="12" stroke="currentColor" stroke-width="2"/>
+                                    <line x1="9" y1="18" x2="23" y2="18" stroke="currentColor" stroke-width="2"/>
+                                    <line x1="9" y1="24" x2="23" y2="24" stroke="currentColor" stroke-width="2"/>
+                                </svg>
+                            </div>
+                            <div class="tc-dash-col tc-dash-col-center">
+                                <svg class="tc-arrow" :class="{ on: dashDisplay.blinkerLeft }" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M15 6l-6 6 6 6V6z"/></svg>
+                                <div class="tc-speed-block">
+                                    <div class="tc-speed-val">{{ dashDisplay.speedKmh != null ? dashDisplay.speedKmh : "—" }}</div>
+                                    <div class="tc-speed-unit">km/h</div>
+                                </div>
+                                <svg class="tc-arrow" :class="{ on: dashDisplay.blinkerRight }" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M9 6l6 6-6 6V6z"/></svg>
+                            </div>
+                            <div class="tc-dash-col tc-dash-col-right">
+                                <svg class="tc-ico-wheel" :class="{ on: dashDisplay.autopilot && dashDisplay.autopilot !== 'NONE' }" viewBox="0 0 40 40" aria-hidden="true">
+                                    <circle cx="20" cy="20" r="14" fill="none" stroke="currentColor" stroke-width="2"/>
+                                    <line x1="20" y1="20" x2="20" y2="10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                </svg>
+                                <div class="tc-throttle" title="Accelerator">
+                                    <div class="tc-throttle-fill" :style="{ height: throttleFillPct + '%' }"></div>
+
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <video ref="video" class="video" :class="view.camera" :src="view.file" :autoplay="timespan.playing" :playbackRate.prop="playbackRate" crossorigin="anonymous" preload="auto" @durationchange="durationChanged" @timeupdate="timeChanged" @ended="ended" title="Open in file explorer" @click="openExternal" playsinline></video>
+                </div>`,
+            computed:
+            {
+                dashDisplay: function()
+                {
+                    if ( this.telemetryStatus !== "ready" || !this.telemetrySamples.length ) return null
+
+                    var br = pickSeiInterpolationBracket(
+                        this.telemetrySamples,
+                        this.overlayVideoTime,
+                        this.overlayVideoDuration )
+
+                    if ( !br ) return null
+
+                    return blendDashSamples( br.cur, br.next, br.alpha )
+                },
+                throttleFillPct: function()
+                {
+                    var d = this.dashDisplay
+
+                    if ( !d || d.acceleratorPedal == null ) return 0
+
+                    return Math.round( Math.max( 0, Math.min( 1, d.acceleratorPedal ) ) * 100 )
+                }
+            },
+            mounted: function()
+            {
+                if ( this.view.camera === "front" ) this.fetchFrontTelemetry()
+            },
             watch:
             {
+                "view.filePath": function()
+                {
+                    if ( this.view.camera === "front" ) this.fetchFrontTelemetry()
+                },
                 "timespan.playing":
                 {
                     handler: function( playing, oldPlaying )
@@ -791,23 +957,77 @@
                                 video.style.opacity = 1.0
                             }
                             else video.style.opacity = 0.3
+
+                            this.syncOverlayClock()
                         }
                     }
                 }
             },
             methods:
             {
+                fetchFrontTelemetry: function()
+                {
+                    if ( this.view.camera !== "front" || !handlers.getClipTelemetry ) return
+
+                    var self = this
+                    var token = ++this.telemetryReqId
+
+                    this.telemetryStatus = "loading"
+                    this.telemetrySamples = []
+                    this.telemetryError = null
+
+                    handlers.getClipTelemetry( this.view.filePath, function( res )
+                    {
+                        if ( token !== self.telemetryReqId ) return
+
+                        if ( !res || !res.success )
+                        {
+                            self.telemetryStatus = "error"
+                            self.telemetryError = res && res.error ? res.error : "failed"
+
+                            return
+                        }
+
+                        if ( !res.samples || !res.samples.length )
+                        {
+                            self.telemetryStatus = "empty"
+
+                            return
+                        }
+
+                        self.telemetrySamples = res.samples
+                        self.telemetryStatus = "ready"
+                    } )
+                },
+                syncOverlayClock: function()
+                {
+                    if ( this.view.camera !== "front" ) return
+
+                    var video = this.$refs[ "video" ]
+
+                    if ( !video ) return
+
+                    this.overlayVideoTime = video.currentTime
+                    this.overlayVideoDuration = video.duration && isFinite( video.duration ) ? video.duration : 0
+                },
                 durationChanged: function( event )
                 {
                     var video = event.target
 
                     this.timespan.duration = Math.max( this.timespan.duration || 0, video.duration )
+                    this.syncOverlayClock()
                 },
                 timeChanged: function( event )
                 {
                     var video = event.target
 
-                    if ( !video.paused && video.duration == this.timespan.duration )
+                    this.syncOverlayClock()
+
+                    if ( !video.paused
+                        && this.timespan.duration != null
+                        && isFinite( this.timespan.duration )
+                        && isFinite( video.duration )
+                        && Math.abs( video.duration - this.timespan.duration ) < DURATION_MATCH_EPSILON_SEC )
                     {
                         this.timespan.currentTime = video.currentTime
                     }
@@ -824,6 +1044,7 @@
             }
         } )
     }
+
 
     function initialize( handlers )
     {

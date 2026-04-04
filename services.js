@@ -5,9 +5,14 @@
 	else root.services = factory( root.helpers, root.fs, root.path, root.express, root.serveIndex );
 }( typeof self !== 'undefined' ? self : this, function ( helpers, fs, path, express, serveIndex )
 {
+	const seiTelemetry = require( "./seiTelemetry" )
+	const mp4FrameTimes = require( "./mp4FrameTimes" )
+
 	const expressApp = express()
 	var version = "0.0.1"
 	var lastArgs = { version: version, folder: "" }
+	var clipTelemetryCache = new Map()
+	var clipTelemetryCacheKeySuffix = "\0tSecV2"
 
     function setVersion( v )
     {
@@ -99,6 +104,75 @@
 			return null
 		}
 	}
+
+	function attachSeiPresentationTimes( samples, resolvedFile )
+	{
+		if ( !samples || !samples.length ) return
+
+		var timeline = mp4FrameTimes.getVideoFrameStartTimesSec( resolvedFile )
+
+		if ( !timeline || !timeline.frameStartSec || timeline.frameCount < 1 ) return
+
+		var n = samples.length
+		var fc = timeline.frameCount
+		var fs = timeline.frameStartSec
+
+		for ( var j = 0; j < n; j++ )
+		{
+			var fi = n === 1 ? 0 : Math.min( fc - 1, Math.floor( ( j + 0.5 ) * fc / n ) )
+
+			if ( fi < 0 ) fi = 0
+
+			samples[ j ].tSec = fs[ fi ]
+		}
+	}
+
+	function readClipTelemetry( relativeFilePath )
+	{
+		if ( !lastArgs.folder || typeof relativeFilePath !== "string" || !relativeFilePath.length )
+			return { success: false, error: "no_folder", samples: [] }
+
+		var rel = relativeFilePath.replace( /^[/\\]+/, "" )
+
+		if ( !rel.length ) return { success: false, error: "bad_path", samples: [] }
+
+		var full = path.join( lastArgs.folder, rel )
+		var resolvedRoot = path.resolve( lastArgs.folder )
+		var resolvedFile = path.resolve( full )
+		var relCheck = path.relative( resolvedRoot, resolvedFile )
+
+		if ( relCheck.startsWith( ".." ) || path.isAbsolute( relCheck ) )
+			return { success: false, error: "invalid_path", samples: [] }
+
+		try
+		{
+			if ( !fs.existsSync( resolvedFile ) ) return { success: false, error: "not_found", samples: [] }
+
+			var stat = fs.statSync( resolvedFile )
+			var cacheKey = resolvedFile + clipTelemetryCacheKeySuffix
+			var cached = clipTelemetryCache.get( cacheKey )
+
+			if ( cached && cached.mtimeMs === stat.mtimeMs )
+				return cached.result
+
+			var samples = seiTelemetry.extractSamplesFromFile( resolvedFile )
+
+			attachSeiPresentationTimes( samples, resolvedFile )
+
+			var result = { success: true, samples: samples }
+
+			clipTelemetryCache.set( cacheKey, { mtimeMs: stat.mtimeMs, result: result } )
+
+			return result
+		}
+		catch ( e )
+		{
+			console.log( e )
+
+			return { success: false, error: String( e.message || e ), samples: [] }
+		}
+	}
+
 
 	function deleteFiles( files )
 	{
@@ -293,6 +367,7 @@
         expressApp.use( "/copyPath", ( request, response ) => response.send( copyPath( decodeURIComponent( request.path ) ) ) )
         expressApp.use( "/files", ( request, response ) => response.send( getFiles( decodeURIComponent( request.path ), p => "videos/" + p ) ) )
         expressApp.use( "/eventJson", ( request, response ) => response.json( readEventJson( decodeURIComponent( request.path ) ) ) )
+        expressApp.use( "/clipTelemetry", ( request, response ) => response.json( readClipTelemetry( decodeURIComponent( request.path ) ) ) )
 
         expressApp.use( express.json( { limit: "1mb" } ) )
 
@@ -359,6 +434,7 @@
 		args: args,
 		getFiles: getFiles,
 		readEventJson: readEventJson,
+		readClipTelemetry: readClipTelemetry,
         deleteFiles: deleteFiles,
         copyFilePaths: copyFilePaths,
         deleteFolder: deleteFolder,
