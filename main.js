@@ -144,6 +144,7 @@ function initialize()
 		ipcMain.handle( "reopenFolders", () => services.reopenFolders() )
 		ipcMain.handle( "openFolder", ( _event, folder ) => setFolder( services.openFolder( folder ) ) )
 		ipcMain.handle( "getFiles", ( _event, p ) => services.getFiles( p, f => path.join( services.args().folder, f ) ) )
+		ipcMain.handle( "readEventJson", ( _event, p ) => services.readEventJson( p ) )
 
 		ipcMain.on( "openBrowser", () => browse() )
 		ipcMain.on( "deleteFiles", ( _event, files ) => services.deleteFiles( files ) )

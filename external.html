@@ -124,6 +124,23 @@
                   folder</button>
                 <button id="copyButton" class="btn btn-info" @click="copyPath( selectedPath )">Copy path</button>
               </div>
+              <div v-if="selectedPath" class="px-2 mb-2 event-json-panel small">
+                <div v-if="clipEventLoading" class="text-muted">Loading event…</div>
+                <template v-else-if="clipEvent">
+                  <div class="font-weight-bold mb-1">Event</div>
+                  <div class="event-json-row"><span class="text-muted">Time</span> {{ clipEvent.timestamp }}</div>
+                  <div class="event-json-row"><span class="text-muted">City</span> {{ clipEvent.city || "—" }}</div>
+                  <div class="event-json-row"><span class="text-muted">Street</span> {{ displayStreet( clipEvent.street ) }}</div>
+                  <div class="event-json-row"><span class="text-muted">Reason</span> {{ formatEventReason( clipEvent.reason ) }}</div>
+                  <div class="event-json-row"><span class="text-muted">Camera</span> {{ clipEvent.camera != null && clipEvent.camera !== "" ? clipEvent.camera : "—" }}</div>
+                  <div class="event-json-row" v-if="eventMapEmbedUrl"><span class="text-muted">Location</span> {{ clipEvent.est_lat }}, {{ clipEvent.est_lon }}</div>
+                  <iframe v-if="eventMapEmbedUrl" class="event-json-map" :src="eventMapEmbedUrl" title="Map preview (requires network)"></iframe>
+                  <div v-if="openStreetMapUrl" class="mt-1">
+                    <a :href="openStreetMapUrl" target="_blank" rel="noopener noreferrer">Open in OpenStreetMap</a>
+                  </div>
+                </template>
+                <div v-else class="text-muted">No event.json</div>
+              </div>
 
             </div>
 
@@ -245,6 +262,7 @@
           reopenFolders: success => $.getJSON("reopenFolders", success),
           openFolder: (p, success) => $.getJSON( p ? "openFolder" + p : "openDefaultFolder", a => success( lastArgs = a ) ),
           getFiles: (p, success) => $.getJSON("files/" + p, success),
+          readEventJson: (p, success) => $.getJSON("eventJson/" + p).done(data => success(data)).fail(() => success(null)),
           openBrowser: () => $.post("openBrowser"),
           deleteFiles: files => postJson( "/deleteFiles", { paths: files } ),
           deleteFolder: folder => postJson( "/deleteFolder", { path: folder } ),

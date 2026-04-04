@@ -28,6 +28,9 @@
                 times: [],
                 selectedTime: null,
                 selectedPath: null,
+                clipEvent: null,
+                clipEventLoading: false,
+                clipEventLoadId: 0,
                 timespans: [],
                 controls:
                 {
@@ -100,6 +103,20 @@
 
                     if ( newPath )
                     {
+                        var self = this
+                        var token = ++self.clipEventLoadId
+
+                        self.clipEventLoading = true
+                        self.clipEvent = null
+
+                        handlers.readEventJson( newPath, function( data )
+                        {
+                            if ( token !== self.clipEventLoadId ) return
+
+                            self.clipEventLoading = false
+                            self.clipEvent = data
+                        } )
+
                         handlers.getFiles( newPath, files =>
                             {
                                 this.timespans = files
@@ -108,6 +125,9 @@
                     }
                     else
                     {
+                        this.clipEventLoadId++
+                        this.clipEventLoading = false
+                        this.clipEvent = null
                         this.timespans = []
                     }
                 },
@@ -210,10 +230,48 @@
                             startTime += timespan.duration
                         }
                     }
+                },
+                eventMapEmbedUrl: function()
+                {
+                    if ( !this.clipEvent ) return ""
+
+                    var lat = parseFloat( this.clipEvent.est_lat )
+                    var lon = parseFloat( this.clipEvent.est_lon )
+
+                    if ( !isFinite( lat ) || !isFinite( lon ) ) return ""
+
+                    var d = 0.003
+
+                    return "https://www.openstreetmap.org/export/embed.html?bbox="
+                        + ( lon - d ) + "," + ( lat - d ) + "," + ( lon + d ) + "," + ( lat + d )
+                        + "&layer=mapnik&marker=" + lat + "," + lon
+                },
+                openStreetMapUrl: function()
+                {
+                    if ( !this.clipEvent ) return ""
+
+                    var lat = parseFloat( this.clipEvent.est_lat )
+                    var lon = parseFloat( this.clipEvent.est_lon )
+
+                    if ( !isFinite( lat ) || !isFinite( lon ) ) return ""
+
+                    return "https://www.openstreetmap.org/?mlat=" + lat + "&mlon=" + lon + "#map=17/" + lat + "/" + lon
                 }
             },
             methods:
             {
+                formatEventReason: function( reason )
+                {
+                    if ( reason == null || reason === "" ) return "—"
+
+                    return String( reason ).replace( /_/g, " " )
+                },
+                displayStreet: function( street )
+                {
+                    if ( street == null || String( street ).trim() === "" ) return "—"
+
+                    return street
+                },
                 openFolders: function()
                 {
                     // TODO: Still used?
@@ -308,8 +366,6 @@
                 copyPath: function( path )
                 {
                     handlers.copyPath( path )
-
-                    alert( "Copied folder path to clipboard" )
                 },
                 timespanTime: function( timespan )
                 {

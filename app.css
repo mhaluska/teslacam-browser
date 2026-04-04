@@ -54,6 +54,37 @@ html, body
     margin-left: -320px;
 }
 
+.event-json-panel
+{
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    padding: 0.5rem 0.6rem;
+    background: #f8f9fa;
+}
+
+.event-json-panel .event-json-row
+{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.5rem;
+    margin-bottom: 0.2rem;
+}
+
+.event-json-panel .event-json-row .text-muted
+{
+    min-width: 3.5rem;
+}
+
+.event-json-panel .event-json-map
+{
+    display: block;
+    width: 100%;
+    height: 200px;
+    margin-top: 0.35rem;
+    border: 0;
+    border-radius: 0.2rem;
+}
+
 #times
 {
   overflow-y: auto;

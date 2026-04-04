@@ -70,6 +70,36 @@
 		return Array.from( helpers.groupFiles( p, files, getVideoPath ) )
 	}
 
+	function readEventJson( relativeFolder )
+	{
+		if ( !lastArgs.folder || typeof relativeFolder !== "string" || !relativeFolder.length )
+			return null
+
+		var rel = relativeFolder.replace( /^[/\\]+/, "" )
+
+		if ( !rel.length ) return null
+
+		var full = path.join( lastArgs.folder, rel, "event.json" )
+		var resolvedRoot = path.resolve( lastArgs.folder )
+		var resolvedFile = path.resolve( full )
+		var relCheck = path.relative( resolvedRoot, resolvedFile )
+
+		if ( relCheck.startsWith( ".." ) || path.isAbsolute( relCheck ) )
+			return null
+
+		try
+		{
+			if ( !fs.existsSync( resolvedFile ) ) return null
+
+			return JSON.parse( fs.readFileSync( resolvedFile, "utf8" ) )
+		}
+		catch ( e )
+		{
+			console.log( e )
+			return null
+		}
+	}
+
 	function deleteFiles( files )
 	{
 		console.log( `Deleting files: ${files}` )
@@ -262,6 +292,7 @@
         expressApp.use( "/copyFilePaths", ( request, response ) => response.send( copyFilePaths( decodeURIComponent( request.path ) ) ) )
         expressApp.use( "/copyPath", ( request, response ) => response.send( copyPath( decodeURIComponent( request.path ) ) ) )
         expressApp.use( "/files", ( request, response ) => response.send( getFiles( decodeURIComponent( request.path ), p => "videos/" + p ) ) )
+        expressApp.use( "/eventJson", ( request, response ) => response.json( readEventJson( decodeURIComponent( request.path ) ) ) )
 
         expressApp.use( express.json( { limit: "1mb" } ) )
 
@@ -327,6 +358,7 @@
         openFolder: openFolder,
 		args: args,
 		getFiles: getFiles,
+		readEventJson: readEventJson,
         deleteFiles: deleteFiles,
         copyFilePaths: copyFilePaths,
         deleteFolder: deleteFolder,
