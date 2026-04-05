@@ -580,7 +580,7 @@
             template:
                 `<div>
                     <div v-for="timespan in timespans" :key="timespan.title">
-                        <div v-if="timespan === controls.timespan" class="cam-grid">
+                        <div v-if="timespan === controls.timespan || isNextTimespan( timespan )" class="cam-grid" :style="timespan !== controls.timespan ? 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;clip:rect(0,0,0,0)' : ''">
                             <div class="cam-row cam-row-top">
                                 <div v-for="camera in camGridTop" :key="camera + '-top'" class="cam-cell">
                                     <div class="text-center cam-label" :title="labelTitle( timespan, camera )">{{ camera }}</div>
@@ -660,6 +660,12 @@
                     {
                         return CAM_GRID_ALL.indexOf( v.camera ) < 0
                     } )
+                },
+                isNextTimespan: function( timespan )
+                {
+                    var idx = this.timespans.indexOf( this.controls.timespan )
+
+                    return idx >= 0 && idx < this.timespans.length - 1 && this.timespans[ idx + 1 ] === timespan
                 },
                 metadataProbeView: function( timespan )
                 {
