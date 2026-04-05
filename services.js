@@ -113,17 +113,25 @@
 
 		if ( !timeline || !timeline.frameStartSec || timeline.frameCount < 1 ) return
 
-		var n = samples.length
 		var fc = timeline.frameCount
 		var fs = timeline.frameStartSec
 
-		for ( var j = 0; j < n; j++ )
+		for ( var j = 0; j < samples.length; j++ )
 		{
-			var fi = n === 1 ? 0 : Math.min( fc - 1, Math.floor( ( j + 0.5 ) * fc / n ) )
+			var fi = samples[ j ].frameIdx
 
-			if ( fi < 0 ) fi = 0
+			if ( fi != null && fi >= 0 && fi < fc )
+			{
+				samples[ j ].tSec = fs[ fi ]
+			}
+			else
+			{
+				// Fallback: even distribution (for files without frame tracking)
+				var n = samples.length
+				var fallbackFi = n === 1 ? 0 : Math.min( fc - 1, Math.floor( ( j + 0.5 ) * fc / n ) )
 
-			samples[ j ].tSec = fs[ fi ]
+				samples[ j ].tSec = fs[ fallbackFi ]
+			}
 		}
 	}
 

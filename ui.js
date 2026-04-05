@@ -9,9 +9,6 @@
     var CAM_GRID_BOTTOM = [ "right_repeater", "back", "left_repeater" ]
     var CAM_GRID_ALL = CAM_GRID_TOP.concat( CAM_GRID_BOTTOM )
 
-    /** Below this (km/h), treat as standstill for the overlay. CAN creep / wheel noise often reads ~2–10 km/h while parked; SavedClips can mix driving + stationary in one file. */
-    var TELEMETRY_STANDSTILL_MAX_KMH = 15
-
     /** Seconds — camera durations differ slightly per file; only the longest track(s) should drive timespan.currentTime. */
     var DURATION_MATCH_EPSILON_SEC = 0.03
 
@@ -79,18 +76,9 @@
         var pedalBlended = lerpNum( cur.acceleratorPedal, next.acceleratorPedal, alpha )
         var spd = speedBlended != null ? Math.round( speedBlended ) : null
         var pedal = pedalBlended != null ? Math.max( 0, Math.min( 1, pedalBlended ) ) : null
-        var gr = cur.gear
-
-        if ( speedBlended != null && Math.abs( speedBlended ) < TELEMETRY_STANDSTILL_MAX_KMH )
-        {
-            spd = 0
-            pedal = 0
-
-            if ( gr === "D" ) gr = "P"
-        }
 
         return {
-            gear: gr,
+            gear: cur.gear,
             speedKmh: spd,
             acceleratorPedal: pedal,
             blinkerLeft: cur.blinkerLeft,
@@ -256,15 +244,20 @@
 
                             timespan.currentTime = 0
                             timespan.ended = false
-                            timespan.playing = true
                             timespan.visible = true
 
                             if ( oldTimespan )
                             {
                                 oldTimespan.ended = false
-                                oldTimespan.currentTime = 0
                                 oldTimespan.visible = false
                             }
+
+                            Vue.nextTick( () =>
+                            {
+                                timespan.playing = true
+
+                                if ( oldTimespan ) oldTimespan.playing = false
+                            } )
                         }
                         else
                         {
@@ -274,6 +267,8 @@
                 },
                 "controls.timespan.playing": function( playing, oldPlaying )
                 {
+                    if ( !playing && this.controls.timespan && this.controls.timespan.ended ) return
+
                     this.controls.playing = playing
                 },
                 duration: function( duration )
@@ -634,7 +629,6 @@
                 {
                     for ( var timespan of this.timespans )
                     {
-                        timespan.ended = false
                         timespan.playing = ( timespan == this.controls.timespan )
                             ? playing
                             : false
@@ -848,7 +842,7 @@
                             </div>
                         </div>
                     </div>
-                    <video ref="video" class="video" :class="view.camera" :src="view.file" :autoplay="timespan.playing" :playbackRate.prop="playbackRate" crossorigin="anonymous" preload="auto" @durationchange="durationChanged" @timeupdate="timeChanged" @ended="ended" title="Open in file explorer" @click="openExternal" playsinline></video>
+                    <video ref="video" class="video" :class="view.camera" :src="view.file" :playbackRate.prop="playbackRate" crossorigin="anonymous" preload="auto" @durationchange="durationChanged" @timeupdate="timeChanged" @ended="ended" title="Open in file explorer" @click="openExternal" playsinline></video>
                 </div>`,
             computed:
             {
@@ -877,6 +871,7 @@
             mounted: function()
             {
                 if ( this.view.camera === "front" ) this.fetchFrontTelemetry()
+                if ( this.timespan.playing ) this.startPlayback()
             },
             watch:
             {
@@ -888,55 +883,22 @@
                 {
                     handler: function( playing, oldPlaying )
                     {
-                        var video = this.$refs[ "video" ]
-
-                        if ( video )
+                        if ( playing )
                         {
-                            if ( playing )
+                            this.startPlayback()
+                        }
+                        else
+                        {
+                            var video = this.$refs[ "video" ]
+
+                            if ( this.timeout )
                             {
-                                video.playbackRate = this.playbackRate
-
-                                var currentTime = this.timespan.currentTime - ( this.timespan.duration - video.duration )
-
-                                if ( currentTime < 0 )
-                                {
-                                    var delay = -currentTime / this.playbackRate
-
-                                    console.log( `Delaying ${this.view.filePath} for ${delay}` )
-
-                                    this.timeout = window.setTimeout(
-                                        () =>
-                                        {
-                                            this.timeout = null
-
-                                            video.style.opacity = 1.0
-                                            video.currentTime = 0.0
-                                            video.play().catch( e => { this.error = e.message; console.error( e.message ); } )
-                                        },
-                                        delay * 1000 )
-                                }
-                                else if ( isFinite( currentTime ) && !isNaN( currentTime ) )
-                                {
-                                    console.log( `Playing ${this.view.filePath}` )
-
-                                    this.timeout = null
-
-                                    video.style.opacity = 1.0
-                                    video.currentTime = currentTime
-                                    video.play().catch( e => { this.error = e.message; console.error( e.message ); } )
-                                }
+                                window.clearTimeout( this.timeout )
+                                this.timeout = null
                             }
-                            else
+                            else if ( video )
                             {
-                                if ( this.timeout )
-                                {
-                                    window.clearTimeout( this.timeout )
-                                    this.timeout = null
-                                }
-                                else
-                                {
-                                    video.pause()
-                                }
+                                video.pause()
                             }
                         }
                     }
@@ -999,6 +961,53 @@
                         self.telemetryStatus = "ready"
                     } )
                 },
+                startPlayback: function()
+                {
+                    var video = this.$refs[ "video" ]
+
+                    if ( !video ) return
+
+                    if ( video.readyState < 1 )
+                    {
+                        video.addEventListener( "loadedmetadata", () => this.startPlayback(), { once: true } )
+
+                        return
+                    }
+
+                    video.playbackRate = this.playbackRate
+
+                    var currentTime = this.timespan.currentTime - ( this.timespan.duration - video.duration )
+
+                    if ( currentTime < 0 )
+                    {
+                        var delay = -currentTime / this.playbackRate
+
+                        console.log( `Delaying ${this.view.filePath} for ${delay}` )
+
+                        this.timeout = window.setTimeout(
+                            () =>
+                            {
+                                this.timeout = null
+
+                                video.style.opacity = 1.0
+                                video.currentTime = 0.0
+                                video.play().catch( e => { this.error = e.message; console.error( e.message ); } )
+                                this.syncOverlayClock()
+                            },
+                            delay * 1000 )
+                    }
+                    else if ( isFinite( currentTime ) && !isNaN( currentTime ) )
+                    {
+                        console.log( `Playing ${this.view.filePath}` )
+
+                        this.timeout = null
+
+                        video.style.opacity = 1.0
+                        video.currentTime = currentTime
+                        video.play().catch( e => { this.error = e.message; console.error( e.message ); } )
+                        this.syncOverlayClock()
+                    }
+                },
                 syncOverlayClock: function()
                 {
                     if ( this.view.camera !== "front" ) return
@@ -1034,8 +1043,15 @@
                 },
                 ended()
                 {
-                    this.timespan.playing = false
-                    this.timespan.ended = true
+                    var video = this.$refs[ "video" ]
+
+                    if ( video
+                        && isFinite( video.duration )
+                        && isFinite( this.timespan.duration )
+                        && Math.abs( video.duration - this.timespan.duration ) < DURATION_MATCH_EPSILON_SEC )
+                    {
+                        this.timespan.ended = true
+                    }
                 },
                 openExternal: function()
                 {

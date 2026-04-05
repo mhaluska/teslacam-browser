@@ -163,6 +163,8 @@
 		var carry = Buffer.alloc( 0 );
 		var chunkSize = 4 * 1024 * 1024;
 		var readPos = 0;
+		var videoFrameIdx = -1;
+		var pendingSeiPayloads = [];
 
 		function tryConsumeBuffer( buf )
 		{
@@ -194,14 +196,24 @@
 				}
 
 				var nal = data.subarray( p, p + nalSize );
+				var nalType = nal[ 0 ] & 0x1f;
 
 				p += nalSize;
 
-				if ( isAvcSeiUserDataUnregistered( nal ) )
+				if ( nalType === 1 || nalType === 5 )
+				{
+					videoFrameIdx++;
+
+					for ( var k = 0; k < pendingSeiPayloads.length; k++ )
+						onNalPayload( pendingSeiPayloads[ k ], videoFrameIdx );
+
+					pendingSeiPayloads = [];
+				}
+				else if ( isAvcSeiUserDataUnregistered( nal ) )
 				{
 					var protoBytes = extractProtoPayload( nal );
 
-					if ( protoBytes && protoBytes.length ) onNalPayload( protoBytes );
+					if ( protoBytes && protoBytes.length ) pendingSeiPayloads.push( protoBytes );
 				}
 			}
 
@@ -217,6 +229,10 @@
 			readPos += toRead;
 			tryConsumeBuffer( chunk );
 		}
+
+		// Flush any trailing SEI payloads after the last frame
+		for ( var k = 0; k < pendingSeiPayloads.length; k++ )
+			onNalPayload( pendingSeiPayloads[ k ], videoFrameIdx >= 0 ? videoFrameIdx : 0 );
 	}
 
 	function extractSamplesFromFile( fullPath )
@@ -228,11 +244,15 @@
 		{
 			var mdat = findMdat( fd );
 
-			parseMdatNals( fd, mdat.offset, mdat.size, function( payload )
+			parseMdatNals( fd, mdat.offset, mdat.size, function( payload, frameIdx )
 			{
 				var sample = decodeSample( payload );
 
-				if ( sample ) samples.push( sample );
+				if ( sample )
+				{
+					sample.frameIdx = frameIdx;
+					samples.push( sample );
+				}
 			} );
 		}
 		finally
