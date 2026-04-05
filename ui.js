@@ -480,9 +480,12 @@
                                 for ( var time of timeValues )
                                 {
                                     var name = new Date( time.date ).toLocaleTimeString()
-                    
-                                    if ( time.recent ) name += " (Recent)"
-                    
+
+                                    var folder = ( time.relative || "" ).split( /[/\\]/ )[ 0 ]
+                                    if ( folder === "SentryClips" || folder === "TeslaSentry" ) name = "Sentry: " + name
+                                    else if ( folder === "SavedClips" ) name = "Saved: " + name
+                                    else if ( folder === "RecentClips" || time.recent ) name = "Recent " + name
+
                                     times.push( { time: time, name: name } )
                                 }
                             }
