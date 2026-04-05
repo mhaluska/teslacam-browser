@@ -586,20 +586,22 @@
                         <div v-if="timespan === controls.timespan || isNextTimespan( timespan )" class="cam-grid" :style="timespan !== controls.timespan ? 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;clip:rect(0,0,0,0)' : ''">
                             <div class="cam-row cam-row-top">
                                 <div v-for="camera in camGridTop" :key="camera + '-top'" class="cam-cell">
-                                    <div class="text-center cam-label" :title="labelTitle( timespan, camera )">{{ camera }}</div>
-                                    <div class="cam-video-wrap">
-                                        <synchronized-video v-if="viewFor( timespan, camera )" :timespan="timespan" :view="viewFor( timespan, camera )" :playbackRate="controls.speed"></synchronized-video>
-                                        <div v-else class="cam-placeholder"></div>
-                                    </div>
+                                    <template v-if="viewFor( timespan, camera )">
+                                        <div class="text-center cam-label" :title="labelTitle( timespan, camera )">{{ camera }}</div>
+                                        <div class="cam-video-wrap">
+                                            <synchronized-video :timespan="timespan" :view="viewFor( timespan, camera )" :playbackRate="controls.speed"></synchronized-video>
+                                        </div>
+                                    </template>
                                 </div>
                             </div>
                             <div class="cam-row cam-row-bottom">
                                 <div v-for="camera in camGridBottom" :key="camera + '-bottom'" class="cam-cell">
-                                    <div class="cam-video-wrap">
-                                        <synchronized-video v-if="viewFor( timespan, camera )" :timespan="timespan" :view="viewFor( timespan, camera )" :playbackRate="controls.speed"></synchronized-video>
-                                        <div v-else class="cam-placeholder"></div>
-                                    </div>
-                                    <div class="text-center cam-label" :title="labelTitle( timespan, camera )">{{ camera }}</div>
+                                    <template v-if="viewFor( timespan, camera )">
+                                        <div class="cam-video-wrap">
+                                            <synchronized-video :timespan="timespan" :view="viewFor( timespan, camera )" :playbackRate="controls.speed"></synchronized-video>
+                                        </div>
+                                        <div class="text-center cam-label" :title="labelTitle( timespan, camera )">{{ camera }}</div>
+                                    </template>
                                 </div>
                             </div>
                             <div v-if="extraViews( timespan ).length" class="cam-row cam-row-extras d-flex flex-wrap">
@@ -738,20 +740,22 @@
                     <div class="cam-grid">
                         <div class="cam-row cam-row-top">
                             <div v-for="camera in camGridTop" :key="camera + '-top'" class="cam-cell">
-                                <div class="text-center cam-label" :title="labelTitle( timespan, camera )">{{ camera }}</div>
-                                <div class="cam-video-wrap">
-                                    <synchronized-video v-if="viewFor( timespan, camera )" :timespan="timespan" :view="viewFor( timespan, camera )" :playbackRate="controls.speed"></synchronized-video>
-                                    <div v-else class="cam-placeholder"></div>
-                                </div>
+                                <template v-if="viewFor( timespan, camera )">
+                                    <div class="text-center cam-label" :title="labelTitle( timespan, camera )">{{ camera }}</div>
+                                    <div class="cam-video-wrap">
+                                        <synchronized-video :timespan="timespan" :view="viewFor( timespan, camera )" :playbackRate="controls.speed"></synchronized-video>
+                                    </div>
+                                </template>
                             </div>
                         </div>
                         <div class="cam-row cam-row-bottom">
                             <div v-for="camera in camGridBottom" :key="camera + '-bottom'" class="cam-cell">
-                                <div class="cam-video-wrap">
-                                    <synchronized-video v-if="viewFor( timespan, camera )" :timespan="timespan" :view="viewFor( timespan, camera )" :playbackRate="controls.speed"></synchronized-video>
-                                    <div v-else class="cam-placeholder"></div>
-                                </div>
-                                <div class="text-center cam-label" :title="labelTitle( timespan, camera )">{{ camera }}</div>
+                                <template v-if="viewFor( timespan, camera )">
+                                    <div class="cam-video-wrap">
+                                        <synchronized-video :timespan="timespan" :view="viewFor( timespan, camera )" :playbackRate="controls.speed"></synchronized-video>
+                                    </div>
+                                    <div class="text-center cam-label" :title="labelTitle( timespan, camera )">{{ camera }}</div>
+                                </template>
                             </div>
                         </div>
                         <div v-if="extraViews( timespan ).length" class="cam-row cam-row-extras d-flex flex-wrap">
