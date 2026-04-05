@@ -273,6 +273,9 @@
                 },
                 duration: function( duration )
                 {
+                    if ( this._lastResetTimespans === this.timespans ) return
+
+                    this._lastResetTimespans = this.timespans
                     this.controls.timespan = ( this.timespans.length > 0 ) ? this.timespans[ 0 ] : null
                     this.controls.playing = false
                     this.controls.scrub = 0
