@@ -6,7 +6,6 @@
 }( typeof self !== 'undefined' ? self : this, function ( helpers, fs, path, express, serveIndex )
 {
 	const seiTelemetry = require( "./seiTelemetry" )
-	const mp4FrameTimes = require( "./mp4FrameTimes" )
 
 	const expressApp = express()
 	var version = "0.0.1"
@@ -105,36 +104,6 @@
 		}
 	}
 
-	function attachSeiPresentationTimes( samples, resolvedFile )
-	{
-		if ( !samples || !samples.length ) return
-
-		var timeline = mp4FrameTimes.getVideoFrameStartTimesSec( resolvedFile )
-
-		if ( !timeline || !timeline.frameStartSec || timeline.frameCount < 1 ) return
-
-		var fc = timeline.frameCount
-		var fs = timeline.frameStartSec
-
-		for ( var j = 0; j < samples.length; j++ )
-		{
-			var fi = samples[ j ].frameIdx
-
-			if ( fi != null && fi >= 0 && fi < fc )
-			{
-				samples[ j ].tSec = fs[ fi ]
-			}
-			else
-			{
-				// Fallback: even distribution (for files without frame tracking)
-				var n = samples.length
-				var fallbackFi = n === 1 ? 0 : Math.min( fc - 1, Math.floor( ( j + 0.5 ) * fc / n ) )
-
-				samples[ j ].tSec = fs[ fallbackFi ]
-			}
-		}
-	}
-
 	function readClipTelemetry( relativeFilePath )
 	{
 		if ( !lastArgs.folder || typeof relativeFilePath !== "string" || !relativeFilePath.length )
@@ -164,8 +133,6 @@
 				return cached.result
 
 			var samples = seiTelemetry.extractSamplesFromFile( resolvedFile )
-
-			attachSeiPresentationTimes( samples, resolvedFile )
 
 			var result = { success: true, samples: samples }
 
