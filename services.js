@@ -6,6 +6,7 @@
 }( typeof self !== 'undefined' ? self : this, function ( helpers, fs, path, express, serveIndex )
 {
 	const seiTelemetry = require( "./seiTelemetry" )
+	const auth = require( "./auth" )
 
 	const expressApp = express()
 	var version = "0.0.1"
@@ -331,6 +332,19 @@
 
 			return args
 		}
+
+        expressApp.use( express.urlencoded( { extended: false } ) )
+
+        expressApp.get( "/login", auth.loginPageHandler )
+        expressApp.post( "/login", auth.loginHandler )
+        expressApp.post( "/logout", auth.logoutHandler )
+        expressApp.get( "/auth-enabled", ( request, response ) => response.json( { enabled: auth.isEnabled() } ) )
+
+        if ( auth.isEnabled() )
+        {
+            console.log( " Authentication enabled" )
+            expressApp.use( auth.middleware )
+        }
 
         expressApp.get( "/", ( request, response ) => response.sendFile( __dirname + "/external.html" ) )
         expressApp.get( "/openFolders", ( request, response ) => response.send( openFolders() ) )

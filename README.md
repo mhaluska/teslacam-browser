@@ -32,6 +32,31 @@ node server.js /path/to/TeslaCam
 
 You can then open the app in a browser by pointing to http://localhost:8088 (replace `localhost` with address of your server).
 
+## Authentication
+
+When running as a headless server, you can optionally enable login authentication by setting environment variables. Authentication is disabled by default — the app works without login when these variables are not set.
+
+To enable authentication, set `TC_AUTH_USER` and `TC_AUTH_PASS_HASH`:
+
+```
+TC_AUTH_USER=admin TC_AUTH_PASS_HASH=<hash> node server.js /path/to/TeslaCam
+```
+
+Generate the password hash using `shasum` (available on macOS and most Linux systems):
+
+```
+echo -n "yourpassword" | shasum -a 256 | cut -d' ' -f1
+```
+
+Additional optional variables:
+
+| Variable | Default | Description |
+|---|---|---|
+| `TC_AUTH_SECRET` | Random per startup | Secret key for signing session cookies. If not set, sessions are invalidated on server restart. |
+| `TC_SESSION_DAYS` | `7` | Session lifetime in days. |
+
+Authentication only applies to the web server mode. The Electron desktop app is not affected.
+
 ## HEVC codec
 
 It appears newer Tesla software versions encode video in HEVC / H-265 format, which Chrome seems unable to handle.  All you'll see are blank areas where the videos should be, and clicking "Play" will throw an error (shown in a red box).  If this occurs, clicking the "Browse" button will attempt to open the app in your default web browser.  If it still doesn't work, opening the same address in Safari (macOS) or Edge (Windows) should help.

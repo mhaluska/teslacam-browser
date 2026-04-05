@@ -5,6 +5,7 @@
 
   <meta charset="UTF-8">
   <title>TeslaCam Browser</title>
+  <link rel="icon" type="image/svg+xml" href="content/favicon.svg">
   <link rel="stylesheet" href="node_modules/flatpickr/dist/flatpickr.min.css">
   <link rel="stylesheet" href="node_modules/bootstrap/dist/css/bootstrap.min.css" />
   <link rel="stylesheet" href="node_modules/open-iconic/font/css/open-iconic-bootstrap.css" />
@@ -57,6 +58,10 @@
                 @click.prevent="cycleThemePreference" :title="themeCycleTitle">
                 <span :class="themeCycleIconClass" aria-hidden="true"></span>
                 <span class="sr-only">{{ themeCycleTitle }}</span>
+              </button>
+              <button type="button" id="logoutBtn" class="btn btn-outline-secondary flex-shrink-0 ml-2"
+                title="Logout" style="display: none;">
+                <span class="oi oi-account-logout" aria-hidden="true"></span>
               </button>
             </div>
           </div>
@@ -283,6 +288,24 @@
 
             if ( success ) success()
           }
+        } )
+
+        $.getJSON( "/auth-enabled", function( data )
+        {
+            if ( data && data.enabled )
+            {
+                var btn = document.getElementById( "logoutBtn" )
+                btn.style.display = ""
+                btn.addEventListener( "click", function()
+                {
+                    $.post( "/logout" ).always( function() { window.location.href = "/login" } )
+                } )
+            }
+        } )
+
+        $( document ).ajaxError( function( event, jqXHR )
+        {
+            if ( jqXHR.status === 401 ) window.location.href = "/login"
         } )
     })();
   </script>
