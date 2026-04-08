@@ -8,7 +8,7 @@
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="stylesheet" href="node_modules/flatpickr/dist/flatpickr.min.css">
   <link rel="stylesheet" href="node_modules/bootstrap/dist/css/bootstrap.min.css" />
-  <link rel="stylesheet" href="node_modules/open-iconic/font/css/open-iconic-bootstrap.css" />
+  <link rel="stylesheet" href="node_modules/bootstrap-icons/font/bootstrap-icons.css" />
   <link rel="stylesheet" href="app.css" />
   <script type="text/javascript" src="node_modules/vue/dist/vue.global.js"></script>
   <script type="text/javascript" src="node_modules/flatpickr/dist/flatpickr.min.js"></script>
@@ -30,10 +30,10 @@
           <div class="d-flex">
             <div class="p-2 align-self-center" @click="showSidebar = !showSidebar">
               <button class="btn btn-primary btn-lg" style="width: 60px;" v-show="!showSidebar">
-                <span class="oi oi-menu" title="Folders"></span>
+                <span class="bi bi-list" title="Folders"></span>
               </button>
               <button class="btn btn-primary btn-lg" style="width: 60px;" v-show="showSidebar">
-                <span class="oi oi-chevron-left" title="Collapse"></span>
+                <span class="bi bi-chevron-left" title="Collapse"></span>
               </button>
             </div>
             <div class="p-2 align-self-baseline text-nowrap">
@@ -71,19 +71,19 @@
 
               <div class="px-2 mb-2 overflow-auto">
                 <button class="btn btn-primary w-100 dropdown-toggle" type="button" @click.prevent="showFolders = !showFolders" style="word-wrap: break-word; white-space: normal; max-width: 320px;">
-                  <span class="oi oi-folder text-warning"></span>
+                  <span class="bi bi-folder text-warning"></span>
                   <span>{{args.folder}}</span>
                 </button>
                 <div v-show="showFolders">
                   <div v-for="f, i in args.folderPathParts" :style="{ marginLeft: ( i * 10 ) + 'px' }">
                     <a href="" @click.prevent="selectedFolder = f.path">
-                      <span class="oi oi-folder text-warning"></span>
+                      <span class="bi bi-folder text-warning"></span>
                       <span :style="{ fontWeight: i < args.folderPathParts.length - 1 ? 'normal' : 'bold' }">{{f.name}}</span>
                     </a>
                   </div>
                   <div v-for="subfolder in args.subfolders" :style="{ marginLeft: ( args.folderPathParts.length * 10 ) + 'px' }">
                     <a href="" @click.prevent="selectedFolder = subfolder.path">
-                      <span class="oi oi-folder text-warning"></span>
+                      <span class="bi bi-folder text-warning"></span>
                       <span>{{subfolder.name}}</span>
                     </a>
                   </div>
@@ -145,10 +145,10 @@
                 <div class="d-flex align-items-center titleContainer card-header">
                   <div class="px-2 controls">
                     <button class="btn btn-success play" v-show="!controls.playing"
-                      @click="controls.playing = !controls.playing"><span class="oi oi-media-play"
+                      @click="controls.playing = !controls.playing"><span class="bi bi-play"
                         title="Play"></span></button>
                     <button class="btn btn-warning pause" v-show="controls.playing"
-                      @click="controls.playing = !controls.playing"><span class="oi oi-media-pause"
+                      @click="controls.playing = !controls.playing"><span class="bi bi-pause"
                         title="Pause"></span></button>
                   </div>
                   <div class="px-2 flex-grow-1 controls">
@@ -180,9 +180,9 @@
                       <button class="btn btn-danger delete" @click="deleteFiles( timespan )">Delete</button>
                       <button class="btn btn-info copy" @click="copyFilePaths( timespan )">Copy paths</button>
                       <button class="btn btn-success play" v-show="!timespan.playing"
-                        @click="playPause( timespan )"><span class="oi oi-media-play" title="Play"></span></button>
+                        @click="playPause( timespan )"><span class="bi bi-play" title="Play"></span></button>
                       <button class="btn btn-warning pause" v-show="timespan.playing"
-                        @click="playPause( timespan )"><span class="oi oi-media-pause" title="Pause"></span></button>
+                        @click="playPause( timespan )"><span class="bi bi-pause" title="Pause"></span></button>
                     </div>
                     <div class="px-2 flex-grow-1 controls" v-if="timespan.visible">
                       <input class="form-range scrub" v-model="timespan.currentTime" type="range"

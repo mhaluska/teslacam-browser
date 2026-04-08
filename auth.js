@@ -106,7 +106,7 @@ function loginPage( error )
   <title>TeslaCam Browser - Login</title>
   <link rel="icon" type="image/svg+xml" href="content/favicon.svg">
   <link rel="stylesheet" href="node_modules/bootstrap/dist/css/bootstrap.min.css" />
-  <link rel="stylesheet" href="node_modules/open-iconic/font/css/open-iconic-bootstrap.css" />
+  <link rel="stylesheet" href="node_modules/bootstrap-icons/font/bootstrap-icons.css" />
   <link rel="stylesheet" href="content/app.css" />
   <style>
     body { display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
@@ -128,7 +128,7 @@ function loginPage( error )
     <div class="card">
       <div class="card-body p-4">
         <div class="text-center mb-4">
-          <span class="oi oi-video" style="font-size: 2rem;"></span>
+          <span class="bi bi-camera-video" style="font-size: 2rem;"></span>
           <div class="login-heading mt-2">TeslaCam Browser</div>
         </div>
         ${ error ? '<div class="alert alert-danger" role="alert">' + error + '</div>' : '' }

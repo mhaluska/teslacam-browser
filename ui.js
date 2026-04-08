@@ -364,10 +364,10 @@
                 },
                 themeCycleIconClass: function()
                 {
-                    if ( this.themePreference === "light" ) return "oi oi-sun"
-                    if ( this.themePreference === "dark" ) return "oi oi-moon"
+                    if ( this.themePreference === "light" ) return "bi bi-sun"
+                    if ( this.themePreference === "dark" ) return "bi bi-moon"
 
-                    return "oi oi-monitor"
+                    return "bi bi-display"
                 },
                 themeCycleTitle: function()
                 {
