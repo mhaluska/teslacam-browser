@@ -55,6 +55,7 @@ html[data-theme="light"]
 html, body
 {
     height: 100%;
+    overflow: hidden;
 }
 
 body
@@ -124,7 +125,14 @@ body
 #content
 {
   align-items: stretch;
-  height: 100%;
+  flex-grow: 1;
+  min-height: 0;
+}
+
+#detail
+{
+  min-height: 0;
+  overflow-y: auto;
 }
 
 #sidebar
@@ -178,7 +186,11 @@ body
 
 #videos
 {
-  overflow-y: auto;
+}
+
+#videos > .timespan
+{
+  overflow: hidden;
 }
 
 #detail .timespan .titleContainer .title
