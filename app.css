@@ -535,7 +535,7 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
 .tc-dash-cluster
 {
   display: flex;
-  align-items: stretch;
+  align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
   min-width: min( 100%, 22rem );
@@ -556,14 +556,6 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
   min-width: 2.5rem;
 }
 
-.tc-dash-col-center
-{
-  flex: 1;
-  flex-direction: row;
-  align-items: center;
-  justify-content: center;
-  gap: 0.35rem;
-}
 
 .tc-dash-gear
 {
@@ -595,14 +587,22 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
 
 .tc-arrow
 {
-  width: 1.1rem;
-  height: 1.1rem;
+  width: 1.6rem;
+  height: 1.6rem;
   flex-shrink: 0;
+  color: rgba( 255, 255, 255, 0.35 );
 }
 
 .tc-arrow.on
 {
-  color: #fff;
+  color: #4ade80;
+  animation: tc-blink 0.6s step-end infinite;
+}
+
+@keyframes tc-blink
+{
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0; }
 }
 
 .tc-ico-pedal
@@ -614,7 +614,7 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
 
 .tc-ico-pedal.on
 {
-  color: #fff;
+  color: #ef4444;
 }
 
 .tc-ico-wheel
@@ -622,11 +622,12 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
   width: 1.6rem;
   height: 1.6rem;
   color: rgba( 255, 255, 255, 0.35 );
+  transition: transform 0.08s linear;
 }
 
 .tc-ico-wheel.on
 {
-  color: #fff;
+  color: #3b82f6;
 }
 
 .tc-throttle
