@@ -100,11 +100,10 @@
     {
         var args = { version: null };
 
-        return new Vue(
-        {
-            el: '#root',
-            data:
+        return {
+            data: function()
             {
+                return {
                 args: args,
                 showSidebar: true,
                 showFolders: false,
@@ -128,6 +127,7 @@
                 playing: null,
                 loading: null,
                 themePreference: "system"
+                }
             },
             watch:
             {
@@ -399,7 +399,7 @@
                 if ( handlers.getThemePreference ) handlers.getThemePreference( applyLoaded )
                 else applyLoaded( "system" )
             },
-            beforeDestroy: function()
+            beforeUnmount: function()
             {
                 var self = this
 
@@ -582,13 +582,12 @@
                     return time
                 }
             }
-        });
+        }
     }
 
     function createVideoGroupComponent( handlers )
     {
-        return Vue.component( "VideoGroup",
-        {
+        return {
             props: [ "controls", "timespans" ],
             data: function()
             {
@@ -737,13 +736,12 @@
                     }
                 }
             }
-        } )
+        }
     }
 
     function createVideosComponent( handlers )
     {
-        return Vue.component( "Videos",
-        {
+        return {
             props: [ "controls", "timespan" ],
             data: function()
             {
@@ -816,13 +814,12 @@
                     } )
                 }
             }
-        } )
+        }
     }
 
     function createVideoComponent( handlers )
     {
-        return Vue.component( "SynchronizedVideo",
-        {
+        return {
             props: [ "timespan", "view", "playbackRate" ],
             data: function()
             {
@@ -874,7 +871,7 @@
                             </div>
                         </div>
                     </div>
-                    <video ref="video" class="video" :class="view.camera" :src="view.file" :playbackRate.prop="playbackRate" crossorigin="anonymous" preload="auto" @durationchange="durationChanged" @timeupdate="timeChanged" @ended="ended" title="Open in file explorer" @click="openExternal" playsinline></video>
+                    <video ref="video" class="video" :class="view.camera" :src="view.file" .playbackRate="playbackRate" crossorigin="anonymous" preload="auto" @durationchange="durationChanged" @timeupdate="timeChanged" @ended="ended" title="Open in file explorer" @click="openExternal" playsinline></video>
                 </div>`,
             computed:
             {
@@ -1090,17 +1087,20 @@
                     handlers.openExternal( this.view.file )
                 }
             }
-        } )
+        }
     }
 
 
     function initialize( handlers )
     {
-        var videoGroupComponent = createVideoGroupComponent( handlers )
-        var videosComponent = createVideosComponent( handlers )
-        var videoComponent = createVideoComponent( handlers )
+        var appConfig = createVueApp( handlers )
+        var app = Vue.createApp( appConfig )
 
-        var vueApp = createVueApp( handlers )
+        app.component( "VideoGroup", createVideoGroupComponent( handlers ) )
+        app.component( "Videos", createVideosComponent( handlers ) )
+        app.component( "SynchronizedVideo", createVideoComponent( handlers ) )
+
+        var vueApp = app.mount( '#root' )
 
         handlers.openFolder( null, f => vueApp.args = f )
 
