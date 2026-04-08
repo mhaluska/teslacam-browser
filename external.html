@@ -75,13 +75,13 @@
               <div class="px-2 mb-2 overflow-auto">
                 <button class="btn btn-primary w-100 dropdown-toggle" type="button"
                   @click.prevent="showFolders = !showFolders" style="word-wrap: break-word; white-space: normal; max-width: 320px;">
-                  <span class="bi bi-folder text-warning"></span>
+                  <span class="bi bi-folder text-warning me-1"></span>
                   <span>{{args.folder}}</span>
                 </button>
                 <div v-show="showFolders">
                   <div v-for="f, i in args.folderPathParts" :style="{ marginLeft: ( i * 10 ) + 'px' }">
                     <a href="" @click.prevent="selectedFolder = f.path">
-                      <span class="bi bi-folder text-warning"></span>
+                      <span class="bi bi-folder text-warning me-1"></span>
                       <span
                         :style="{ fontWeight: i < args.folderPathParts.length - 1 ? 'normal' : 'bold' }">{{f.name}}</span>
                     </a>
@@ -89,7 +89,7 @@
                   <div v-for="subfolder in args.subfolders"
                     :style="{ marginLeft: ( args.folderPathParts.length * 10 ) + 'px' }">
                     <a href="" @click.prevent="selectedFolder = subfolder.path">
-                      <span class="bi bi-folder text-warning"></span>
+                      <span class="bi bi-folder text-warning me-1"></span>
                       <span>{{subfolder.name}}</span>
                     </a>
                   </div>
