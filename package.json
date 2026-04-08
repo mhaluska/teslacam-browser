@@ -64,14 +64,12 @@
     "electron-builder": "^26.8.2"
   },
   "dependencies": {
-    "bootstrap": "^4.6.2",
+    "bootstrap": "^5.3.8",
     "electron-settings": "^4.0.4",
     "electron-updater": "^6.8.3",
     "express": "^5.2.1",
     "flatpickr": "^4.6.13",
-    "jquery": "^3.7.1",
     "open-iconic": "^1.1.1",
-    "popper.js": "^1.16.1",
     "protobufjs": "^8.0.1",
     "serve-index": "^1.9.2",
     "vue": "^3.5.32"

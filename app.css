@@ -17,7 +17,7 @@
     --tc-input-bg: #fff;
     --tc-input-color: #495057;
     --tc-input-border: #ced4da;
-    --tc-custom-control-border: #adb5bd;
+    --tc-form-check-border: #adb5bd;
     --tc-dropdown-bg: #fff;
     --tc-range-track: #dee2e6;
 }
@@ -42,7 +42,7 @@ html[data-theme="dark"]
     --tc-input-bg: #2d3238;
     --tc-input-color: #e9ecef;
     --tc-input-border: #495057;
-    --tc-custom-control-border: #6c757d;
+    --tc-form-check-border: #6c757d;
     --tc-dropdown-bg: #2d3238;
     --tc-range-track: #495057;
 }
@@ -214,6 +214,11 @@ html[data-theme="dark"] .card-header
     color: var( --tc-body-color );
 }
 
+html[data-theme="dark"] .card-body
+{
+    color: var( --tc-body-color );
+}
+
 html[data-theme="dark"] .list-group-item
 {
     background-color: var( --tc-list-bg );
@@ -250,13 +255,13 @@ html[data-theme="dark"] .form-control:focus
     box-shadow: 0 0 0 0.2rem rgba( 13, 110, 253, 0.25 );
 }
 
-html[data-theme="dark"] .custom-control-label::before
+html[data-theme="dark"] .form-check-label::before
 {
-    border-color: var( --tc-custom-control-border );
+    border-color: var( --tc-form-check-border );
     background-color: var( --tc-input-bg );
 }
 
-html[data-theme="dark"] .custom-control-input:checked ~ .custom-control-label::before
+html[data-theme="dark"] .form-check-input:checked ~ .form-check-label::before
 {
     border-color: #0d6efd;
     background-color: #0d6efd;
@@ -306,12 +311,12 @@ html[data-theme="dark"] .alert-info
     color: #c5e8ff;
 }
 
-html[data-theme="dark"] .custom-range::-webkit-slider-runnable-track
+html[data-theme="dark"] .form-range::-webkit-slider-runnable-track
 {
     background-color: var( --tc-range-track );
 }
 
-html[data-theme="dark"] .custom-range::-moz-range-track
+html[data-theme="dark"] .form-range::-moz-range-track
 {
     background-color: var( --tc-range-track );
 }
@@ -464,6 +469,7 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
 {
   font-size: 0.875rem;
   margin-bottom: 0.2rem;
+  color: var( --tc-body-color );
 }
 
 #detail .timespan .videoContainer .cam-row-bottom .cam-label
@@ -492,7 +498,7 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
   cursor: pointer;
   display: block;
 }
-.custom-range
+.form-range
 {
 	/* HACK: fix the custom scrub bar slow expansion in Edge */
 	width: 98% !important;

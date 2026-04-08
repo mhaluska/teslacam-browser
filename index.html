@@ -12,8 +12,6 @@
   <link rel="stylesheet" href="app.css" />
   <script type="text/javascript" src="node_modules/vue/dist/vue.global.js"></script>
   <script type="text/javascript" src="node_modules/flatpickr/dist/flatpickr.min.js"></script>
-  <script>const $ = require("jquery");</script>
-  <script>const bootstrap = require("bootstrap");</script>
   <script>const path = require("path");</script>
   <script>const helpers = require("./helpers");</script>
   <script>const ui = require("./ui");</script>
@@ -51,14 +49,14 @@
 
           <div class="p-2 theme-toolbar mt-2">
             <div class="d-flex align-items-center justify-content-between">
-              <div class="custom-control custom-switch pr-2">
-                <input type="checkbox" v-model="combineClips" class="custom-control-input" id="combineClips">
-                <label class="custom-control-label" for="combineClips">Combine clips</label>
+              <div class="form-check form-switch pe-2">
+                <input type="checkbox" v-model="combineClips" class="form-check-input" id="combineClips">
+                <label class="form-check-label" for="combineClips">Combine clips</label>
               </div>
               <button type="button" class="btn btn-outline-secondary theme-cycle-btn flex-shrink-0"
                 @click.prevent="cycleThemePreference" :title="themeCycleTitle">
                 <span :class="themeCycleIconClass" aria-hidden="true"></span>
-                <span class="sr-only">{{ themeCycleTitle }}</span>
+                <span class="visually-hidden">{{ themeCycleTitle }}</span>
               </button>
             </div>
           </div>
@@ -72,7 +70,7 @@
             <div class="navigation overflow-auto">
 
               <div class="px-2 mb-2 overflow-auto">
-                <button class="btn btn-primary btn-block dropdown-toggle" type="button" @click.prevent="showFolders = !showFolders" style="word-wrap: break-word; white-space: normal; max-width: 320px;">
+                <button class="btn btn-primary w-100 dropdown-toggle" type="button" @click.prevent="showFolders = !showFolders" style="word-wrap: break-word; white-space: normal; max-width: 320px;">
                   <span class="oi oi-folder text-warning"></span>
                   <span>{{args.folder}}</span>
                 </button>
@@ -120,7 +118,7 @@
               <div v-if="selectedPath" class="px-2 mb-2 event-json-panel small">
                 <div v-if="clipEventLoading" class="text-muted">Loading event…</div>
                 <template v-else-if="clipEvent">
-                  <div class="font-weight-bold mb-1">Event</div>
+                  <div class="fw-bold mb-1">Event</div>
                   <div class="event-json-row"><span class="text-muted">Time</span> {{ clipEvent.timestamp }}</div>
                   <div class="event-json-row"><span class="text-muted">City</span> {{ clipEvent.city || "—" }}</div>
                   <div class="event-json-row"><span class="text-muted">Street</span> {{ displayStreet( clipEvent.street ) }}</div>
@@ -154,7 +152,7 @@
                         title="Pause"></span></button>
                   </div>
                   <div class="px-2 flex-grow-1 controls">
-                    <input class="custom-range scrub" v-model="currentTime" type="range" :max="duration"
+                    <input class="form-range scrub" v-model="currentTime" type="range" :max="duration"
                       @input="controls.playing = false"/>
                   </div>
                   <div class="px-2 controls">
@@ -187,7 +185,7 @@
                         @click="playPause( timespan )"><span class="oi oi-media-pause" title="Pause"></span></button>
                     </div>
                     <div class="px-2 flex-grow-1 controls" v-if="timespan.visible">
-                      <input class="custom-range scrub" v-model="timespan.currentTime" type="range"
+                      <input class="form-range scrub" v-model="timespan.currentTime" type="range"
                         :max="timespan.duration" @input="scrubInput( timespan )"/>
                     </div>
                     <div class="px-2 controls">

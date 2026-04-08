@@ -221,7 +221,7 @@
                 "args.dates": function( dates, oldDates )
                 {
                     flatpickr(
-                        $( "#calendar" ),
+                        document.querySelector( "#calendar" ),
                         {
                             onChange: d => this.selectedDate = d[ 0 ],
                             enable: dates,
