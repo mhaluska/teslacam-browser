@@ -532,6 +532,16 @@
                     if ( confirm( `Are you sure you want to delete ${files.length} files from ${timespan.title}?` ) )
                     {
                         handlers.deleteFiles( files )
+
+                        this.timespans = this.timespans.filter( t => t !== timespan )
+
+                        if ( this.timespans.length < 1 )
+                        {
+                            this.times = this.times.filter( t => t.time.relative !== this.selectedPath )
+                            this.selectedTime = this.times.length > 0 ? this.times[ 0 ] : null
+                            this.selectedPath = this.selectedTime ? this.selectedTime.time.relative : null
+                        }
+
                         handlers.reopenFolders( this.loaded )
                     }
                 },
@@ -548,6 +558,12 @@
                     if ( confirm( `Are you sure you want to delete ${folder}?` ) )
                     {
                         handlers.deleteFolder( folder )
+
+                        this.timespans = []
+                        this.times = this.times.filter( t => t.time.relative !== folder )
+                        this.selectedTime = this.times.length > 0 ? this.times[ 0 ] : null
+                        this.selectedPath = this.selectedTime ? this.selectedTime.time.relative : null
+
                         handlers.reopenFolders( this.loaded )
                     }
                 },

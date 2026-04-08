@@ -152,16 +152,18 @@
 
 	function deleteFiles( files )
 	{
-		console.log( `Deleting files: ${files}` )
+		var resolvedFiles = files.map( f => path.join( lastArgs.folder, f ) )
 
-		for ( var file of files ) fs.unlinkSync( file )
+		console.log( `Deleting files: ${resolvedFiles}` )
 
-		console.log( `Deleted files: ${files}` )
+		for ( var file of resolvedFiles ) fs.unlinkSync( file )
 
-		var folderPath = path.dirname( files[ 0 ] )
-		var files = fs.readdirSync( folderPath )
+		console.log( `Deleted files: ${resolvedFiles}` )
 
-		if ( files.length < 1 )
+		var folderPath = path.dirname( resolvedFiles[ 0 ] )
+		var remaining = fs.readdirSync( folderPath )
+
+		if ( remaining.length < 1 )
 		{
 			console.log( `Deleting folder: ${folderPath}` )
 
@@ -182,7 +184,7 @@
 		var folderPath = path.join( lastArgs.folder, folder )
 		var files = fs.readdirSync( folderPath )
 
-		deleteFiles( files.map( f => path.join( folderPath, f ) ) )
+		deleteFiles( files.map( f => path.join( folder, f ) ) )
 		return true
 	}
 
