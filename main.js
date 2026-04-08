@@ -39,7 +39,7 @@ function selectFolders( webContents )
 
 	if ( !folders || folders.length < 1 ) return
 
-	settings.set( "folders", folders )
+	settings.setSync( "folders", folders )
 	services.openFolders( folders )
 
 	if ( webContents && !webContents.isDestroyed() ) webContents.reload()
@@ -102,10 +102,10 @@ function initialize()
 
 	services.setVersion( app.getVersion() )
 
-	var lastFolder = settings.get( "folders" )
+	var lastFolder = settings.getSync( "folders" )
 
 	if ( lastFolder ) lastFolder = lastFolder[ 0 ]
-	else lastFolder = settings.get( "folder" )
+	else lastFolder = settings.getSync( "folder" )
 
 	//If we have last folders, we need to make sure that the folder still exists before trying to open it
 	if ( lastFolder )
@@ -132,7 +132,7 @@ function initialize()
 	function setFolder( args )
 	{
 		services.setFolder( args.folder )
-		settings.set( "folder", args.folder )
+		settings.setSync( "folder", args.folder )
 
 		return args
 	}
@@ -141,7 +141,7 @@ function initialize()
 	{
 		const folders = dialog.showOpenDialogSync( { properties: [ "openDirectory" ] } )
 
-		if ( folders && folders.length > 0 ) settings.set( "folders", folders )
+		if ( folders && folders.length > 0 ) settings.setSync( "folders", folders )
 
 		return services.openFolders( folders )
 	}
@@ -164,18 +164,18 @@ function initialize()
 
 		ipcMain.handle( "getClipTelemetry", ( _event, p ) => services.readClipTelemetry( p ) )
 
-		ipcMain.handle( "getThemePreference", () => normalizeThemePreference( settings.get( "themePreference" ) ) )
+		ipcMain.handle( "getThemePreference", () => normalizeThemePreference( settings.getSync( "themePreference" ) ) )
 		ipcMain.handle( "setThemePreference", ( _event, mode ) =>
 		{
 			var m = normalizeThemePreference( mode )
 
-			settings.set( "themePreference", m )
+			settings.setSync( "themePreference", m )
 			syncNativeThemeSource( m )
 
 			return m
 		} )
 
-		syncNativeThemeSource( normalizeThemePreference( settings.get( "themePreference" ) ) )
+		syncNativeThemeSource( normalizeThemePreference( settings.getSync( "themePreference" ) ) )
 
 		ipcMain.on( "openBrowser", () => browse() )
 		ipcMain.on( "deleteFiles", ( _event, files ) => services.deleteFiles( files ) )
