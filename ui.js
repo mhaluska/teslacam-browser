@@ -847,7 +847,7 @@
                         <div v-else-if="telemetryStatus === 'ready' && dashDisplay" class="tc-dash-cluster">
                             <div class="tc-dash-col tc-dash-col-left">
                                 <div class="tc-dash-gear">{{ dashDisplay.gear || "—" }}</div>
-                                <svg class="tc-ico-pedal tc-ico-brake" :class="{ on: dashDisplay.brakeApplied }" viewBox="0 0 32 40" aria-hidden="true">
+                                <svg class="tc-ico-pedal tc-ico-brake" :class="{ on: dashDisplay.brakeApplied }" viewBox="4 2 24 36" aria-hidden="true">
                                     <rect x="6" y="4" width="20" height="32" rx="5" fill="none" stroke="currentColor" stroke-width="2"/>
                                     <line x1="9" y1="12" x2="23" y2="12" stroke="currentColor" stroke-width="2"/>
                                     <line x1="9" y1="18" x2="23" y2="18" stroke="currentColor" stroke-width="2"/>

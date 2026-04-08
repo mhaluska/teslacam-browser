@@ -607,8 +607,9 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
 
 .tc-ico-pedal
 {
-  width: 1.4rem;
-  height: 1.75rem;
+  width: 1.25rem;
+  height: 2.25rem;
+  margin-top: 0.15rem;
   color: rgba( 255, 255, 255, 0.35 );
 }
 
