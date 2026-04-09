@@ -7,12 +7,145 @@
 {
 	const seiTelemetry = require( "./seiTelemetry" )
 	const auth = require( "./auth" )
+	const helmet = require( "helmet" )
+	const rateLimit = require( "express-rate-limit" )
+	const crypto = require( "crypto" )
 
 	const expressApp = express()
 	var version = "0.0.1"
 	var lastArgs = { version: version, folder: "" }
 	var clipTelemetryCache = new Map()
 	var clipTelemetryCacheKeySuffix = "\0tSecV2"
+	var videosMounted = false
+	var csrfCookieName = "tc_csrf"
+	var csrfHeaderName = "x-csrf-token"
+	var trustProxy = parseTrustProxySetting( process.env.TC_TRUST_IP )
+	var csrfSecret = process.env.TC_CSRF_SECRET || crypto.randomBytes( 32 ).toString( "hex" )
+	/** When true (default), delete UI is hidden and delete API returns 403. Set TC_HIDE_DELETE_BUTTONS=false to allow deletes. */
+	var hideDeleteButtons = parseBoolean( process.env.TC_HIDE_DELETE_BUTTONS, true )
+
+	function parseBoolean( value, fallback )
+	{
+		if ( value == null ) return fallback
+		if ( value === true || value === false ) return value
+		if ( typeof value !== "string" ) return fallback
+
+		var v = value.trim().toLowerCase()
+		if ( [ "1", "true", "yes", "on" ].includes( v ) ) return true
+		if ( [ "0", "false", "no", "off" ].includes( v ) ) return false
+
+		return fallback
+	}
+
+	function parseTrustProxySetting( value )
+	{
+		if ( typeof value !== "string" ) return false
+
+		var entries = value
+			.split( "," )
+			.map( s => s.trim() )
+			.filter( s => s.length > 0 )
+
+		if ( entries.length < 1 ) return false
+		if ( entries.length === 1 ) return entries[ 0 ]
+
+		return entries
+	}
+
+	function getCookieOptions( request )
+	{
+		return {
+			path: "/",
+			sameSite: "Lax",
+			httpOnly: false,
+			secure: auth.shouldUseSecureCookie( request )
+		}
+	}
+
+	function parseCookies( header )
+	{
+		var cookies = {}
+		if ( !header ) return cookies
+
+		header.split( ";" ).forEach( function( part )
+		{
+			var eq = part.indexOf( "=" )
+			if ( eq < 0 ) return
+
+			var key = part.substring( 0, eq ).trim()
+			var val = part.substring( eq + 1 ).trim()
+
+			try { cookies[ key ] = decodeURIComponent( val ) }
+			catch ( _e ) { cookies[ key ] = val }
+		} )
+
+		return cookies
+	}
+
+	function ensureRootFolder()
+	{
+		if ( !lastArgs.folder || typeof lastArgs.folder !== "string" )
+			throw new Error( "no_root_folder" )
+
+		return path.resolve( lastArgs.folder )
+	}
+
+	function sanitizeRelativePath( raw, allowEmpty )
+	{
+		if ( typeof raw !== "string" ) throw new Error( "invalid_path" )
+		var rel = raw.replace( /^[/\\]+/, "" ).trim()
+		if ( path.isAbsolute( rel ) ) throw new Error( "absolute_path_not_allowed" )
+		if ( !allowEmpty && !rel.length ) throw new Error( "invalid_path" )
+
+		return rel
+	}
+
+	function resolveWithinRoot( raw, allowEmpty )
+	{
+		var root = ensureRootFolder()
+		var rel = sanitizeRelativePath( raw, !!allowEmpty )
+		var resolved = rel.length ? path.resolve( root, rel ) : root
+		var relCheck = path.relative( root, resolved )
+
+		if ( relCheck.startsWith( ".." ) || path.isAbsolute( relCheck ) )
+			throw new Error( "path_outside_root" )
+
+		return { root: root, relative: rel, resolved: resolved }
+	}
+
+	function getRequestRelativePath( request )
+	{
+		return decodeURIComponent( request.path || "" )
+	}
+
+	function ensureCsrfCookie( request, response )
+	{
+		var cookies = parseCookies( request.headers.cookie )
+		var current = cookies[ csrfCookieName ]
+
+		if ( current ) return current
+
+		var token = crypto.createHmac( "sha256", csrfSecret )
+			.update( String( Date.now() ) + "|" + String( Math.random() ) )
+			.digest( "base64url" )
+
+		response.cookie( csrfCookieName, token, getCookieOptions( request ) )
+		return token
+	}
+
+	function requireCsrf( request, response, next )
+	{
+		if ( !auth.isEnabled() ) return next()
+
+		var cookies = parseCookies( request.headers.cookie )
+		var cookieToken = cookies[ csrfCookieName ]
+		var headerToken = request.get( csrfHeaderName )
+
+		if ( !cookieToken || !headerToken || cookieToken !== headerToken )
+			return response.status( 403 ).json( { error: "csrf_invalid" } )
+
+		next()
+	}
 
     function setVersion( v )
     {
@@ -69,31 +202,21 @@
 
 	function getFiles( p, getVideoPath )
 	{
-		var folder = path.join( lastArgs.folder, p )
-		var files = fs.readdirSync( folder )
+		var target = resolveWithinRoot( p )
+		var files = fs.readdirSync( target.resolved )
 
-		return Array.from( helpers.groupFiles( p, files, getVideoPath ) )
+		return Array.from( helpers.groupFiles( target.relative, files, getVideoPath ) )
 	}
 
 	function readEventJson( relativeFolder )
 	{
-		if ( !lastArgs.folder || typeof relativeFolder !== "string" || !relativeFolder.length )
-			return null
-
-		var rel = relativeFolder.replace( /^[/\\]+/, "" )
-
-		if ( !rel.length ) return null
-
-		var full = path.join( lastArgs.folder, rel, "event.json" )
-		var resolvedRoot = path.resolve( lastArgs.folder )
-		var resolvedFile = path.resolve( full )
-		var relCheck = path.relative( resolvedRoot, resolvedFile )
-
-		if ( relCheck.startsWith( ".." ) || path.isAbsolute( relCheck ) )
-			return null
+		if ( !lastArgs.folder || typeof relativeFolder !== "string" || !relativeFolder.length ) return null
 
 		try
 		{
+			var target = resolveWithinRoot( relativeFolder )
+			var resolvedFile = path.join( target.resolved, "event.json" )
+
 			if ( !fs.existsSync( resolvedFile ) ) return null
 
 			return JSON.parse( fs.readFileSync( resolvedFile, "utf8" ) )
@@ -110,20 +233,11 @@
 		if ( !lastArgs.folder || typeof relativeFilePath !== "string" || !relativeFilePath.length )
 			return { success: false, error: "no_folder", samples: [] }
 
-		var rel = relativeFilePath.replace( /^[/\\]+/, "" )
-
-		if ( !rel.length ) return { success: false, error: "bad_path", samples: [] }
-
-		var full = path.join( lastArgs.folder, rel )
-		var resolvedRoot = path.resolve( lastArgs.folder )
-		var resolvedFile = path.resolve( full )
-		var relCheck = path.relative( resolvedRoot, resolvedFile )
-
-		if ( relCheck.startsWith( ".." ) || path.isAbsolute( relCheck ) )
-			return { success: false, error: "invalid_path", samples: [] }
-
 		try
 		{
+			var target = resolveWithinRoot( relativeFilePath )
+			var resolvedFile = target.resolved
+
 			if ( !fs.existsSync( resolvedFile ) ) return { success: false, error: "not_found", samples: [] }
 
 			var stat = fs.statSync( resolvedFile )
@@ -152,7 +266,22 @@
 
 	function deleteFiles( files )
 	{
-		var resolvedFiles = files.map( f => path.join( lastArgs.folder, f ) )
+		if ( !Array.isArray( files ) || files.length < 1 )
+			throw new Error( "invalid_paths" )
+
+		var resolvedItems = files.map( f => resolveWithinRoot( f ) )
+		var root = ensureRootFolder()
+		var parentFolder = path.dirname( resolvedItems[ 0 ].resolved )
+
+		if ( parentFolder === root ) throw new Error( "refusing_root_level_delete" )
+
+		for ( var item of resolvedItems )
+		{
+			if ( path.dirname( item.resolved ) !== parentFolder )
+				throw new Error( "mixed_folders_not_allowed" )
+		}
+
+		var resolvedFiles = resolvedItems.map( i => i.resolved )
 
 		console.log( `Deleting files: ${resolvedFiles}` )
 
@@ -160,42 +289,38 @@
 
 		console.log( `Deleted files: ${resolvedFiles}` )
 
-		var folderPath = path.dirname( resolvedFiles[ 0 ] )
-		var remaining = fs.readdirSync( folderPath )
+		var remaining = fs.readdirSync( parentFolder )
 
 		if ( remaining.length < 1 )
 		{
-			console.log( `Deleting folder: ${folderPath}` )
+			console.log( `Deleting folder: ${parentFolder}` )
 
-			fs.rmdirSync( folderPath )
+			fs.rmdirSync( parentFolder )
 
-			console.log( `Deleted folder: ${folderPath}` )
+			console.log( `Deleted folder: ${parentFolder}` )
 		}
 	}
 
 	function deleteFolder( folder )
 	{
-		if ( !lastArgs.folder || typeof folder !== "string" || !folder.length )
-		{
-			console.log( `deleteFolder: invalid root or relative path (root=${lastArgs.folder}, folder=${folder})` )
-			return false
-		}
+		var target = resolveWithinRoot( folder )
+		if ( target.resolved === target.root ) throw new Error( "refusing_root_delete" )
 
-		var folderPath = path.join( lastArgs.folder, folder )
+		var folderPath = target.resolved
 		var files = fs.readdirSync( folderPath )
 
-		deleteFiles( files.map( f => path.join( folder, f ) ) )
+		deleteFiles( files.map( f => path.join( target.relative, f ) ) )
 		return true
 	}
 
 	function copyFilePaths( filePaths )
 	{
-		return filePaths.map( f => `"${path.join( lastArgs.folder, f )}"` ).join( " " )
+		return filePaths.map( f => `"${resolveWithinRoot( f ).resolved}"` ).join( " " )
 	}
 
 	function copyPath( folderPath )
 	{
-		return path.join( lastArgs.folder, folderPath )
+		return resolveWithinRoot( folderPath, true ).resolved
 	}
 
 	function openFolder( folder )
@@ -315,7 +440,8 @@
             parsedFolder: parsedFolder,
 			folderPathParts: folderPathParts,
 			subfolders: subfolders,
-			version: version
+			version: version,
+			hideDeleteButtons: hideDeleteButtons
         }
     }
 
@@ -327,19 +453,67 @@
 
 			console.log( ` ${args.folder}` )
 
-			expressApp.use(
-				"/videos",
-				express.static( args.folder ),
-				serveIndex( args.folder, { 'icons': true } ) )
+			if ( !videosMounted )
+			{
+				expressApp.use(
+					"/videos",
+					express.static( args.folder ) )
+				videosMounted = true
+			}
 
 			return args
 		}
 
+		var loginLimiter = rateLimit(
+			{
+				windowMs: 10 * 60 * 1000,
+				max: parseInt( process.env.TC_LOGIN_MAX_ATTEMPTS || "10", 10 ),
+				standardHeaders: true,
+				legacyHeaders: false
+			} )
+		var deleteLimiter = rateLimit(
+			{
+				windowMs: 60 * 1000,
+				max: parseInt( process.env.TC_DELETE_MAX_PER_MINUTE || "20", 10 ),
+				standardHeaders: true,
+				legacyHeaders: false
+			} )
+		var enableHelmet = parseBoolean( process.env.TC_ENABLE_HELMET, true )
+
+		expressApp.set( "trust proxy", trustProxy )
         expressApp.use( express.urlencoded( { extended: false } ) )
+		expressApp.use( express.json( { limit: "1mb" } ) )
+
+		if ( enableHelmet )
+		{
+			expressApp.use( helmet(
+				{
+					contentSecurityPolicy:
+					{
+						directives:
+						{
+							defaultSrc: [ "'self'" ],
+							scriptSrc: [ "'self'", "'unsafe-inline'", "'unsafe-eval'" ],
+							scriptSrcAttr: [ "'unsafe-inline'" ],
+							scriptSrcElem: [ "'self'", "'unsafe-inline'", "'unsafe-eval'" ],
+							styleSrc: [ "'self'", "'unsafe-inline'" ],
+							imgSrc: [ "'self'", "data:" ],
+							fontSrc: [ "'self'", "data:" ],
+							connectSrc: [ "'self'" ],
+							frameSrc: [ "'self'", "https://www.openstreetmap.org" ],
+							objectSrc: [ "'none'" ],
+							baseUri: [ "'self'" ],
+							frameAncestors: [ "'none'" ]
+						}
+					},
+					crossOriginEmbedderPolicy: false
+				} ) )
+		}
 
         expressApp.get( "/login", auth.loginPageHandler )
-        expressApp.post( "/login", auth.loginHandler )
-        expressApp.post( "/logout", auth.logoutHandler )
+        expressApp.post( "/login", loginLimiter, auth.loginHandler )
+		expressApp.get( "/csrf", ( request, response ) => response.json( { token: ensureCsrfCookie( request, response ) } ) )
+        expressApp.post( "/logout", requireCsrf, auth.logoutHandler )
         expressApp.get( "/auth-enabled", ( request, response ) => response.json( { enabled: auth.isEnabled() } ) )
 
         if ( auth.isEnabled() )
@@ -349,21 +523,79 @@
         }
 
         expressApp.get( "/", ( request, response ) => response.sendFile( __dirname + "/external.html" ) )
-        expressApp.get( "/openFolders", ( request, response ) => response.send( openFolders() ) )
         expressApp.get( "/reopenFolders", ( request, response ) => response.send( reopenFolders() ) )
         expressApp.get( "/args", ( request, response ) => response.send( args() ) )
-        expressApp.get( "/openDefaultFolder", ( request, response ) => response.send( serveVideos( openFolder() ) ) )
-        expressApp.use( "/openFolder", ( request, response ) => response.send( serveVideos( openFolder( decodeURIComponent( request.path ) ) ) ) )
-        expressApp.use( "/copyFilePaths", ( request, response ) => response.send( copyFilePaths( decodeURIComponent( request.path ) ) ) )
-        expressApp.use( "/copyPath", ( request, response ) => response.send( copyPath( decodeURIComponent( request.path ) ) ) )
-        expressApp.use( "/files", ( request, response ) => response.send( getFiles( decodeURIComponent( request.path ), p => "videos/" + p ) ) )
-        expressApp.use( "/eventJson", ( request, response ) => response.json( readEventJson( decodeURIComponent( request.path ) ) ) )
-        expressApp.use( "/clipTelemetry", ( request, response ) => response.json( readClipTelemetry( decodeURIComponent( request.path ) ) ) )
+		expressApp.get( "/openDefaultFolder", ( request, response ) =>
+		{
+			try { response.send( serveVideos( openFolder() ) ) }
+			catch ( _e ) { response.status( 400 ).json( { error: "invalid_root" } ) }
+		} )
+		expressApp.use( "/copyFilePaths", ( request, response ) =>
+		{
+			try
+			{
+				var rel = getRequestRelativePath( request )
+				response.send( copyFilePaths( [ rel ] ) )
+			}
+			catch ( _e )
+			{
+				response.status( 400 ).json( { error: "invalid_path" } )
+			}
+		} )
+		expressApp.use( "/copyPath", ( request, response ) =>
+		{
+			try
+			{
+				var rel = getRequestRelativePath( request )
+				response.send( copyPath( rel ) )
+			}
+			catch ( _e )
+			{
+				response.status( 400 ).json( { error: "invalid_path" } )
+			}
+		} )
+		expressApp.use( "/files", ( request, response ) =>
+		{
+			try
+			{
+				var rel = getRequestRelativePath( request )
+				response.send( getFiles( rel, p => "videos/" + p ) )
+			}
+			catch ( _e )
+			{
+				response.status( 400 ).json( { error: "invalid_path" } )
+			}
+		} )
+		expressApp.use( "/eventJson", ( request, response ) =>
+		{
+			try
+			{
+				var rel = getRequestRelativePath( request )
+				response.json( readEventJson( rel ) )
+			}
+			catch ( _e )
+			{
+				response.status( 400 ).json( { error: "invalid_path" } )
+			}
+		} )
+		expressApp.use( "/clipTelemetry", ( request, response ) =>
+		{
+			try
+			{
+				var rel = getRequestRelativePath( request )
+				response.json( readClipTelemetry( rel ) )
+			}
+			catch ( _e )
+			{
+				response.status( 400 ).json( { success: false, error: "invalid_path", samples: [] } )
+			}
+		} )
 
-        expressApp.use( express.json( { limit: "1mb" } ) )
-
-        expressApp.post( "/deleteFiles", ( request, response ) =>
+        expressApp.post( "/deleteFiles", deleteLimiter, requireCsrf, ( request, response ) =>
         {
+            if ( hideDeleteButtons )
+                return response.status( 403 ).json( { error: "delete_disabled" } )
+
             var paths = request.body && request.body.paths
 
             if ( !Array.isArray( paths ) )
@@ -371,18 +603,22 @@
 
             try
             {
+                for ( var p of paths ) if ( typeof p !== "string" || !p.length ) return response.status( 400 ).send( "Each path must be a non-empty string" )
                 deleteFiles( paths )
                 response.sendStatus( 200 )
             }
             catch ( e )
             {
                 console.log( e )
-                response.status( 500 ).send( String( e ) )
+                response.status( 400 ).json( { error: "invalid_path_or_delete_failed" } )
             }
         } )
 
-        expressApp.post( "/deleteFolder", ( request, response ) =>
+        expressApp.post( "/deleteFolder", deleteLimiter, requireCsrf, ( request, response ) =>
         {
+            if ( hideDeleteButtons )
+                return response.status( 403 ).json( { error: "delete_disabled" } )
+
             var rel = request.body && request.body.path
 
             if ( typeof rel !== "string" || !rel.length )
@@ -398,11 +634,14 @@
             catch ( e )
             {
                 console.log( e )
-                response.status( 500 ).send( String( e ) )
+                response.status( 400 ).json( { error: "invalid_path_or_delete_failed" } )
             }
         } )
 
-        expressApp.use( "/content", express.static( __dirname ) )
+		expressApp.get( "/content/app.css", ( request, response ) => response.sendFile( __dirname + "/app.css" ) )
+		expressApp.get( "/content/helpers.js", ( request, response ) => response.sendFile( __dirname + "/helpers.js" ) )
+		expressApp.get( "/content/ui.js", ( request, response ) => response.sendFile( __dirname + "/ui.js" ) )
+		expressApp.get( "/content/favicon.svg", ( request, response ) => response.sendFile( __dirname + "/favicon.svg" ) )
         expressApp.use( "/node_modules", express.static( __dirname + "/node_modules" ) )
 
         expressApp.listen( port, ( err ) =>

@@ -65,11 +65,13 @@
   },
   "dependencies": {
     "bootstrap": "^5.3.8",
+    "bootstrap-icons": "^1.13.1",
     "electron-settings": "^4.0.4",
     "electron-updater": "^6.8.3",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.3.2",
     "flatpickr": "^4.6.13",
-    "bootstrap-icons": "^1.13.1",
+    "helmet": "^8.1.0",
     "protobufjs": "^8.0.1",
     "serve-index": "^1.9.2",
     "vue": "^3.5.32"

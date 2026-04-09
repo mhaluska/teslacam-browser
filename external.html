@@ -73,27 +73,12 @@
             <div class="navigation overflow-auto">
 
               <div class="px-2 mb-2 overflow-auto">
-                <button class="btn btn-primary w-100 dropdown-toggle" type="button"
-                  @click.prevent="showFolders = !showFolders" style="word-wrap: break-word; white-space: normal; max-width: 320px;">
+                <button class="btn btn-primary w-100" type="button" disabled
+                  title="Recording root (fixed at server startup)"
+                  style="word-wrap: break-word; white-space: normal; max-width: 320px; cursor: default; opacity: 1;">
                   <span class="bi bi-folder text-warning me-1"></span>
-                  <span>{{args.folder}}</span>
+                  <span>{{ (args.folder || '').replace(/[/\\]+$/, '') }}</span>
                 </button>
-                <div v-show="showFolders">
-                  <div v-for="f, i in args.folderPathParts" :style="{ marginLeft: ( i * 10 ) + 'px' }">
-                    <a href="" @click.prevent="selectedFolder = f.path">
-                      <span class="bi bi-folder text-warning me-1"></span>
-                      <span
-                        :style="{ fontWeight: i < args.folderPathParts.length - 1 ? 'normal' : 'bold' }">{{f.name}}</span>
-                    </a>
-                  </div>
-                  <div v-for="subfolder in args.subfolders"
-                    :style="{ marginLeft: ( args.folderPathParts.length * 10 ) + 'px' }">
-                    <a href="" @click.prevent="selectedFolder = subfolder.path">
-                      <span class="bi bi-folder text-warning me-1"></span>
-                      <span>{{subfolder.name}}</span>
-                    </a>
-                  </div>
-                </div>
               </div>
               <div class="d-flex align-items-center">
                 <div class="px-2 mb-2 flex-grow-1" style="font-size: small;">
@@ -120,7 +105,7 @@
                 </div>
               </div>
               <div class="px-2 mb-2">
-                <button id="deleteButton" class="btn btn-danger" @click="deleteFolder( selectedPath )">Delete
+                <button v-if="args.hideDeleteButtons === false" id="deleteButton" class="btn btn-danger" @click="deleteFolder( selectedPath )">Delete
                   folder</button>
                 <button id="copyButton" class="btn btn-info" @click="copyPath( selectedPath )">Copy path</button>
               </div>
@@ -187,7 +172,7 @@
                       @click="timespan.visible = !timespan.visible"><a href="#">{{timespan.visible ? "↑" : "↓"}}</a>
                       {{timespan.title}}</div>
                     <div class="px-2 controls">
-                      <button class="btn btn-danger delete" @click="deleteFiles( timespan )">Delete</button>
+                      <button v-if="args.hideDeleteButtons === false" class="btn btn-danger delete" @click="deleteFiles( timespan )">Delete</button>
                       <button class="btn btn-info copy" @click="copyFilePaths( timespan )">Copy paths</button>
                       <button class="btn btn-success play" v-show="!timespan.playing"
                         @click="playPause( timespan )"><span class="bi bi-play" title="Play"></span></button>
@@ -226,6 +211,7 @@
   <script type="text/javascript">
     (function () {
       var lastArgs = { folder: "" }
+      var csrfToken = null
 
       function joinFilePaths( filePaths )
       {
@@ -242,23 +228,44 @@
         navigator.clipboard.writeText( value )
       }
 
+      function ensureCsrfToken()
+      {
+        if ( csrfToken ) return Promise.resolve( csrfToken )
+
+        return fetch( "/csrf" )
+          .then( r => r.ok ? r.json() : Promise.reject( new Error( "csrf_request_failed" ) ) )
+          .then( function( data )
+          {
+            csrfToken = data && data.token ? data.token : null
+            if ( !csrfToken ) throw new Error( "csrf_missing" )
+            return csrfToken
+          } )
+      }
+
       function postJson( url, body )
       {
-        return fetch( url,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify( body )
-          } )
+        return ensureCsrfToken().then( function( token )
+        {
+          return fetch( url,
+            {
+              method: "POST",
+              headers:
+              {
+                "Content-Type": "application/json",
+                "X-CSRF-Token": token
+              },
+              body: JSON.stringify( body )
+            } )
+        } )
       }
 
       var THEME_STORAGE_KEY = "themePreference"
 
       var vueApp = ui.initialize(
         {
-          openFolders: success => fetch("openFolders").then(r => r.json()).then(success),
+          openFolders: success => fetch("openDefaultFolder").then(r => r.json()).then(success),
           reopenFolders: success => fetch("reopenFolders").then(r => r.json()).then(success),
-          openFolder: (p, success) => fetch( p ? "openFolder" + p : "openDefaultFolder").then(r => r.json()).then(a => success( lastArgs = a )),
+          openFolder: (_p, success) => fetch( "openDefaultFolder").then(r => r.json()).then(a => success( lastArgs = a )),
           getFiles: (p, success) => fetch("files/" + p).then(r => r.json()).then(success),
           readEventJson: (p, success) => fetch("eventJson/" + p).then(r => r.json()).then(data => success(data)).catch(() => success(null)),
           getClipTelemetry: (p, success) => fetch("clipTelemetry/" + encodeURI(p)).then(r => r.json()).then(data => success(data)).catch(() => success({ success: false, error: "request_failed", samples: [] })),
@@ -296,11 +303,12 @@
         {
             if ( data && data.enabled )
             {
+                ensureCsrfToken().catch( function() {} )
                 var btn = document.getElementById( "logoutBtn" )
                 btn.style.display = ""
                 btn.addEventListener( "click", function()
                 {
-                    fetch( "/logout", { method: "POST" } ).then( function() { window.location.href = "/login" } )
+                    postJson( "/logout", {} ).then( function() { window.location.href = "/login" } )
                 } )
             }
         } )
