@@ -432,8 +432,11 @@
 		{
 		}
 
+		var folderDisplay = folder.replace( /[/\\]+$/, "" )
+
 		return {
 			folder: folder,
+			folderDisplay: folderDisplay,
 			folderInfos: folderInfos,
 			dateGroups: Array.from( dateGroups ),
             dates: dates,
