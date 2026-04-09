@@ -33,6 +33,18 @@ You can then open the app in a browser by pointing to `http://localhost:8088` (r
 
 For public exposure, run behind an HTTPS reverse proxy (Nginx, Caddy, Traefik, etc.) and avoid direct internet exposure of the Node process.
 
+### Access logging (headless)
+
+Headless mode writes one JSON access log line per HTTP response to stdout.
+
+Example:
+
+```json
+{"ts":"2026-04-09T16:20:31.177Z","method":"GET","path":"/args","status":200,"durationMs":2.431,"ip":"203.0.113.45","forwardedFor":"203.0.113.45, 10.0.0.2","userAgent":"Mozilla/5.0","contentLength":"98"}
+```
+
+When running behind a reverse proxy, set `TC_TRUST_IP` to your proxy IP/CIDR ranges so the logged `ip` field reflects the real client address.
+
 ## Authentication
 
 When running as a headless server on a network, authentication should be enabled.

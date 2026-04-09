@@ -52,6 +52,47 @@
 		return entries
 	}
 
+	function normalizeInitializeOptions( options )
+	{
+		if ( !options || typeof options !== "object" )
+			return { headless: false }
+
+		return {
+			headless: parseBoolean( options.headless, false )
+		}
+	}
+
+	function attachAccessLoggingMiddleware( app )
+	{
+		app.use( ( request, response, next ) =>
+		{
+			var start = process.hrtime()
+
+			response.on( "finish", () =>
+			{
+				var elapsed = process.hrtime( start )
+				var durationMs = elapsed[ 0 ] * 1000 + elapsed[ 1 ] / 1000000
+				var contentLength = response.getHeader( "content-length" )
+				var entry = {
+					ts: new Date().toISOString(),
+					method: request.method,
+					path: request.path || ( request.originalUrl || "" ).split( "?" )[ 0 ],
+					status: response.statusCode,
+					durationMs: Math.round( durationMs * 1000 ) / 1000,
+					ip: request.ip,
+					forwardedFor: request.get( "x-forwarded-for" ) || undefined,
+					userAgent: request.get( "user-agent" ) || undefined,
+					referer: request.get( "referer" ) || undefined,
+					contentLength: contentLength != null ? String( contentLength ) : undefined
+				}
+
+				console.log( JSON.stringify( entry ) )
+			} )
+
+			next()
+		} )
+	}
+
 	function getCookieOptions( request )
 	{
 		return {
@@ -448,8 +489,10 @@
         }
     }
 
-    function initializeExpress( port )
+    function initializeExpress( port, options )
     {
+		var initializeOptions = normalizeInitializeOptions( options )
+
 		function serveVideos( args )
 		{
 			lastArgs = args
@@ -487,6 +530,7 @@
 		expressApp.set( "trust proxy", trustProxy )
         expressApp.use( express.urlencoded( { extended: false } ) )
 		expressApp.use( express.json( { limit: "1mb" } ) )
+		if ( initializeOptions.headless ) attachAccessLoggingMiddleware( expressApp )
 
 		if ( enableHelmet )
 		{
