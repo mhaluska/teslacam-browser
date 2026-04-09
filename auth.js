@@ -1,4 +1,5 @@
 const crypto = require( "crypto" )
+const logger = require( "./logger" )
 
 const AUTH_USER = process.env.TC_AUTH_USER
 const AUTH_PASS_HASH = process.env.TC_AUTH_PASS_HASH
@@ -7,6 +8,17 @@ const SESSION_DAYS = parseFloat( process.env.TC_SESSION_DAYS ) || 7
 const SESSION_MS = SESSION_DAYS * 24 * 60 * 60 * 1000
 const COOKIE_NAME = "tc_session"
 const COOKIE_SECURE = ( process.env.TC_COOKIE_SECURE || "auto" ).toLowerCase()
+const LEGACY_SHA256_REGEX = /^[a-f0-9]{64}$/i
+const SCRYPT_PREFIX = "scrypt$"
+const MIN_SALT_BYTES = 16
+const MAX_SALT_BYTES = 128
+const MIN_DK_BYTES = 16
+const MAX_DK_BYTES = 128
+const MAX_SCRYPT_N = 1 << 20
+const MAX_SCRYPT_R = 32
+const MAX_SCRYPT_P = 16
+let warnedLegacyPasswordHash = false
+let warnedInvalidPasswordHash = false
 
 function shouldUseSecureCookie( req )
 {
@@ -19,6 +31,88 @@ function shouldUseSecureCookie( req )
 function isEnabled()
 {
     return !!( AUTH_USER && AUTH_PASS_HASH )
+}
+
+function parseScryptHash( encoded )
+{
+    if ( typeof encoded !== "string" || !encoded.startsWith( SCRYPT_PREFIX ) ) return null
+
+    const parts = encoded.split( "$" )
+    if ( parts.length !== 6 || parts[ 0 ] !== "scrypt" ) return null
+
+    const n = parseInt( parts[ 1 ], 10 )
+    const r = parseInt( parts[ 2 ], 10 )
+    const p = parseInt( parts[ 3 ], 10 )
+
+    if ( !Number.isInteger( n ) || !Number.isInteger( r ) || !Number.isInteger( p ) ) return null
+    if ( n < 2 || ( n & ( n - 1 ) ) !== 0 || n > MAX_SCRYPT_N ) return null
+    if ( r < 1 || r > MAX_SCRYPT_R ) return null
+    if ( p < 1 || p > MAX_SCRYPT_P ) return null
+
+    let salt
+    let expected
+    try
+    {
+        salt = Buffer.from( parts[ 4 ], "base64" )
+        expected = Buffer.from( parts[ 5 ], "base64" )
+    }
+    catch ( _e )
+    {
+        return null
+    }
+
+    if ( salt.length < MIN_SALT_BYTES || salt.length > MAX_SALT_BYTES ) return null
+    if ( expected.length < MIN_DK_BYTES || expected.length > MAX_DK_BYTES ) return null
+
+    return { n, r, p, salt, expected }
+}
+
+function verifyPasswordHash( password )
+{
+    if ( typeof password !== "string" || typeof AUTH_PASS_HASH !== "string" ) return false
+
+    const scryptHash = parseScryptHash( AUTH_PASS_HASH )
+
+    if ( scryptHash )
+    {
+        try
+        {
+            const maxmem = Math.max( 32 * 1024 * 1024, 256 * scryptHash.n * scryptHash.r * scryptHash.p )
+            const derived = crypto.scryptSync(
+                password,
+                scryptHash.salt,
+                scryptHash.expected.length,
+                { N: scryptHash.n, r: scryptHash.r, p: scryptHash.p, maxmem: maxmem } )
+
+            return crypto.timingSafeEqual( derived, scryptHash.expected )
+        }
+        catch ( _e )
+        {
+            return false
+        }
+    }
+
+    if ( LEGACY_SHA256_REGEX.test( AUTH_PASS_HASH ) )
+    {
+        if ( !warnedLegacyPasswordHash )
+        {
+            warnedLegacyPasswordHash = true
+            logger.warn( "auth_legacy_sha256_hash_in_use", { hint: "Migrate TC_AUTH_PASS_HASH to scrypt$N$r$p$saltBase64$dkBase64 format." } )
+        }
+
+        const inputHash = crypto.createHash( "sha256" ).update( password ).digest( "hex" )
+
+        return inputHash.length === AUTH_PASS_HASH.length &&
+            crypto.timingSafeEqual( Buffer.from( inputHash ), Buffer.from( AUTH_PASS_HASH ) )
+    }
+
+    if ( !warnedInvalidPasswordHash )
+    {
+        warnedInvalidPasswordHash = true
+        logger.warn( "auth_pass_hash_invalid_format", { hint: "Expected scrypt$N$r$p$saltBase64$dkBase64 or legacy 64-char SHA-256 hex." } )
+    }
+
+    return false
 }
 
 function sign( payload )
@@ -181,11 +275,8 @@ function loginHandler( req, res )
         return res.send( loginPage( "Please enter username and password." ) )
     }
 
-    const inputHash = crypto.createHash( "sha256" ).update( password ).digest( "hex" )
-
     // Timing-safe comparison for both username and password hash
-    const hashMatch = inputHash.length === AUTH_PASS_HASH.length &&
-        crypto.timingSafeEqual( Buffer.from( inputHash ), Buffer.from( AUTH_PASS_HASH ) )
+    const hashMatch = verifyPasswordHash( password )
 
     const userMatch = username.length === AUTH_USER.length &&
         crypto.timingSafeEqual( Buffer.from( username ), Buffer.from( AUTH_USER ) )

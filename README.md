@@ -55,11 +55,21 @@ To enable authentication, set `TC_AUTH_USER` and `TC_AUTH_PASS_HASH`:
 TC_AUTH_USER=admin TC_AUTH_PASS_HASH=<hash> node server.js /path/to/TeslaCam
 ```
 
-Generate the password hash using `shasum` (available on macOS and most Linux systems):
+`TC_AUTH_PASS_HASH` keeps the same variable name, but now supports a password-hard `scrypt` format:
 
 ```
-echo -n "yourpassword" | shasum -a 256 | cut -d' ' -f1
+scrypt$N$r$p$saltBase64$dkBase64
 ```
+
+Generate an `scrypt` hash (recommended):
+
+```
+npm run hash-password -- "yourpassword"
+```
+
+This command works the same way on Linux/macOS (and Windows) and prints a value you can paste into `TC_AUTH_PASS_HASH`.
+
+Legacy 64-character SHA-256 hashes are still accepted for migration compatibility, but should be replaced with `scrypt` as soon as possible.
 
 Additional optional variables:
 
