@@ -482,6 +482,7 @@
 				legacyHeaders: false
 			} )
 		var enableHelmet = parseBoolean( process.env.TC_ENABLE_HELMET, true )
+		var enableCspUpgradeInsecureRequests = parseBoolean( process.env.TC_CSP_UPGRADE_INSECURE_REQUESTS, false )
 
 		expressApp.set( "trust proxy", trustProxy )
         expressApp.use( express.urlencoded( { extended: false } ) )
@@ -504,6 +505,7 @@
 							fontSrc: [ "'self'", "data:" ],
 							connectSrc: [ "'self'" ],
 							frameSrc: [ "'self'", "https://www.openstreetmap.org" ],
+							upgradeInsecureRequests: enableCspUpgradeInsecureRequests ? [] : null,
 							objectSrc: [ "'none'" ],
 							baseUri: [ "'self'" ],
 							frameAncestors: [ "'none'" ]

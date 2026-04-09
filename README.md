@@ -58,6 +58,7 @@ Additional optional variables:
 | `TC_COOKIE_SECURE` | `auto` | Session cookie secure mode (`auto`, `true`, `false`). Use `auto` behind HTTPS reverse proxy. |
 | `TC_TRUST_IP` | _(unset)_ | Comma-separated trusted proxy IP/CIDR list used for Express `trust proxy` (example: `127.0.0.1,10.0.0.0/8,192.168.1.0/24`). |
 | `TC_ENABLE_HELMET` | `true` | Enables HTTP security headers middleware. |
+| `TC_CSP_UPGRADE_INSECURE_REQUESTS` | `false` | Adds CSP `upgrade-insecure-requests` when `true`. Keep `false` for direct HTTP LAN access; set `true` when serving only behind HTTPS. |
 | `TC_LOGIN_MAX_ATTEMPTS` | `10` | Max login attempts per 10-minute window per IP. |
 | `TC_DELETE_MAX_PER_MINUTE` | `20` | Max destructive requests (`deleteFiles`, `deleteFolder`) per minute per IP. |
 | `TC_CSRF_SECRET` | Random per startup | Secret used to mint CSRF tokens for authenticated POST requests. |
@@ -73,7 +74,8 @@ Authentication only applies to the web server mode. The Electron desktop app is 
 2. Place the app behind HTTPS reverse proxy and do not expose raw Node port directly.
 3. Set `TC_TRUST_IP` to your reverse proxy IP/CIDR ranges.
 4. Keep `TC_COOKIE_SECURE=auto` (or `true` if TLS is always used end-to-end).
-5. Review rate-limit env vars for your traffic profile.
+5. If all browser traffic is HTTPS, optionally set `TC_CSP_UPGRADE_INSECURE_REQUESTS=true`.
+6. Review rate-limit env vars for your traffic profile.
 
 ## tesla_dashcam
 
