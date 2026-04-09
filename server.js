@@ -31,4 +31,4 @@ catch ( e )
 }
 
 services.setFolder( resolvedFolder )
-services.initializeExpress( port )
+services.initializeExpress( port, { headless: true } )
