@@ -4,6 +4,7 @@ const menu = require( "./menu" )
 const services = require( "./services" )
 const { autoUpdater } = require( "electron-updater" )
 const settings = require( "electron-settings" )
+const logger = require( "./logger" )
 const fs = require( "fs" )
 const path = require( "path" )
 
@@ -114,12 +115,12 @@ function initialize()
 		{
 			if ( !err )
 			{
-				console.log( `Opening Last Folder (${lastFolder})` );
+				logger.info( "opening_last_folder", { folder: lastFolder } )
 				services.setFolder( lastFolder )
 			}
 			else if ( err.code === 'ENOENT' )
 			{
-				console.log( `Last folder (${lastFolder}) doesn't exist anymore` );
+				logger.warn( "last_folder_missing", { folder: lastFolder } )
 				services.setFolder( "" )
 			}
 		});
@@ -148,7 +149,7 @@ function initialize()
 
 	function browse()
 	{
-		console.log( `Opening browser at http://localhost:${port}` )
+		logger.info( "opening_browser", { url: `http://localhost:${port}` } )
 		shell.openExternal( `http://localhost:${port}` )
 	}
 

@@ -179,7 +179,12 @@
 		}
 		catch ( e )
 		{
-			console.log( "seiTelemetry/frameTimes:", e.message || e )
+			console.log( JSON.stringify( {
+				ts: new Date().toISOString(),
+				level: "warn",
+				event: "sei_telemetry_frame_times_failed",
+				error: ( e && e.message ) ? e.message : String( e )
+			} ) )
 		}
 
 		return null

@@ -1,5 +1,6 @@
 // Modules to control application life and create native browser window
 const services = require( "./services" )
+const logger = require( "./logger" )
 const fs = require( "fs" )
 const path = require( "path" )
 
@@ -10,7 +11,7 @@ services.setVersion( require('./package.json').version )
 
 if ( !defaultFolder )
 {
-    console.error( "Headless mode requires a TeslaCam path: node server.js /path/to/TeslaCam" )
+    logger.error( "headless_startup_path_missing", { hint: "node server.js /path/to/TeslaCam" } )
     process.exit( 1 )
 }
 
@@ -20,13 +21,13 @@ try
 {
     if ( !fs.statSync( resolvedFolder ).isDirectory() )
     {
-        console.error( "Provided path is not a directory: " + resolvedFolder )
+        logger.error( "headless_startup_path_not_directory", { path: resolvedFolder } )
         process.exit( 1 )
     }
 }
 catch ( e )
 {
-    console.error( "Cannot access path: " + resolvedFolder )
+    logger.error( "headless_startup_path_inaccessible", { path: resolvedFolder, error: e } )
     process.exit( 1 )
 }
 

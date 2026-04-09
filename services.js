@@ -7,6 +7,7 @@
 {
 	const seiTelemetry = require( "./seiTelemetry" )
 	const auth = require( "./auth" )
+	const logger = require( "./logger" )
 	const helmet = require( "helmet" )
 	const rateLimit = require( "express-rate-limit" )
 	const crypto = require( "crypto" )
@@ -86,7 +87,7 @@
 					contentLength: contentLength != null ? String( contentLength ) : undefined
 				}
 
-				console.log( JSON.stringify( entry ) )
+				logger.info( "http_access", entry )
 			} )
 
 			next()
@@ -192,13 +193,13 @@
     {
 		version = v
 		lastArgs.version = v
-		console.log( "TeslaCam Browser version set to " + v )
+		logger.info( "version_set", { version: v } )
     }
 
 	function setFolder( f )
 	{
 		lastArgs.folder = f
-		console.log( "Root folder set to " + f )
+		logger.info( "root_folder_set", { folder: f } )
 	}
 
 	function reopenFolders()
@@ -225,7 +226,7 @@
 
             Object.assign( lastArgs, openFolder( folder ) )
 
-			console.log( `OBSOLETE?: Serving content from ${folder}` )
+			logger.info( "serve_content_folder", { folder: folder, source: "openFolders" } )
 
 			expressApp.use(
 				"/videos",
@@ -264,7 +265,7 @@
 		}
 		catch ( e )
 		{
-			console.log( e )
+			logger.warn( "read_event_json_failed", { error: e } )
 			return null
 		}
 	}
@@ -298,7 +299,7 @@
 		}
 		catch ( e )
 		{
-			console.log( e )
+			logger.warn( "read_clip_telemetry_failed", { error: e } )
 
 			return { success: false, error: String( e.message || e ), samples: [] }
 		}
@@ -324,21 +325,21 @@
 
 		var resolvedFiles = resolvedItems.map( i => i.resolved )
 
-		console.log( `Deleting files: ${resolvedFiles}` )
+		logger.info( "delete_files_started", { files: resolvedFiles } )
 
 		for ( var file of resolvedFiles ) fs.unlinkSync( file )
 
-		console.log( `Deleted files: ${resolvedFiles}` )
+		logger.info( "delete_files_completed", { files: resolvedFiles } )
 
 		var remaining = fs.readdirSync( parentFolder )
 
 		if ( remaining.length < 1 )
 		{
-			console.log( `Deleting folder: ${parentFolder}` )
+			logger.info( "delete_folder_started", { folder: parentFolder } )
 
 			fs.rmdirSync( parentFolder )
 
-			console.log( `Deleted folder: ${parentFolder}` )
+			logger.info( "delete_folder_completed", { folder: parentFolder } )
 		}
 	}
 
@@ -497,7 +498,7 @@
 		{
 			lastArgs = args
 
-			console.log( ` ${args.folder}` )
+			logger.info( "serve_videos_folder", { folder: args.folder } )
 
 			if ( !videosMounted )
 			{
@@ -567,7 +568,7 @@
 
         if ( auth.isEnabled() )
         {
-            console.log( " Authentication enabled" )
+            logger.info( "authentication_enabled" )
             expressApp.use( auth.middleware )
         }
 
@@ -658,7 +659,7 @@
             }
             catch ( e )
             {
-                console.log( e )
+                logger.warn( "delete_files_route_failed", { error: e } )
                 response.status( 400 ).json( { error: "invalid_path_or_delete_failed" } )
             }
         } )
@@ -682,7 +683,7 @@
             }
             catch ( e )
             {
-                console.log( e )
+                logger.warn( "delete_folder_route_failed", { error: e } )
                 response.status( 400 ).json( { error: "invalid_path_or_delete_failed" } )
             }
         } )
@@ -697,10 +698,10 @@
         {
             if (err)
             {
-                return console.log( `Something bad happened`, err )
+                return logger.error( "server_listen_failed", { port: port, error: err } )
             }
     
-            console.log( `Server is listening on port ${port}` )
+            logger.info( "server_listening", { port: port } )
         } )
     }
 
