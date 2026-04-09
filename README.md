@@ -26,11 +26,16 @@ npm install
 node server.js /path/to/TeslaCam
 ```
 
-You can then open the app in a browser by pointing to http://localhost:8088 (replace `localhost` with address of your server).
+The startup path is required in headless mode and is treated as the fixed root for all file operations.
+Folder browsing/switching in the headless web UI is intentionally disabled.
+
+You can then open the app in a browser by pointing to `http://localhost:8088` (replace `localhost` with address of your server).
+
+For public exposure, run behind an HTTPS reverse proxy (Nginx, Caddy, Traefik, etc.) and avoid direct internet exposure of the Node process.
 
 ## Authentication
 
-When running as a headless server, you can optionally enable login authentication by setting environment variables. Authentication is disabled by default — the app works without login when these variables are not set.
+When running as a headless server on a network, authentication should be enabled.
 
 To enable authentication, set `TC_AUTH_USER` and `TC_AUTH_PASS_HASH`:
 
@@ -50,8 +55,25 @@ Additional optional variables:
 |---|---|---|
 | `TC_AUTH_SECRET` | Random per startup | Secret key for signing session cookies. If not set, sessions are invalidated on server restart. |
 | `TC_SESSION_DAYS` | `7` | Session lifetime in days. |
+| `TC_COOKIE_SECURE` | `auto` | Session cookie secure mode (`auto`, `true`, `false`). Use `auto` behind HTTPS reverse proxy. |
+| `TC_TRUST_IP` | _(unset)_ | Comma-separated trusted proxy IP/CIDR list used for Express `trust proxy` (example: `127.0.0.1,10.0.0.0/8,192.168.1.0/24`). |
+| `TC_ENABLE_HELMET` | `true` | Enables HTTP security headers middleware. |
+| `TC_LOGIN_MAX_ATTEMPTS` | `10` | Max login attempts per 10-minute window per IP. |
+| `TC_DELETE_MAX_PER_MINUTE` | `20` | Max destructive requests (`deleteFiles`, `deleteFolder`) per minute per IP. |
+| `TC_CSRF_SECRET` | Random per startup | Secret used to mint CSRF tokens for authenticated POST requests. |
+| `TC_HIDE_DELETE_BUTTONS` | `true` | When `true`, hides clip/folder Delete controls in the headless web UI and rejects delete API calls (`403`). Set to `false` to allow deletes. |
 
 Authentication only applies to the web server mode. The Electron desktop app is not affected.
+
+### Public deployment checklist (headless)
+
+<p style="color:#b00020;"><strong>Warning:</strong> Do not expose this application to the public Internet. Use it on a trusted LAN, behind a VPN, or with strict private access only—hardening does not make wide internet exposure a good idea.</p>
+
+1. Set `TC_AUTH_USER`, `TC_AUTH_PASS_HASH`, and a persistent `TC_AUTH_SECRET`.
+2. Place the app behind HTTPS reverse proxy and do not expose raw Node port directly.
+3. Set `TC_TRUST_IP` to your reverse proxy IP/CIDR ranges.
+4. Keep `TC_COOKIE_SECURE=auto` (or `true` if TLS is always used end-to-end).
+5. Review rate-limit env vars for your traffic profile.
 
 ## tesla_dashcam
 

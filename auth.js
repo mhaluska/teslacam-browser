@@ -6,6 +6,15 @@ const AUTH_SECRET = process.env.TC_AUTH_SECRET || crypto.randomBytes( 32 ).toStr
 const SESSION_DAYS = parseFloat( process.env.TC_SESSION_DAYS ) || 7
 const SESSION_MS = SESSION_DAYS * 24 * 60 * 60 * 1000
 const COOKIE_NAME = "tc_session"
+const COOKIE_SECURE = ( process.env.TC_COOKIE_SECURE || "auto" ).toLowerCase()
+
+function shouldUseSecureCookie( req )
+{
+    if ( COOKIE_SECURE === "true" || COOKIE_SECURE === "1" ) return true
+    if ( COOKIE_SECURE === "false" || COOKIE_SECURE === "0" ) return false
+
+    return !!( req && req.secure )
+}
 
 function isEnabled()
 {
@@ -64,7 +73,8 @@ function parseCookies( header )
         const key = part.substring( 0, eq ).trim()
         const val = part.substring( eq + 1 ).trim()
 
-        cookies[ key ] = decodeURIComponent( val )
+        try { cookies[ key ] = decodeURIComponent( val ) }
+        catch ( _e ) { cookies[ key ] = val }
     } )
 
     return cookies
@@ -73,9 +83,10 @@ function parseCookies( header )
 function middleware( req, res, next )
 {
     // Whitelist paths that don't require auth
-    if ( req.path === "/login" || req.path === "/auth-enabled" ) return next()
+    if ( req.path === "/login" || req.path === "/auth-enabled" || req.path === "/csrf" ) return next()
     if ( req.path.startsWith( "/node_modules/" ) ) return next()
     if ( req.path === "/content/app.css" ) return next()
+    if ( req.path === "/content/favicon.svg" ) return next()
     if ( req.method === "POST" && req.path === "/logout" ) return next()
 
     const cookies = parseCookies( req.headers.cookie )
@@ -157,6 +168,11 @@ function loginPageHandler( req, res )
 
 function loginHandler( req, res )
 {
+    if ( !isEnabled() )
+    {
+        return res.status( 503 ).send( loginPage( "Authentication is not configured on this server." ) )
+    }
+
     const username = req.body && req.body.username
     const password = req.body && req.body.password
 
@@ -186,6 +202,7 @@ function loginHandler( req, res )
     res.cookie( COOKIE_NAME, cookie, {
         httpOnly: true,
         sameSite: "Lax",
+        secure: shouldUseSecureCookie( req ),
         maxAge: SESSION_MS,
         path: "/"
     } )
@@ -195,7 +212,7 @@ function loginHandler( req, res )
 
 function logoutHandler( req, res )
 {
-    res.clearCookie( COOKIE_NAME, { path: "/" } )
+    res.clearCookie( COOKIE_NAME, { path: "/", sameSite: "Lax", httpOnly: true, secure: shouldUseSecureCookie( req ) } )
     res.redirect( "/login" )
 }
 
@@ -204,5 +221,6 @@ module.exports = {
     middleware,
     loginPageHandler,
     loginHandler,
-    logoutHandler
+    logoutHandler,
+    shouldUseSecureCookie
 }
