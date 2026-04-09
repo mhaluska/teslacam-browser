@@ -871,7 +871,7 @@
                             </div>
                         </div>
                     </div>
-                    <video ref="video" class="video" :class="view.camera" :src="view.file" .playbackRate="playbackRate" crossorigin="anonymous" preload="auto" @durationchange="durationChanged" @timeupdate="timeChanged" @ended="ended" title="Open in file explorer" @click="openExternal" playsinline></video>
+                    <video ref="video" class="video" :class="view.camera" :src="view.file" :playbackRate="playbackRate" crossorigin="anonymous" preload="auto" @durationchange="durationChanged" @timeupdate="timeChanged" @ended="ended" title="Open in file explorer" @click="openExternal" playsinline></video>
                 </div>`,
             computed:
             {
