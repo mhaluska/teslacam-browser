@@ -175,6 +175,8 @@
                             return v1.camera.localeCompare( v2.camera )
                         } )
 
+                        var viewMap = new Map( views.map( function( v ) { return [ v.camera, v ] } ) )
+
                         return {    // Timespan
                             title: key,
                             time: new Date( key ),
@@ -184,7 +186,8 @@
                             currentTime: 0,
                             duration: null,
                             ended: false,
-                            views: views
+                            views: views,
+                            viewMap: viewMap
                         }
                     }
 
@@ -666,10 +669,9 @@
                 },
                 viewFor: function( timespan, camera )
                 {
-                    for ( var i = 0; i < timespan.views.length; i++ )
-                    {
-                        if ( timespan.views[ i ].camera === camera ) return timespan.views[ i ]
-                    }
+                    return timespan.viewMap
+                        ? timespan.viewMap.get( camera )
+                        : timespan.views.find( function( v ) { return v.camera === camera } )
                 },
                 labelTitle: function( timespan, camera )
                 {
@@ -795,10 +797,9 @@
                 },
                 viewFor: function( timespan, camera )
                 {
-                    for ( var i = 0; i < timespan.views.length; i++ )
-                    {
-                        if ( timespan.views[ i ].camera === camera ) return timespan.views[ i ]
-                    }
+                    return timespan.viewMap
+                        ? timespan.viewMap.get( camera )
+                        : timespan.views.find( function( v ) { return v.camera === camera } )
                 },
                 labelTitle: function( timespan, camera )
                 {
@@ -831,8 +832,10 @@
                     telemetrySamples: [],
                     telemetryError: null,
                     telemetryReqId: 0,
+                    telemetryDebounceTimer: null,
                     overlayVideoTime: 0,
-                    overlayVideoDuration: 0
+                    overlayVideoDuration: 0,
+                    overlayRafHandle: null
                 }
             },
             template:
@@ -902,11 +905,31 @@
                 if ( this.view.camera === "front" ) this.fetchFrontTelemetry()
                 if ( this.timespan.playing ) this.startPlayback()
             },
+            beforeUnmount: function()
+            {
+                this.stopOverlayLoop()
+
+                if ( this.telemetryDebounceTimer )
+                {
+                    window.clearTimeout( this.telemetryDebounceTimer )
+                    this.telemetryDebounceTimer = null
+                }
+            },
             watch:
             {
                 "view.filePath": function()
                 {
-                    if ( this.view.camera === "front" ) this.fetchFrontTelemetry()
+                    if ( this.view.camera !== "front" ) return
+
+                    if ( this.telemetryDebounceTimer ) window.clearTimeout( this.telemetryDebounceTimer )
+
+                    var self = this
+
+                    this.telemetryDebounceTimer = window.setTimeout( function()
+                    {
+                        self.telemetryDebounceTimer = null
+                        self.fetchFrontTelemetry()
+                    }, 150 )
                 },
                 "timespan.playing":
                 {
@@ -918,6 +941,8 @@
                         }
                         else
                         {
+                            this.stopOverlayLoop()
+
                             var video = this.$refs[ "video" ]
 
                             if ( this.timeout )
@@ -929,6 +954,8 @@
                             {
                                 video.pause()
                             }
+
+                            this.syncOverlayClock()
                         }
                     }
                 },
@@ -1021,7 +1048,7 @@
                                 video.style.opacity = 1.0
                                 video.currentTime = 0.0
                                 video.play().catch( e => { this.error = e.message; console.error( e.message ); } )
-                                this.syncOverlayClock()
+                                this.startOverlayLoop()
                             },
                             delay * 1000 )
                     }
@@ -1034,7 +1061,7 @@
                         video.style.opacity = 1.0
                         video.currentTime = currentTime
                         video.play().catch( e => { this.error = e.message; console.error( e.message ); } )
-                        this.syncOverlayClock()
+                        this.startOverlayLoop()
                     }
                 },
                 syncOverlayClock: function()
@@ -1048,6 +1075,35 @@
                     this.overlayVideoTime = video.currentTime
                     this.overlayVideoDuration = video.duration && isFinite( video.duration ) ? video.duration : 0
                 },
+                startOverlayLoop: function()
+                {
+                    if ( this.view.camera !== "front" || this.overlayRafHandle ) return
+
+                    var self = this
+
+                    function tick()
+                    {
+                        var video = self.$refs[ "video" ]
+
+                        if ( video && !video.paused )
+                        {
+                            self.overlayVideoTime = video.currentTime
+                            self.overlayVideoDuration = video.duration && isFinite( video.duration ) ? video.duration : 0
+                        }
+
+                        self.overlayRafHandle = window.requestAnimationFrame( tick )
+                    }
+
+                    self.overlayRafHandle = window.requestAnimationFrame( tick )
+                },
+                stopOverlayLoop: function()
+                {
+                    if ( this.overlayRafHandle )
+                    {
+                        window.cancelAnimationFrame( this.overlayRafHandle )
+                        this.overlayRafHandle = null
+                    }
+                },
                 durationChanged: function( event )
                 {
                     var video = event.target
@@ -1058,8 +1114,6 @@
                 timeChanged: function( event )
                 {
                     var video = event.target
-
-                    this.syncOverlayClock()
 
                     if ( !video.paused
                         && this.timespan.duration != null

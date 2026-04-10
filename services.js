@@ -9,13 +9,46 @@
 	const auth = require( "./auth" )
 	const logger = require( "./logger" )
 	const helmet = require( "helmet" )
+	const compression = require( "compression" )
 	const rateLimit = require( "express-rate-limit" )
 	const crypto = require( "crypto" )
+
+	function LruCache( maxSize )
+	{
+		this._max = maxSize
+		this._map = new Map()
+	}
+
+	LruCache.prototype.get = function( key )
+	{
+		if ( !this._map.has( key ) ) return undefined
+
+		var value = this._map.get( key )
+
+		this._map.delete( key )
+		this._map.set( key, value )
+
+		return value
+	}
+
+	LruCache.prototype.set = function( key, value )
+	{
+		if ( this._map.has( key ) ) this._map.delete( key )
+
+		this._map.set( key, value )
+
+		if ( this._map.size > this._max )
+		{
+			var oldest = this._map.keys().next().value
+
+			this._map.delete( oldest )
+		}
+	}
 
 	const expressApp = express()
 	var version = "0.0.1"
 	var lastArgs = { version: version, folder: "" }
-	var clipTelemetryCache = new Map()
+	var clipTelemetryCache = new LruCache( 200 )
 	var clipTelemetryCacheKeySuffix = "\0tSecV2"
 	var videosMounted = false
 	var csrfCookieName = "tc_csrf"
@@ -202,29 +235,29 @@
 		logger.info( "root_folder_set", { folder: f } )
 	}
 
-	function reopenFolders()
+	async function reopenFolders()
 	{
 		if ( !lastArgs ) return lastArgs
 
 		if ( lastArgs.folders && lastArgs.folders.length > 0 )
-			return openFolders( lastArgs.folders )
+			return await openFolders( lastArgs.folders )
 
 		if ( lastArgs.folder )
 		{
-			Object.assign( lastArgs, openFolder( lastArgs.folder ) )
+			Object.assign( lastArgs, await openFolder( lastArgs.folder ) )
 			return lastArgs
 		}
 
 		return lastArgs
 	}
 
-	function openFolders( folders )
+	async function openFolders( folders )
 	{
 		if ( folders && folders.length > 0 )
 		{
             var folder = folders[ 0 ] + "/"
 
-            Object.assign( lastArgs, openFolder( folder ) )
+            Object.assign( lastArgs, await openFolder( folder ) )
 
 			logger.info( "serve_content_folder", { folder: folder, source: "openFolders" } )
 
@@ -242,15 +275,15 @@
 		return lastArgs
 	}
 
-	function getFiles( p, getVideoPath )
+	async function getFiles( p, getVideoPath )
 	{
 		var target = resolveWithinRoot( p )
-		var files = fs.readdirSync( target.resolved )
+		var files = await fs.promises.readdir( target.resolved )
 
 		return Array.from( helpers.groupFiles( target.relative, files, getVideoPath ) )
 	}
 
-	function readEventJson( relativeFolder )
+	async function readEventJson( relativeFolder )
 	{
 		if ( !lastArgs.folder || typeof relativeFolder !== "string" || !relativeFolder.length ) return null
 
@@ -259,9 +292,12 @@
 			var target = resolveWithinRoot( relativeFolder )
 			var resolvedFile = path.join( target.resolved, "event.json" )
 
-			if ( !fs.existsSync( resolvedFile ) ) return null
+			try { await fs.promises.access( resolvedFile ) }
+			catch ( _e ) { return null }
 
-			return JSON.parse( fs.readFileSync( resolvedFile, "utf8" ) )
+			var content = await fs.promises.readFile( resolvedFile, "utf8" )
+
+			return JSON.parse( content )
 		}
 		catch ( e )
 		{
@@ -270,7 +306,7 @@
 		}
 	}
 
-	function readClipTelemetry( relativeFilePath )
+	async function readClipTelemetry( relativeFilePath )
 	{
 		if ( !lastArgs.folder || typeof relativeFilePath !== "string" || !relativeFilePath.length )
 			return { success: false, error: "no_folder", samples: [] }
@@ -280,16 +316,17 @@
 			var target = resolveWithinRoot( relativeFilePath )
 			var resolvedFile = target.resolved
 
-			if ( !fs.existsSync( resolvedFile ) ) return { success: false, error: "not_found", samples: [] }
+			try { await fs.promises.access( resolvedFile ) }
+			catch ( _e ) { return { success: false, error: "not_found", samples: [] } }
 
-			var stat = fs.statSync( resolvedFile )
+			var stat = await fs.promises.stat( resolvedFile )
 			var cacheKey = resolvedFile + clipTelemetryCacheKeySuffix
 			var cached = clipTelemetryCache.get( cacheKey )
 
 			if ( cached && cached.mtimeMs === stat.mtimeMs )
 				return cached.result
 
-			var samples = seiTelemetry.extractSamplesFromFile( resolvedFile )
+			var samples = await seiTelemetry.extractSamplesFromFile( resolvedFile )
 
 			var result = { success: true, samples: samples }
 
@@ -306,7 +343,7 @@
 	}
 
 
-	function deleteFiles( files )
+	async function deleteFiles( files )
 	{
 		if ( !Array.isArray( files ) || files.length < 1 )
 			throw new Error( "invalid_paths" )
@@ -327,31 +364,31 @@
 
 		logger.info( "delete_files_started", { files: resolvedFiles } )
 
-		for ( var file of resolvedFiles ) fs.unlinkSync( file )
+		for ( var file of resolvedFiles ) await fs.promises.unlink( file )
 
 		logger.info( "delete_files_completed", { files: resolvedFiles } )
 
-		var remaining = fs.readdirSync( parentFolder )
+		var remaining = await fs.promises.readdir( parentFolder )
 
 		if ( remaining.length < 1 )
 		{
 			logger.info( "delete_folder_started", { folder: parentFolder } )
 
-			fs.rmdirSync( parentFolder )
+			await fs.promises.rmdir( parentFolder )
 
 			logger.info( "delete_folder_completed", { folder: parentFolder } )
 		}
 	}
 
-	function deleteFolder( folder )
+	async function deleteFolder( folder )
 	{
 		var target = resolveWithinRoot( folder )
 		if ( target.resolved === target.root ) throw new Error( "refusing_root_delete" )
 
 		var folderPath = target.resolved
-		var files = fs.readdirSync( folderPath )
+		var files = await fs.promises.readdir( folderPath )
 
-		deleteFiles( files.map( f => path.join( target.relative, f ) ) )
+		await deleteFiles( files.map( f => path.join( target.relative, f ) ) )
 		return true
 	}
 
@@ -365,41 +402,38 @@
 		return resolveWithinRoot( folderPath, true ).resolved
 	}
 
-	function openFolder( folder )
+	async function openFolder( folder )
 	{
 		if ( !folder ) folder = lastArgs.folder
 
 		var specialFolders = [ "TeslaCam", "SavedClips", "RecentClips", "SentryClips", "TeslaSentry" ]
 		var folderInfos = []
 
-		function addSubfolders( baseFolder )
+		async function addSubfolders( baseFolder )
 		{
 			try
 			{
-				var subfolders = fs.readdirSync( baseFolder )
+				var entries = await fs.promises.readdir( baseFolder, { withFileTypes: true } )
 
-				for ( var subfolder of subfolders )
+				for ( var entry of entries )
 				{
+					var subfolder = entry.name
+
 					if ( specialFolders.includes( subfolder ) )
 					{
-						addSubfolders( path.join( baseFolder, subfolder ) )
+						await addSubfolders( path.join( baseFolder, subfolder ) )
 					}
 					else
 					{
 						var match = helpers.matchFolder( subfolder )
-					
+
 						if ( match && match.length > 0 )
 						{
-							function addFolder( match )
-							{
-								var date = helpers.extractDate( match )
-								var folderPath = path.join( baseFolder, subfolder )
-								var relative = path.relative( folder, folderPath )
-						
-								folderInfos.push( { date: date, path: folderPath, relative: relative, recent: false } )
-							}
+							var date = helpers.extractDate( match )
+							var folderPath = path.join( baseFolder, subfolder )
+							var relative = path.relative( folder, folderPath )
 
-							addFolder( match )
+							folderInfos.push( { date: date, path: folderPath, relative: relative, recent: false } )
 						}
 						else
 						{
@@ -432,7 +466,7 @@
 
 		folder = path.normalize( ( folder || "" ) + path.sep )
 
-		addSubfolders( folder )
+		await addSubfolders( folder )
 
 		var dateGroups = helpers.groupBy( folderInfos, g => g.date.toDateString() )
 		var dates = Array.from( dateGroups.keys() ).map( d => new Date( d ) )
@@ -446,29 +480,15 @@
 		var folderPathParts = folderNames
 			.map( ( f, i ) => { return { path: path.join( ...folderNames.slice( 0, i + 1 ) ), name: f } } )
 
-		//console.log( parsedFolder )
-		//console.log( folderNames )
-		//console.log( folderPathParts )
-
-		function isDirectory( p )
-		{
-			try
-			{
-				return fs.lstatSync( p ).isDirectory()
-			}
-			catch (e)
-			{
-				return false
-			}
-		}
-
 		var subfolders = []
 
 		try
 		{
-			subfolders = fs.readdirSync( folder )
-				.map( f => { return { path: path.join( folder, f ), name: f } } )
-				.filter( f => isDirectory( f.path ) )
+			var entries = await fs.promises.readdir( folder, { withFileTypes: true } )
+
+			subfolders = entries
+				.filter( function( entry ) { return entry.isDirectory() } )
+				.map( function( entry ) { return { path: path.join( folder, entry.name ), name: entry.name } } )
 		}
 		catch (e)
 		{
@@ -529,6 +549,7 @@
 		var enableCspUpgradeInsecureRequests = parseBoolean( process.env.TC_CSP_UPGRADE_INSECURE_REQUESTS, false )
 
 		expressApp.set( "trust proxy", trustProxy )
+		expressApp.use( compression() )
         expressApp.use( express.urlencoded( { extended: false } ) )
 		expressApp.use( express.json( { limit: "1mb" } ) )
 		if ( initializeOptions.headless ) attachAccessLoggingMiddleware( expressApp )
@@ -573,11 +594,15 @@
         }
 
         expressApp.get( "/", ( request, response ) => response.sendFile( __dirname + "/external.html" ) )
-        expressApp.get( "/reopenFolders", ( request, response ) => response.send( reopenFolders() ) )
-        expressApp.get( "/args", ( request, response ) => response.send( args() ) )
-		expressApp.get( "/openDefaultFolder", ( request, response ) =>
+        expressApp.get( "/reopenFolders", async ( request, response ) =>
 		{
-			try { response.send( serveVideos( openFolder() ) ) }
+			try { response.send( await reopenFolders() ) }
+			catch ( _e ) { response.status( 400 ).json( { error: "reopen_failed" } ) }
+		} )
+        expressApp.get( "/args", ( request, response ) => response.send( args() ) )
+		expressApp.get( "/openDefaultFolder", async ( request, response ) =>
+		{
+			try { response.send( serveVideos( await openFolder() ) ) }
 			catch ( _e ) { response.status( 400 ).json( { error: "invalid_root" } ) }
 		} )
 		expressApp.use( "/copyFilePaths", ( request, response ) =>
@@ -604,36 +629,36 @@
 				response.status( 400 ).json( { error: "invalid_path" } )
 			}
 		} )
-		expressApp.use( "/files", ( request, response ) =>
+		expressApp.use( "/files", async ( request, response ) =>
 		{
 			try
 			{
 				var rel = getRequestRelativePath( request )
-				response.send( getFiles( rel, p => "videos/" + p ) )
+				response.send( await getFiles( rel, p => "videos/" + p ) )
 			}
 			catch ( _e )
 			{
 				response.status( 400 ).json( { error: "invalid_path" } )
 			}
 		} )
-		expressApp.use( "/eventJson", ( request, response ) =>
+		expressApp.use( "/eventJson", async ( request, response ) =>
 		{
 			try
 			{
 				var rel = getRequestRelativePath( request )
-				response.json( readEventJson( rel ) )
+				response.json( await readEventJson( rel ) )
 			}
 			catch ( _e )
 			{
 				response.status( 400 ).json( { error: "invalid_path" } )
 			}
 		} )
-		expressApp.use( "/clipTelemetry", ( request, response ) =>
+		expressApp.use( "/clipTelemetry", async ( request, response ) =>
 		{
 			try
 			{
 				var rel = getRequestRelativePath( request )
-				response.json( readClipTelemetry( rel ) )
+				response.json( await readClipTelemetry( rel ) )
 			}
 			catch ( _e )
 			{
@@ -641,7 +666,7 @@
 			}
 		} )
 
-        expressApp.post( "/deleteFiles", deleteLimiter, requireCsrf, ( request, response ) =>
+        expressApp.post( "/deleteFiles", deleteLimiter, requireCsrf, async ( request, response ) =>
         {
             if ( hideDeleteButtons )
                 return response.status( 403 ).json( { error: "delete_disabled" } )
@@ -654,7 +679,7 @@
             try
             {
                 for ( var p of paths ) if ( typeof p !== "string" || !p.length ) return response.status( 400 ).send( "Each path must be a non-empty string" )
-                deleteFiles( paths )
+                await deleteFiles( paths )
                 response.sendStatus( 200 )
             }
             catch ( e )
@@ -664,7 +689,7 @@
             }
         } )
 
-        expressApp.post( "/deleteFolder", deleteLimiter, requireCsrf, ( request, response ) =>
+        expressApp.post( "/deleteFolder", deleteLimiter, requireCsrf, async ( request, response ) =>
         {
             if ( hideDeleteButtons )
                 return response.status( 403 ).json( { error: "delete_disabled" } )
@@ -676,7 +701,7 @@
 
             try
             {
-                if ( !deleteFolder( rel ) )
+                if ( !( await deleteFolder( rel ) ) )
                     return response.status( 400 ).send( "No root folder open or invalid path" )
 
                 response.sendStatus( 200 )
@@ -692,7 +717,7 @@
 		expressApp.get( "/content/helpers.js", ( request, response ) => response.sendFile( __dirname + "/helpers.js" ) )
 		expressApp.get( "/content/ui.js", ( request, response ) => response.sendFile( __dirname + "/ui.js" ) )
 		expressApp.get( "/content/favicon.svg", ( request, response ) => response.sendFile( __dirname + "/favicon.svg" ) )
-		var libCacheHeaders = { "Cache-Control": "public, max-age=86400" }
+		var libCacheHeaders = { "Cache-Control": "public, max-age=31536000, immutable" }
 		expressApp.get( "/node_modules/flatpickr/dist/flatpickr.min.css", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( __dirname + "/node_modules/flatpickr/dist/flatpickr.min.css" ) } )
 		expressApp.get( "/node_modules/flatpickr/dist/flatpickr.min.js", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( __dirname + "/node_modules/flatpickr/dist/flatpickr.min.js" ) } )
 		expressApp.get( "/node_modules/bootstrap/dist/css/bootstrap.min.css", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( __dirname + "/node_modules/bootstrap/dist/css/bootstrap.min.css" ) } )
