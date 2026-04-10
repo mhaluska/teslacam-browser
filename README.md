@@ -35,6 +35,8 @@ Folder browsing/switching in the headless web UI is intentionally disabled.
 
 You can then open the app in a browser by pointing to `http://localhost:8088` (replace `localhost` with address of your server).
 
+After updating to a new version, re-run `npm install` to ensure all dependencies are up to date.
+
 For public exposure, run behind an HTTPS reverse proxy (Nginx, Caddy, Traefik, etc.) and avoid direct internet exposure of the Node process.
 
 ### Access logging (headless)
