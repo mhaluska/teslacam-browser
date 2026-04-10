@@ -8,7 +8,7 @@ const SESSION_DAYS = parseFloat( process.env.TC_SESSION_DAYS ) || 7
 const SESSION_MS = SESSION_DAYS * 24 * 60 * 60 * 1000
 const COOKIE_NAME = "tc_session"
 const COOKIE_SECURE = ( process.env.TC_COOKIE_SECURE || "auto" ).toLowerCase()
-const LEGACY_SHA256_REGEX = /^[a-f0-9]{64}$/i
+const SCRYPT_ONLY_HINT = "TC_AUTH_PASS_HASH must use scrypt$N$r$p$saltBase64$dkBase64 format. Generate with: npm run hash-password"
 const SCRYPT_PREFIX = "scrypt$"
 const MIN_SALT_BYTES = 16
 const MAX_SALT_BYTES = 128
@@ -17,8 +17,18 @@ const MAX_DK_BYTES = 128
 const MAX_SCRYPT_N = 1 << 20
 const MAX_SCRYPT_R = 32
 const MAX_SCRYPT_P = 16
-let warnedLegacyPasswordHash = false
 let warnedInvalidPasswordHash = false
+
+function escapeHtml( str )
+{
+    if ( typeof str !== "string" ) return ""
+    return str
+        .replace( /&/g, "&amp;" )
+        .replace( /</g, "&lt;" )
+        .replace( />/g, "&gt;" )
+        .replace( /"/g, "&quot;" )
+        .replace( /'/g, "&#39;" )
+}
 
 function shouldUseSecureCookie( req )
 {
@@ -92,24 +102,10 @@ function verifyPasswordHash( password )
         }
     }
 
-    if ( LEGACY_SHA256_REGEX.test( AUTH_PASS_HASH ) )
-    {
-        if ( !warnedLegacyPasswordHash )
-        {
-            warnedLegacyPasswordHash = true
-            logger.warn( "auth_legacy_sha256_hash_in_use", { hint: "Migrate TC_AUTH_PASS_HASH to scrypt$N$r$p$saltBase64$dkBase64 format." } )
-        }
-
-        const inputHash = crypto.createHash( "sha256" ).update( password ).digest( "hex" )
-
-        return inputHash.length === AUTH_PASS_HASH.length &&
-            crypto.timingSafeEqual( Buffer.from( inputHash ), Buffer.from( AUTH_PASS_HASH ) )
-    }
-
     if ( !warnedInvalidPasswordHash )
     {
         warnedInvalidPasswordHash = true
-        logger.warn( "auth_pass_hash_invalid_format", { hint: "Expected scrypt$N$r$p$saltBase64$dkBase64 or legacy 64-char SHA-256 hex." } )
+        logger.warn( "auth_pass_hash_invalid_format", { hint: SCRYPT_ONLY_HINT } )
     }
 
     return false
@@ -178,7 +174,9 @@ function middleware( req, res, next )
 {
     // Whitelist paths that don't require auth
     if ( req.path === "/login" || req.path === "/auth-enabled" || req.path === "/csrf" ) return next()
-    if ( req.path.startsWith( "/node_modules/" ) ) return next()
+    if ( req.path === "/node_modules/bootstrap/dist/css/bootstrap.min.css" ) return next()
+    if ( req.path === "/node_modules/bootstrap-icons/font/bootstrap-icons.css" ) return next()
+    if ( req.path.startsWith( "/node_modules/bootstrap-icons/font/fonts/" ) ) return next()
     if ( req.path === "/content/app.css" ) return next()
     if ( req.path === "/content/favicon.svg" ) return next()
     if ( req.method === "POST" && req.path === "/logout" ) return next()
@@ -236,7 +234,7 @@ function loginPage( error )
           <span class="bi bi-camera-video" style="font-size: 2rem;"></span>
           <div class="login-heading mt-2">TeslaCam Browser</div>
         </div>
-        ${ error ? '<div class="alert alert-danger" role="alert">' + error + '</div>' : '' }
+        ${ error ? '<div class="alert alert-danger" role="alert">' + escapeHtml( error ) + '</div>' : '' }
         <form method="POST" action="/login">
           <div class="form-group">
             <label for="username">Username</label>
