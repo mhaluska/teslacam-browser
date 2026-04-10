@@ -6,8 +6,16 @@
 }( typeof self !== "undefined" ? self : this, function ( fs, path, protobuf )
 {
 	const protoPath = path.join( __dirname, "dashcam.proto" );
-	const root = protobuf.loadSync( protoPath );
-	const SeiMetadata = root.lookupType( "SeiMetadata" );
+	var SeiMetadata = null;
+
+	async function ensureProtoLoaded()
+	{
+		if ( SeiMetadata ) return
+
+		var root = await protobuf.load( protoPath )
+
+		SeiMetadata = root.lookupType( "SeiMetadata" )
+	}
 
 	const NAL_ID_SEI = 6;
 	const NAL_SEI_ID_USER_DATA_UNREGISTERED = 5;
@@ -20,24 +28,24 @@
 
 	// --- MP4 atom / frame-time helpers (formerly mp4FrameTimes.js) ---
 
-	function readTail( fullPath )
+	async function readTail( fullPath )
 	{
-		var stat = fs.statSync( fullPath );
-		var fd = fs.openSync( fullPath, "r" );
+		var fh = await fs.promises.open( fullPath, "r" )
 
 		try
 		{
-			var start = Math.max( 0, stat.size - TAIL_BYTES );
-			var len = stat.size - start;
-			var buf = Buffer.alloc( len );
+			var stat = await fh.stat()
+			var start = Math.max( 0, stat.size - TAIL_BYTES )
+			var len = stat.size - start
+			var buf = Buffer.alloc( len )
 
-			fs.readSync( fd, buf, 0, len, start );
+			await fh.read( buf, 0, len, start )
 
 			return buf
 		}
 		finally
 		{
-			fs.closeSync( fd )
+			await fh.close()
 		}
 	}
 
@@ -143,11 +151,11 @@
 		return { frameStartSec: Float64Array.from( starts ), frameCount: starts.length, mediaDurationSec: totalTicks / timescale }
 	}
 
-	function getVideoFrameStartTimesSec( fullPath )
+	async function getVideoFrameStartTimesSec( fullPath )
 	{
 		try
 		{
-			var data = readTail( fullPath );
+			var data = await readTail( fullPath );
 			var traks = readAtoms( data, 0, data.length, "trak" );
 
 			for ( var t = 0; t < traks.length; t++ )
@@ -297,17 +305,17 @@
 		}
 	}
 
-	function findMdat( fd )
+	async function findMdat( fh )
 	{
 		var pos = 0;
-		var stat = fs.fstatSync( fd );
+		var stat = await fh.stat();
 		var fileSize = stat.size;
 
 		while ( pos + 8 <= fileSize )
 		{
 			var header = Buffer.alloc( 8 );
 
-			fs.readSync( fd, header, 0, 8, pos );
+			await fh.read( header, 0, 8, pos );
 
 			var size32 = header.readUInt32BE( 0 );
 			var atomType = header.toString( "ascii", 4, 8 );
@@ -318,7 +326,7 @@
 			{
 				var large = Buffer.alloc( 8 );
 
-				fs.readSync( fd, large, 0, 8, pos + 8 );
+				await fh.read( large, 0, 8, pos + 8 );
 
 				atomSize = Number( large.readBigUInt64BE( 0 ) );
 				headerSize = 16;
@@ -336,7 +344,7 @@
 		throw new Error( "mdat atom not found" );
 	}
 
-	function parseMdatNals( fd, offset, size, onNalPayload )
+	async function parseMdatNals( fh, offset, size, onNalPayload )
 	{
 		var carry = Buffer.alloc( 0 );
 		var chunkSize = 4 * 1024 * 1024;
@@ -403,7 +411,7 @@
 			var toRead = Math.min( chunkSize, size - readPos );
 			var chunk = Buffer.alloc( toRead );
 
-			fs.readSync( fd, chunk, 0, toRead, offset + readPos );
+			await fh.read( chunk, 0, toRead, offset + readPos );
 			readPos += toRead;
 			tryConsumeBuffer( chunk );
 		}
@@ -413,11 +421,11 @@
 			onNalPayload( pendingSeiPayloads[ k ], videoFrameIdx >= 0 ? videoFrameIdx : 0 );
 	}
 
-	function attachPresentationTimes( samples, fullPath )
+	async function attachPresentationTimes( samples, fullPath )
 	{
 		if ( !samples || !samples.length ) return
 
-		var timeline = getVideoFrameStartTimesSec( fullPath )
+		var timeline = await getVideoFrameStartTimesSec( fullPath )
 
 		if ( !timeline || !timeline.frameStartSec || timeline.frameCount < 1 ) return
 
@@ -442,16 +450,18 @@
 		}
 	}
 
-	function extractSamplesFromFile( fullPath )
+	async function extractSamplesFromFile( fullPath )
 	{
+		await ensureProtoLoaded()
+
 		var samples = [];
-		var fd = fs.openSync( fullPath, "r" );
+		var fh = await fs.promises.open( fullPath, "r" );
 
 		try
 		{
-			var mdat = findMdat( fd );
+			var mdat = await findMdat( fh );
 
-			parseMdatNals( fd, mdat.offset, mdat.size, function( payload, frameIdx )
+			await parseMdatNals( fh, mdat.offset, mdat.size, function( payload, frameIdx )
 			{
 				var sample = decodeSample( payload );
 
@@ -464,10 +474,10 @@
 		}
 		finally
 		{
-			fs.closeSync( fd );
+			await fh.close();
 		}
 
-		attachPresentationTimes( samples, fullPath );
+		await attachPresentationTimes( samples, fullPath );
 
 		return samples;
 	}

@@ -139,13 +139,13 @@ function initialize()
 		return args
 	}
 
-	function open()
+	async function open()
 	{
 		const folders = dialog.showOpenDialogSync( { properties: [ "openDirectory" ] } )
 
 		if ( folders && folders.length > 0 ) settings.setSync( "folders", folders )
 
-		return services.openFolders( folders )
+		return await services.openFolders( folders )
 	}
 
 	function browse()
@@ -158,13 +158,13 @@ function initialize()
 	{
 		services.initializeExpress( port )
 
-		ipcMain.handle( "openFolders", () => open() )
-		ipcMain.handle( "reopenFolders", () => services.reopenFolders() )
-		ipcMain.handle( "openFolder", ( _event, folder ) => setFolder( services.openFolder( folder ) ) )
-		ipcMain.handle( "getFiles", ( _event, p ) => services.getFiles( p, f => path.join( services.args().folder, f ) ) )
-		ipcMain.handle( "readEventJson", ( _event, p ) => services.readEventJson( p ) )
+		ipcMain.handle( "openFolders", async () => await open() )
+		ipcMain.handle( "reopenFolders", async () => await services.reopenFolders() )
+		ipcMain.handle( "openFolder", async ( _event, folder ) => setFolder( await services.openFolder( folder ) ) )
+		ipcMain.handle( "getFiles", async ( _event, p ) => await services.getFiles( p, f => path.join( services.args().folder, f ) ) )
+		ipcMain.handle( "readEventJson", async ( _event, p ) => await services.readEventJson( p ) )
 
-		ipcMain.handle( "getClipTelemetry", ( _event, p ) => services.readClipTelemetry( p ) )
+		ipcMain.handle( "getClipTelemetry", async ( _event, p ) => await services.readClipTelemetry( p ) )
 
 		ipcMain.handle( "getThemePreference", () => normalizeThemePreference( settings.getSync( "themePreference" ) ) )
 		ipcMain.handle( "setThemePreference", ( _event, mode ) =>
@@ -180,9 +180,9 @@ function initialize()
 		syncNativeThemeSource( normalizeThemePreference( settings.getSync( "themePreference" ) ) )
 
 		ipcMain.on( "openBrowser", () => browse() )
-		ipcMain.on( "deleteFiles", ( _event, files ) => services.deleteFiles( files ) )
+		ipcMain.on( "deleteFiles", ( _event, files ) => services.deleteFiles( files ).catch( e => logger.warn( "ipc_delete_files_failed", { error: e } ) ) )
 		ipcMain.on( "copyFilePaths", ( _event, filePaths ) => clipboard.writeText( services.copyFilePaths( filePaths ) ) )
-		ipcMain.on( "deleteFolder", ( _event, folder ) => services.deleteFolder( folder ) )
+		ipcMain.on( "deleteFolder", ( _event, folder ) => services.deleteFolder( folder ).catch( e => logger.warn( "ipc_delete_folder_failed", { error: e } ) ) )
 		ipcMain.on( "copyPath", ( _event, p ) => clipboard.writeText( services.copyPath( p ) ) )
 		ipcMain.on( "openExternal", ( _event, p ) => shell.showItemInFolder( p ) )
 
