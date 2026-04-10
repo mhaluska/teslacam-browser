@@ -64,10 +64,10 @@ scrypt$N$r$p$saltBase64$dkBase64
 Generate an `scrypt` hash (recommended):
 
 ```
-npm run hash-password -- "yourpassword"
+npm run hash-password
 ```
 
-This command works the same way on Linux/macOS (and Windows) and prints a value you can paste into `TC_AUTH_PASS_HASH`.
+You will be prompted to enter and confirm your password (input is masked with `*`). The command prints a value you can paste into `TC_AUTH_PASS_HASH`.
 
 Legacy 64-character SHA-256 hashes are still accepted for migration compatibility, but should be replaced with `scrypt` as soon as possible.
 
