@@ -101,7 +101,7 @@
                     style="cursor: pointer;">{{ t.name }}</a>
                 </div>
               </div>
-              <div class="px-2 mb-2">
+              <div class="px-2 mb-2 d-flex justify-content-center gap-2">
                 <button v-if="args.hideDeleteButtons === false" id="deleteButton" class="btn btn-danger" @click="deleteFolder( selectedPath )">Delete
                   folder</button>
                 <button id="copyButton" class="btn btn-info" @click="copyPath( selectedPath )">Copy path</button>
