@@ -230,7 +230,7 @@
 
 			expressApp.use(
 				"/videos",
-				express.static( folder ),
+				express.static( folder, { maxAge: "7d" } ),
 				serveIndex( folder, { 'icons': true } ) )
 		}
 
@@ -504,7 +504,7 @@
 			{
 				expressApp.use(
 					"/videos",
-					express.static( args.folder ) )
+					express.static( args.folder, { maxAge: "7d" } ) )
 				videosMounted = true
 			}
 
@@ -692,7 +692,14 @@
 		expressApp.get( "/content/helpers.js", ( request, response ) => response.sendFile( __dirname + "/helpers.js" ) )
 		expressApp.get( "/content/ui.js", ( request, response ) => response.sendFile( __dirname + "/ui.js" ) )
 		expressApp.get( "/content/favicon.svg", ( request, response ) => response.sendFile( __dirname + "/favicon.svg" ) )
-        expressApp.use( "/node_modules", express.static( __dirname + "/node_modules" ) )
+		var libCacheHeaders = { "Cache-Control": "public, max-age=86400" }
+		expressApp.get( "/node_modules/flatpickr/dist/flatpickr.min.css", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( __dirname + "/node_modules/flatpickr/dist/flatpickr.min.css" ) } )
+		expressApp.get( "/node_modules/flatpickr/dist/flatpickr.min.js", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( __dirname + "/node_modules/flatpickr/dist/flatpickr.min.js" ) } )
+		expressApp.get( "/node_modules/bootstrap/dist/css/bootstrap.min.css", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( __dirname + "/node_modules/bootstrap/dist/css/bootstrap.min.css" ) } )
+		expressApp.get( "/node_modules/bootstrap-icons/font/bootstrap-icons.css", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( __dirname + "/node_modules/bootstrap-icons/font/bootstrap-icons.css" ) } )
+		expressApp.get( "/node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff2", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( __dirname + "/node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff2" ) } )
+		expressApp.get( "/node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( __dirname + "/node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff" ) } )
+		expressApp.get( "/node_modules/vue/dist/vue.global.js", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( __dirname + "/node_modules/vue/dist/vue.global.js" ) } )
 
         expressApp.listen( port, ( err ) =>
         {

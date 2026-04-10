@@ -12,9 +12,8 @@
   <link rel="stylesheet" href="app.css" />
   <script type="text/javascript" src="node_modules/vue/dist/vue.global.js"></script>
   <script type="text/javascript" src="node_modules/flatpickr/dist/flatpickr.min.js"></script>
-  <script>const path = require("path");</script>
-  <script>const helpers = require("./helpers");</script>
-  <script>const ui = require("./ui");</script>
+  <script type="text/javascript" src="helpers.js"></script>
+  <script type="text/javascript" src="ui.js"></script>
 
 </head>
 
@@ -215,25 +214,24 @@
 
   <script type="text/javascript">
     (function () {
-      const { ipcRenderer } = require("electron")
-      const fs = require("fs")
+      var electronAPI = window.electronAPI
 
       var vueApp = ui.initialize(
         {
-          openFolders: success => ipcRenderer.invoke("openFolders").then(success),
-          reopenFolders: success => ipcRenderer.invoke("reopenFolders").then(success),
-          openFolder: (p, success) => ipcRenderer.invoke("openFolder", p).then(success),
-          getFiles: (p, success) => ipcRenderer.invoke("getFiles", p).then(success),
-          readEventJson: (p, success) => ipcRenderer.invoke("readEventJson", p).then(success).catch(() => success(null)),
-          getClipTelemetry: (p, success) => ipcRenderer.invoke("getClipTelemetry", p).then(success).catch(e => success({ success: false, error: String(e.message || e), samples: [] })),
-          openBrowser: () => ipcRenderer.send("openBrowser"),
-          deleteFiles: files => ipcRenderer.send("deleteFiles", files),
-          deleteFolder: folder => ipcRenderer.send("deleteFolder", folder),
-          copyFilePaths: filePaths => ipcRenderer.send("copyFilePaths", filePaths),
-          copyPath: path => ipcRenderer.send("copyPath", path),
-          openExternal: path => ipcRenderer.send("openExternal", path),
-          getThemePreference: success => ipcRenderer.invoke("getThemePreference").then(success),
-          setThemePreference: (mode, success) => ipcRenderer.invoke("setThemePreference", mode).then(() => { if (success) success() })
+          openFolders: success => electronAPI.invoke("openFolders").then(success),
+          reopenFolders: success => electronAPI.invoke("reopenFolders").then(success),
+          openFolder: (p, success) => electronAPI.invoke("openFolder", p).then(success),
+          getFiles: (p, success) => electronAPI.invoke("getFiles", p).then(success),
+          readEventJson: (p, success) => electronAPI.invoke("readEventJson", p).then(success).catch(() => success(null)),
+          getClipTelemetry: (p, success) => electronAPI.invoke("getClipTelemetry", p).then(success).catch(e => success({ success: false, error: String(e.message || e), samples: [] })),
+          openBrowser: () => electronAPI.send("openBrowser"),
+          deleteFiles: files => electronAPI.send("deleteFiles", files),
+          deleteFolder: folder => electronAPI.send("deleteFolder", folder),
+          copyFilePaths: filePaths => electronAPI.send("copyFilePaths", filePaths),
+          copyPath: path => electronAPI.send("copyPath", path),
+          openExternal: path => electronAPI.send("openExternal", path),
+          getThemePreference: success => electronAPI.invoke("getThemePreference").then(success),
+          setThemePreference: (mode, success) => electronAPI.invoke("setThemePreference", mode).then(() => { if (success) success() })
         } )
     })();
 

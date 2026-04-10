@@ -20,6 +20,17 @@ const MAX_SCRYPT_P = 16
 let warnedLegacyPasswordHash = false
 let warnedInvalidPasswordHash = false
 
+function escapeHtml( str )
+{
+    if ( typeof str !== "string" ) return ""
+    return str
+        .replace( /&/g, "&amp;" )
+        .replace( /</g, "&lt;" )
+        .replace( />/g, "&gt;" )
+        .replace( /"/g, "&quot;" )
+        .replace( /'/g, "&#39;" )
+}
+
 function shouldUseSecureCookie( req )
 {
     if ( COOKIE_SECURE === "true" || COOKIE_SECURE === "1" ) return true
@@ -178,7 +189,9 @@ function middleware( req, res, next )
 {
     // Whitelist paths that don't require auth
     if ( req.path === "/login" || req.path === "/auth-enabled" || req.path === "/csrf" ) return next()
-    if ( req.path.startsWith( "/node_modules/" ) ) return next()
+    if ( req.path === "/node_modules/bootstrap/dist/css/bootstrap.min.css" ) return next()
+    if ( req.path === "/node_modules/bootstrap-icons/font/bootstrap-icons.css" ) return next()
+    if ( req.path.startsWith( "/node_modules/bootstrap-icons/font/fonts/" ) ) return next()
     if ( req.path === "/content/app.css" ) return next()
     if ( req.path === "/content/favicon.svg" ) return next()
     if ( req.method === "POST" && req.path === "/logout" ) return next()
@@ -236,7 +249,7 @@ function loginPage( error )
           <span class="bi bi-camera-video" style="font-size: 2rem;"></span>
           <div class="login-heading mt-2">TeslaCam Browser</div>
         </div>
-        ${ error ? '<div class="alert alert-danger" role="alert">' + error + '</div>' : '' }
+        ${ error ? '<div class="alert alert-danger" role="alert">' + escapeHtml( error ) + '</div>' : '' }
         <form method="POST" action="/login">
           <div class="form-group">
             <label for="username">Username</label>
