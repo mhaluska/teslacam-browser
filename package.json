@@ -8,9 +8,7 @@
     "start": "electron .",
     "hash-password": "node scripts/hash-password.js",
     "pack": "electron-builder --dir",
-    "dist": "electron-builder",
-    "release": "electron-builder build",
-    "publish": "electron-builder build --mac --win --linux -p always"
+    "dist": "electron-builder"
   },
   "repository": "https://github.com/mhaluska/teslacam-browser",
   "keywords": [
@@ -20,44 +18,28 @@
     "browser"
   ],
   "author": "Chris Cavanagh <teslacam@chriscavanagh.com>",
+  "contributors": [
+    "Marek Haluska <marek.h@luska.email>"
+  ],
   "license": "CC0-1.0",
   "engines": {
     "node": ">=24.0.0"
   },
   "build": {
-    "appId": "cjc-teslacam-browser",
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "bobstrogg",
-        "repo": "teslacam-browser"
-      }
-    ],
+    "appId": "com.mhaluska.teslacam-browser",
+    "productName": "TeslaCam Browser",
+    "publish": {
+      "provider": "github"
+    },
     "mac": {
-      "publish": [
-        "github"
-      ],
-      "icon": "build/icons/icon.icns",
-      "target": [
-        "pkg",
-        "zip"
-      ]
+      "target": ["dmg", "zip"]
     },
     "linux": {
-      "publish": [
-        "github"
-      ],
-      "target": [
-        "AppImage",
-        "deb"
-      ]
+      "target": ["AppImage", "deb"],
+      "category": "Utility"
     },
     "win": {
-      "publish": [
-        "github"
-      ],
-      "target": "NSIS",
-      "icon": "build/icon.ico"
+      "target": "NSIS"
     }
   },
   "devDependencies": {
