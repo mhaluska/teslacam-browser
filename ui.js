@@ -938,6 +938,15 @@
                     window.clearTimeout( this.telemetryDebounceTimer )
                     this.telemetryDebounceTimer = null
                 }
+
+                var video = this.$refs[ "video" ]
+
+                if ( video )
+                {
+                    video.pause()
+                    video.removeAttribute( "src" )
+                    video.load()
+                }
             },
             watch:
             {
