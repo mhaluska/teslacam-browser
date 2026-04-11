@@ -104,7 +104,7 @@
               <div class="px-2 mb-2 d-flex justify-content-center gap-2">
                 <button v-if="args.hideDeleteButtons === false" id="deleteButton" class="btn btn-danger" @click="deleteFolder( selectedPath )">Delete
                   folder</button>
-                <button id="copyButton" class="btn btn-info" @click="copyPath( selectedPath )">Copy path</button>
+                <button id="copyButton" class="btn btn-primary" @click="copyPath( selectedPath )">Copy path</button>
               </div>
               <div v-if="selectedPath" class="px-2 mb-2 event-json-panel small">
                 <div v-if="clipEventLoading" class="text-muted">Loading event…</div>
@@ -173,7 +173,7 @@
                       {{timespan.title}}</div>
                     <div class="px-2 controls">
                       <button v-if="args.hideDeleteButtons === false" class="btn btn-danger delete" @click="deleteFiles( timespan )">Delete</button>
-                      <button class="btn btn-info copy" @click="copyFilePaths( timespan )">Copy paths</button>
+                      <button class="btn btn-primary copy" @click="copyFilePaths( timespan )">Copy paths</button>
                       <button class="btn btn-success play" v-show="!timespan.playing"
                         @click="playPause( timespan )"><span class="bi bi-play" title="Play"></span></button>
                       <button class="btn btn-warning pause" v-show="timespan.playing"
