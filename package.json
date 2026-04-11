@@ -1,7 +1,7 @@
 {
   "name": "teslacam-browser",
   "productName": "TeslaCam Browser",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "A minimal TeslaCam Browser",
   "main": "main.js",
   "scripts": {
@@ -32,10 +32,16 @@
       "provider": "github"
     },
     "mac": {
-      "target": ["dmg", "zip"]
+      "target": [
+        "dmg",
+        "zip"
+      ]
     },
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "category": "Utility"
     },
     "win": {
