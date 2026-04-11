@@ -126,7 +126,9 @@
                 },
                 playing: null,
                 loading: null,
-                themePreference: "system"
+                themePreference: "system",
+                confirmMessage: "",
+                confirmCallback: null
                 }
             },
             watch:
@@ -556,9 +558,31 @@
 
                     alert( "Copied file paths to clipboard" )
                 },
+                showConfirm: function( message, callback )
+                {
+                    this.confirmMessage = message
+                    this.confirmCallback = callback
+
+                    this.$nextTick( () =>
+                    {
+                        var el = document.getElementById( "confirmDeleteModal" )
+                        var modal = window.bootstrap.Modal.getOrCreateInstance( el )
+                        modal.show()
+                    } )
+                },
+                confirmAction: function()
+                {
+                    if ( this.confirmCallback ) this.confirmCallback()
+
+                    this.confirmCallback = null
+
+                    var el = document.getElementById( "confirmDeleteModal" )
+                    var modal = window.bootstrap.Modal.getInstance( el )
+                    if ( modal ) modal.hide()
+                },
                 deleteFolder: function( folder )
                 {
-                    if ( confirm( `Are you sure you want to delete ${folder}?` ) )
+                    this.showConfirm( `Are you sure you want to delete ${folder}?`, () =>
                     {
                         handlers.deleteFolder( folder )
 
@@ -568,7 +592,7 @@
                         this.selectedPath = this.selectedTime ? this.selectedTime.time.relative : null
 
                         handlers.reopenFolders( this.loaded )
-                    }
+                    } )
                 },
                 copyPath: function( path )
                 {

@@ -316,6 +316,28 @@ html[data-theme="dark"] .btn-outline-secondary:hover
     color: var( --tc-body-color );
 }
 
+.modal-content
+{
+    background-color: var( --tc-card-bg );
+    color: var( --tc-body-color );
+    border-color: var( --tc-panel-border );
+}
+
+.modal-header
+{
+    border-bottom-color: var( --tc-panel-border );
+}
+
+.modal-footer
+{
+    border-top-color: var( --tc-panel-border );
+}
+
+html[data-theme="dark"] .btn-close
+{
+    filter: invert( 1 ) grayscale( 100% ) brightness( 200% );
+}
+
 html[data-theme="dark"] .alert-info
 {
     background-color: #1a3a4a;
