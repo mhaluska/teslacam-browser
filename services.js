@@ -51,6 +51,7 @@
 	var clipTelemetryCache = new LruCache( 200 )
 	var clipTelemetryCacheKeySuffix = "\0tSecV2"
 	var videosMounted = false
+	var expressInitialized = false
 	var csrfCookieName = "tc_csrf"
 	var csrfHeaderName = "x-csrf-token"
 	var trustProxy = parseTrustProxySetting( process.env.TC_TRUST_IP )
@@ -515,6 +516,13 @@
 
     function initializeExpress( port, options )
     {
+		if ( expressInitialized )
+		{
+			logger.warn( "initialize_express_skipped_already_initialized" )
+			return
+		}
+		expressInitialized = true
+
 		var initializeOptions = normalizeInitializeOptions( options )
 
 		function serveVideos( args )
