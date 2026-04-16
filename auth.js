@@ -179,6 +179,7 @@ function middleware( req, res, next )
     if ( req.path.startsWith( "/node_modules/bootstrap-icons/font/fonts/" ) ) return next()
     if ( req.path === "/content/app.css" ) return next()
     if ( req.path === "/content/favicon.svg" ) return next()
+    if ( req.path === "/content/login-theme.js" ) return next()
     if ( req.method === "POST" && req.path === "/logout" ) return next()
 
     const cookies = parseCookies( req.headers.cookie )
@@ -216,15 +217,7 @@ function loginPage( error )
     .login-card { width: 100%; max-width: 380px; }
     .login-heading { font-size: 1.5rem; font-weight: 600; }
   </style>
-  <script>
-    (function() {
-      var theme = localStorage.getItem("themePreference");
-      if (theme === "dark") document.documentElement.setAttribute("data-theme", "dark");
-      else if (theme === "light") document.documentElement.setAttribute("data-theme", "light");
-      else if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches)
-        document.documentElement.setAttribute("data-theme", "dark");
-    })();
-  </script>
+  <script src="content/login-theme.js"></script>
 </head>
 <body>
   <div class="login-card">

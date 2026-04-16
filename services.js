@@ -772,6 +772,7 @@
 		expressApp.get( "/content/ui.js", ( request, response ) => response.sendFile( __dirname + "/ui.js" ) )
 		expressApp.get( "/content/external.js", ( request, response ) => response.sendFile( __dirname + "/external.js" ) )
 		expressApp.get( "/content/favicon.svg", ( request, response ) => response.sendFile( __dirname + "/favicon.svg" ) )
+		expressApp.get( "/content/login-theme.js", ( request, response ) => response.sendFile( __dirname + "/login-theme.js" ) )
 		var libCacheHeaders = { "Cache-Control": "public, max-age=31536000, immutable" }
 		expressApp.get( "/node_modules/flatpickr/dist/flatpickr.min.css", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( __dirname + "/node_modules/flatpickr/dist/flatpickr.min.css" ) } )
 		expressApp.get( "/node_modules/flatpickr/dist/flatpickr.min.js", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( __dirname + "/node_modules/flatpickr/dist/flatpickr.min.js" ) } )
