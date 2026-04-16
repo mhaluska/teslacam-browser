@@ -460,8 +460,9 @@
 					}
 				}
 			}
-			catch (e)
+			catch ( e )
 			{
+				logger.warn( "openfolder_readdir_failed", { folder: baseFolder, error: e } )
 			}
 		}
 
@@ -491,8 +492,9 @@
 				.filter( function( entry ) { return entry.isDirectory() } )
 				.map( function( entry ) { return { path: path.join( folder, entry.name ), name: entry.name } } )
 		}
-		catch (e)
+		catch ( e )
 		{
+			logger.warn( "openfolder_readdir_failed", { folder: folder, error: e } )
 		}
 
 		var folderDisplay = folder.replace( /[/\\]+$/, "" )
