@@ -783,14 +783,14 @@
 		expressApp.get( "/node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( __dirname + "/node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff" ) } )
 		expressApp.get( "/node_modules/vue/dist/vue.global.js", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( __dirname + "/node_modules/vue/dist/vue.global.js" ) } )
 
-        expressApp.listen( port, ( err ) =>
+        var server = expressApp.listen( port, () =>
         {
-            if (err)
-            {
-                return logger.error( "server_listen_failed", { port: port, error: err } )
-            }
-    
             logger.info( "server_listening", { port: port } )
+        } )
+        server.on( "error", function ( err )
+        {
+            logger.error( "server_listen_failed", { port: port, error: err } )
+            if ( initializeOptions.headless ) process.exit( 1 )
         } )
     }
 
