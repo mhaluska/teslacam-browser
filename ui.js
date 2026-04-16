@@ -274,6 +274,7 @@
 
                     if ( !isFinite( lat ) || !isFinite( lon ) ) return ""
 
+                    // Degrees — half-width of the OpenStreetMap embed bbox around the event marker (~333 m lat; lon narrows at higher latitudes).
                     var d = 0.003
 
                     return "https://www.openstreetmap.org/export/embed.html?bbox="
