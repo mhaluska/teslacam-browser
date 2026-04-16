@@ -190,7 +190,8 @@
 
 	function getRequestRelativePath( request )
 	{
-		return decodeURIComponent( request.path || "" )
+		// Express already decodes request.path; resolveWithinRoot validates traversal.
+		return request.path || ""
 	}
 
 	function ensureCsrfCookie( request, response )
