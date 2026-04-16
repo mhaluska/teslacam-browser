@@ -7,7 +7,7 @@ const path = require( "path" )
 const port = 8088
 const defaultFolder = ( process.argv.length > 2 ) ? process.argv[ 2 ] : ""
 
-services.setVersion( require('./package.json').version )
+services.setVersion( require('../../package.json').version )
 
 if ( !defaultFolder )
 {

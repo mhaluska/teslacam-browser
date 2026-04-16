@@ -1,7 +1,7 @@
 ( function ( root, factory )
 {
-	if ( typeof define === 'function' && define.amd ) define( [ "./helpers", "fs", "path", "express" ], factory );
-	else if ( typeof exports === 'object' ) module.exports = factory( require( "./helpers" ), require( "fs" ), require( "path" ), require( "express" ) );
+	if ( typeof define === 'function' && define.amd ) define( [ "../renderer/helpers", "fs", "path", "express" ], factory );
+	else if ( typeof exports === 'object' ) module.exports = factory( require( "../renderer/helpers" ), require( "fs" ), require( "path" ), require( "express" ) );
 	else root.services = factory( root.helpers, root.fs, root.path, root.express );
 }( typeof self !== 'undefined' ? self : this, function ( helpers, fs, path, express )
 {
@@ -643,7 +643,7 @@
             expressApp.use( auth.middleware )
         }
 
-        expressApp.get( "/", ( request, response ) => response.sendFile( __dirname + "/external.html" ) )
+        expressApp.get( "/", ( request, response ) => response.sendFile( path.join( __dirname, "../renderer/external.html" ) ) )
         expressApp.get( "/reopenFolders", apiLimiter, async ( request, response ) =>
 		{
 			try { response.send( await reopenFolders() ) }
@@ -763,24 +763,17 @@
             }
         } )
 
-		expressApp.get( "/content/app.css", ( request, response ) => response.sendFile( __dirname + "/app.css" ) )
-		expressApp.get( "/content/helpers.js", ( request, response ) => response.sendFile( __dirname + "/helpers.js" ) )
-		expressApp.get( "/content/ui-constants.js", ( request, response ) => response.sendFile( __dirname + "/ui-constants.js" ) )
-		expressApp.get( "/content/ui-utils.js", ( request, response ) => response.sendFile( __dirname + "/ui-utils.js" ) )
-		expressApp.get( "/content/ui-video.js", ( request, response ) => response.sendFile( __dirname + "/ui-video.js" ) )
-		expressApp.get( "/content/ui.js", ( request, response ) => response.sendFile( __dirname + "/ui.js" ) )
-		expressApp.get( "/content/external.js", ( request, response ) => response.sendFile( __dirname + "/external.js" ) )
-		expressApp.get( "/content/favicon.svg", ( request, response ) => response.sendFile( __dirname + "/favicon.svg" ) )
-		expressApp.get( "/content/login-theme.js", ( request, response ) => response.sendFile( __dirname + "/login-theme.js" ) )
+		expressApp.use( "/content", express.static( path.join( __dirname, "../renderer" ) ) )
+		var nodeModulesDir = path.join( __dirname, "../../node_modules" )
 		var libCacheHeaders = { "Cache-Control": "public, max-age=31536000, immutable" }
-		expressApp.get( "/node_modules/flatpickr/dist/flatpickr.min.css", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( __dirname + "/node_modules/flatpickr/dist/flatpickr.min.css" ) } )
-		expressApp.get( "/node_modules/flatpickr/dist/flatpickr.min.js", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( __dirname + "/node_modules/flatpickr/dist/flatpickr.min.js" ) } )
-		expressApp.get( "/node_modules/bootstrap/dist/css/bootstrap.min.css", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( __dirname + "/node_modules/bootstrap/dist/css/bootstrap.min.css" ) } )
-		expressApp.get( "/node_modules/bootstrap/dist/js/bootstrap.bundle.min.js", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( __dirname + "/node_modules/bootstrap/dist/js/bootstrap.bundle.min.js" ) } )
-		expressApp.get( "/node_modules/bootstrap-icons/font/bootstrap-icons.css", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( __dirname + "/node_modules/bootstrap-icons/font/bootstrap-icons.css" ) } )
-		expressApp.get( "/node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff2", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( __dirname + "/node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff2" ) } )
-		expressApp.get( "/node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( __dirname + "/node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff" ) } )
-		expressApp.get( "/node_modules/vue/dist/vue.global.js", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( __dirname + "/node_modules/vue/dist/vue.global.js" ) } )
+		expressApp.get( "/node_modules/flatpickr/dist/flatpickr.min.css", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( path.join( nodeModulesDir, "flatpickr/dist/flatpickr.min.css" ) ) } )
+		expressApp.get( "/node_modules/flatpickr/dist/flatpickr.min.js", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( path.join( nodeModulesDir, "flatpickr/dist/flatpickr.min.js" ) ) } )
+		expressApp.get( "/node_modules/bootstrap/dist/css/bootstrap.min.css", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( path.join( nodeModulesDir, "bootstrap/dist/css/bootstrap.min.css" ) ) } )
+		expressApp.get( "/node_modules/bootstrap/dist/js/bootstrap.bundle.min.js", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( path.join( nodeModulesDir, "bootstrap/dist/js/bootstrap.bundle.min.js" ) ) } )
+		expressApp.get( "/node_modules/bootstrap-icons/font/bootstrap-icons.css", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( path.join( nodeModulesDir, "bootstrap-icons/font/bootstrap-icons.css" ) ) } )
+		expressApp.get( "/node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff2", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( path.join( nodeModulesDir, "bootstrap-icons/font/fonts/bootstrap-icons.woff2" ) ) } )
+		expressApp.get( "/node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( path.join( nodeModulesDir, "bootstrap-icons/font/fonts/bootstrap-icons.woff" ) ) } )
+		expressApp.get( "/node_modules/vue/dist/vue.global.js", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( path.join( nodeModulesDir, "vue/dist/vue.global.js" ) ) } )
 
         var server = expressApp.listen( port, () =>
         {

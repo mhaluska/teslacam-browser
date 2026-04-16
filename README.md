@@ -27,7 +27,7 @@ You can run the app as a standalone headless server, even on a Raspberry Pi:
 ```
 cd teslacam-browser
 npm install --omit=dev
-node server.js /path/to/TeslaCam
+node src/server/server.js /path/to/TeslaCam
 ```
 
 The startup path is required in headless mode and is treated as the fixed root for all file operations.
@@ -58,7 +58,7 @@ When running as a headless server on a network, authentication should be enabled
 To enable authentication, set `TC_AUTH_USER` and `TC_AUTH_PASS_HASH`:
 
 ```
-TC_AUTH_USER=admin TC_AUTH_PASS_HASH=<hash> node server.js /path/to/TeslaCam
+TC_AUTH_USER=admin TC_AUTH_PASS_HASH=<hash> node src/server/server.js /path/to/TeslaCam
 ```
 
 `TC_AUTH_PASS_HASH` keeps the same variable name, but now supports a password-hard `scrypt` format:
@@ -104,6 +104,20 @@ Authentication only applies to the web server mode. The Electron desktop app is 
 4. Keep `TC_COOKIE_SECURE=auto` (or `true` if TLS is always used end-to-end).
 5. If all browser traffic is HTTPS, optionally set `TC_CSP_UPGRADE_INSECURE_REQUESTS=true`.
 6. Review rate-limit env vars for your traffic profile.
+
+## Project layout
+
+```
+src/
+  main/       Electron main process (main.js, menu.js, preload.js)
+  server/     Shared backend used by both Electron and headless modes
+              (server.js, services.js, auth.js, logger.js, seiTelemetry.js, dashcam.proto)
+  renderer/   Browser assets: HTML, CSS, Vue UI scripts, favicon
+scripts/      Developer utilities (hash-password.js)
+images/       App icon and README assets
+```
+
+Electron loads `src/renderer/index.html`; headless mode serves `src/renderer/external.html` over HTTP on port 8088.
 
 ## License
 

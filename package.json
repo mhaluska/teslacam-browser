@@ -3,7 +3,7 @@
   "productName": "TeslaCam Browser",
   "version": "0.1.10",
   "description": "A minimal TeslaCam Browser",
-  "main": "main.js",
+  "main": "src/main/main.js",
   "scripts": {
     "start": "electron .",
     "hash-password": "node scripts/hash-password.js",

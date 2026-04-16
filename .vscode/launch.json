@@ -9,13 +9,13 @@
 			"request": "launch",
 			"name": "Electron Main",
 			"runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron",
-			"program": "${workspaceFolder}/main.js"
+			"program": "${workspaceFolder}/src/main/main.js"
 		},
 		{
 			"type": "node",
 			"request": "launch",
 			"name": "Launch Program",
-			"program": "${workspaceFolder}/main.js"
+			"program": "${workspaceFolder}/src/main/main.js"
 		}
 	]
 }
