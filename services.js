@@ -189,10 +189,12 @@
 		return { root: root, relative: rel, resolved: resolved }
 	}
 
-	function getRequestRelativePath( request )
+	function getRequestRelativePath( request, mountPath )
 	{
 		// Express already decodes request.path; resolveWithinRoot validates traversal.
-		return request.path || ""
+		var p = request.path || ""
+		if ( mountPath && p.indexOf( mountPath ) === 0 ) p = p.slice( mountPath.length )
+		return p
 	}
 
 	function ensureCsrfCookie( request, response )
@@ -617,11 +619,11 @@
 			try { response.send( serveVideos( await openFolder() ) ) }
 			catch ( _e ) { response.status( 400 ).json( { error: "invalid_root" } ) }
 		} )
-		expressApp.use( "/copyFilePaths", ( request, response ) =>
+		expressApp.get( /^\/copyFilePaths(?:\/.*)?$/, ( request, response ) =>
 		{
 			try
 			{
-				var rel = getRequestRelativePath( request )
+				var rel = getRequestRelativePath( request, "/copyFilePaths" )
 				response.send( copyFilePaths( [ rel ] ) )
 			}
 			catch ( _e )
@@ -629,11 +631,11 @@
 				response.status( 400 ).json( { error: "invalid_path" } )
 			}
 		} )
-		expressApp.use( "/copyPath", ( request, response ) =>
+		expressApp.get( /^\/copyPath(?:\/.*)?$/, ( request, response ) =>
 		{
 			try
 			{
-				var rel = getRequestRelativePath( request )
+				var rel = getRequestRelativePath( request, "/copyPath" )
 				response.send( copyPath( rel ) )
 			}
 			catch ( _e )
@@ -641,11 +643,11 @@
 				response.status( 400 ).json( { error: "invalid_path" } )
 			}
 		} )
-		expressApp.use( "/files", async ( request, response ) =>
+		expressApp.get( /^\/files(?:\/.*)?$/, async ( request, response ) =>
 		{
 			try
 			{
-				var rel = getRequestRelativePath( request )
+				var rel = getRequestRelativePath( request, "/files" )
 				response.send( await getFiles( rel, p => "videos/" + p ) )
 			}
 			catch ( _e )
@@ -653,11 +655,11 @@
 				response.status( 400 ).json( { error: "invalid_path" } )
 			}
 		} )
-		expressApp.use( "/eventJson", async ( request, response ) =>
+		expressApp.get( /^\/eventJson(?:\/.*)?$/, async ( request, response ) =>
 		{
 			try
 			{
-				var rel = getRequestRelativePath( request )
+				var rel = getRequestRelativePath( request, "/eventJson" )
 				response.json( await readEventJson( rel ) )
 			}
 			catch ( _e )
@@ -665,11 +667,11 @@
 				response.status( 400 ).json( { error: "invalid_path" } )
 			}
 		} )
-		expressApp.use( "/clipTelemetry", async ( request, response ) =>
+		expressApp.get( /^\/clipTelemetry(?:\/.*)?$/, async ( request, response ) =>
 		{
 			try
 			{
-				var rel = getRequestRelativePath( request )
+				var rel = getRequestRelativePath( request, "/clipTelemetry" )
 				response.json( await readClipTelemetry( rel ) )
 			}
 			catch ( _e )
