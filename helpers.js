@@ -5,16 +5,12 @@
 	else root.helpers = factory();
 }( typeof self !== 'undefined' ? self : this, function ()
 {
-	const folderRegex = /(?<y>\d+)-(?<m>\d+)-(?<d>\d+)_(?<h>\d+)-(?<mm>\d+)(?:-(?<s>\d+))?$/g;
-	const clipRegex = /(?<y>\d+)-(?<m>\d+)-(?<d>\d+)_(?<h>\d+)-(?<mm>\d+)(?:-(?<s>\d+))?-(?<c>.*).mp4$/g;
+	const folderRegex = /(?<y>\d+)-(?<m>\d+)-(?<d>\d+)_(?<h>\d+)-(?<mm>\d+)(?:-(?<s>\d+))?$/;
+	const clipRegex = /(?<y>\d+)-(?<m>\d+)-(?<d>\d+)_(?<h>\d+)-(?<mm>\d+)(?:-(?<s>\d+))?-(?<c>.*).mp4$/;
 
 	function matchRegex( regex, value )
 	{
-		var result = regex.exec( value )
-
-		regex.lastIndex = 0
-
-		return result;
+		return regex.exec( value );
 	}
 
 	var matchFolder = ( folder ) => matchRegex( folderRegex, folder )
