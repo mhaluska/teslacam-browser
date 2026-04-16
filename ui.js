@@ -388,7 +388,6 @@
                 },
                 openFolders: function()
                 {
-                    // TODO: Still used?
                     handlers.openFolders( this.loaded )
                 },
                 openBrowser: function()
