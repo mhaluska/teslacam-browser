@@ -190,7 +190,8 @@
 
 	function getRequestRelativePath( request )
 	{
-		return decodeURIComponent( request.path || "" )
+		// Express already decodes request.path; resolveWithinRoot validates traversal.
+		return request.path || ""
 	}
 
 	function ensureCsrfCookie( request, response )
@@ -563,9 +564,10 @@
 						directives:
 						{
 							defaultSrc: [ "'self'" ],
-							scriptSrc: [ "'self'", "'unsafe-inline'", "'unsafe-eval'" ],
-							scriptSrcAttr: [ "'unsafe-inline'" ],
-							scriptSrcElem: [ "'self'", "'unsafe-inline'", "'unsafe-eval'" ],
+							// 'unsafe-eval' kept: Vue compiles string templates at runtime via new Function.
+							scriptSrc: [ "'self'", "'unsafe-eval'" ],
+							scriptSrcAttr: [ "'none'" ],
+							scriptSrcElem: [ "'self'", "'unsafe-eval'" ],
 							styleSrc: [ "'self'", "'unsafe-inline'" ],
 							imgSrc: [ "'self'", "data:" ],
 							fontSrc: [ "'self'", "data:" ],
@@ -716,6 +718,7 @@
 		expressApp.get( "/content/app.css", ( request, response ) => response.sendFile( __dirname + "/app.css" ) )
 		expressApp.get( "/content/helpers.js", ( request, response ) => response.sendFile( __dirname + "/helpers.js" ) )
 		expressApp.get( "/content/ui.js", ( request, response ) => response.sendFile( __dirname + "/ui.js" ) )
+		expressApp.get( "/content/external.js", ( request, response ) => response.sendFile( __dirname + "/external.js" ) )
 		expressApp.get( "/content/favicon.svg", ( request, response ) => response.sendFile( __dirname + "/favicon.svg" ) )
 		var libCacheHeaders = { "Cache-Control": "public, max-age=31536000, immutable" }
 		expressApp.get( "/node_modules/flatpickr/dist/flatpickr.min.css", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( __dirname + "/node_modules/flatpickr/dist/flatpickr.min.css" ) } )
