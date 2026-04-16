@@ -5,12 +5,14 @@
 	else root.ui = factory();
 }( typeof self !== 'undefined' ? self : this, function ()
 {
-    var CAM_GRID_TOP = [ "left_pillar", "front", "right_pillar" ]
-    var CAM_GRID_BOTTOM = [ "right_repeater", "back", "left_repeater" ]
-    var CAM_GRID_ALL = CAM_GRID_TOP.concat( CAM_GRID_BOTTOM )
+    var uiConstants = ( typeof window !== "undefined" && window.uiConstants )
+        ? window.uiConstants
+        : require( "./ui-constants" )
 
-    /** Seconds — camera durations differ slightly per file; only the longest track(s) should drive timespan.currentTime. */
-    var DURATION_MATCH_EPSILON_SEC = 0.03
+    var CAM_GRID_TOP = uiConstants.CAM_GRID_TOP
+    var CAM_GRID_BOTTOM = uiConstants.CAM_GRID_BOTTOM
+    var CAM_GRID_ALL = uiConstants.CAM_GRID_ALL
+    var DURATION_MATCH_EPSILON_SEC = uiConstants.DURATION_MATCH_EPSILON_SEC
 
     /** Map video currentTime to two SEI samples + blend factor (uses tSec from server when present). */
     function pickSeiInterpolationBracket( samples, t, dur )
