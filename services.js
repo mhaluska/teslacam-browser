@@ -767,6 +767,7 @@
 		expressApp.get( "/content/app.css", ( request, response ) => response.sendFile( __dirname + "/app.css" ) )
 		expressApp.get( "/content/helpers.js", ( request, response ) => response.sendFile( __dirname + "/helpers.js" ) )
 		expressApp.get( "/content/ui-constants.js", ( request, response ) => response.sendFile( __dirname + "/ui-constants.js" ) )
+		expressApp.get( "/content/ui-utils.js", ( request, response ) => response.sendFile( __dirname + "/ui-utils.js" ) )
 		expressApp.get( "/content/ui.js", ( request, response ) => response.sendFile( __dirname + "/ui.js" ) )
 		expressApp.get( "/content/external.js", ( request, response ) => response.sendFile( __dirname + "/external.js" ) )
 		expressApp.get( "/content/favicon.svg", ( request, response ) => response.sendFile( __dirname + "/favicon.svg" ) )
