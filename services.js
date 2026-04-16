@@ -12,6 +12,7 @@
 	const compression = require( "compression" )
 	const rateLimit = require( "express-rate-limit" )
 	const crypto = require( "crypto" )
+	const net = require( "net" )
 
 	function LruCache( maxSize )
 	{
@@ -72,19 +73,48 @@
 		return fallback
 	}
 
+	function isValidTrustProxyEntry( entry )
+	{
+		if ( entry === "loopback" || entry === "linklocal" || entry === "uniquelocal" ) return true
+
+		var slash = entry.indexOf( "/" )
+		if ( slash < 0 ) return net.isIP( entry ) !== 0
+
+		var base = entry.slice( 0, slash )
+		var prefix = entry.slice( slash + 1 )
+		var family = net.isIP( base )
+		if ( family === 0 ) return false
+		if ( !/^\d+$/.test( prefix ) ) return false
+
+		var n = Number( prefix )
+		var max = family === 4 ? 32 : 128
+
+		return n >= 0 && n <= max
+	}
+
 	function parseTrustProxySetting( value )
 	{
 		if ( typeof value !== "string" ) return false
+
+		var trimmed = value.trim().toLowerCase()
+		if ( trimmed === "true" ) return true
+		if ( trimmed === "false" ) return false
+		if ( /^\d+$/.test( trimmed ) ) return Number( trimmed )
 
 		var entries = value
 			.split( "," )
 			.map( s => s.trim() )
 			.filter( s => s.length > 0 )
 
-		if ( entries.length < 1 ) return false
-		if ( entries.length === 1 ) return entries[ 0 ]
+		var valid = entries.filter( isValidTrustProxyEntry )
+		var invalid = entries.filter( e => !isValidTrustProxyEntry( e ) )
 
-		return entries
+		if ( invalid.length ) logger.warn( "trust_proxy_invalid_entries", { invalid: invalid } )
+
+		if ( valid.length === 0 ) return false
+		if ( valid.length === 1 ) return valid[ 0 ]
+
+		return valid
 	}
 
 	function normalizeInitializeOptions( options )
