@@ -1,9 +1,9 @@
 ( function ( root, factory )
 {
-	if ( typeof define === 'function' && define.amd ) define( [ "./helpers", "fs", "path", "express", "serve-index" ], factory );
-	else if ( typeof exports === 'object' ) module.exports = factory( require( "./helpers" ), require( "fs" ), require( "path" ), require( "express" ), require( "serve-index" ) );
-	else root.services = factory( root.helpers, root.fs, root.path, root.express, root.serveIndex );
-}( typeof self !== 'undefined' ? self : this, function ( helpers, fs, path, express, serveIndex )
+	if ( typeof define === 'function' && define.amd ) define( [ "./helpers", "fs", "path", "express" ], factory );
+	else if ( typeof exports === 'object' ) module.exports = factory( require( "./helpers" ), require( "fs" ), require( "path" ), require( "express" ) );
+	else root.services = factory( root.helpers, root.fs, root.path, root.express );
+}( typeof self !== 'undefined' ? self : this, function ( helpers, fs, path, express )
 {
 	const seiTelemetry = require( "./seiTelemetry" )
 	const auth = require( "./auth" )
@@ -297,8 +297,7 @@
 
 			expressApp.use(
 				"/videos",
-				express.static( folder, { maxAge: "7d" } ),
-				serveIndex( folder, { 'icons': true } ) )
+				express.static( folder, { maxAge: "7d" } ) )
 		}
 
 		return lastArgs
