@@ -248,7 +248,7 @@
           openFolder: (p, success) => electronAPI.invoke("openFolder", p).then(success),
           getFiles: (p, success) => electronAPI.invoke("getFiles", p).then(success),
           readEventJson: (p, success) => electronAPI.invoke("readEventJson", p).then(success).catch(() => success(null)),
-          getClipTelemetry: (p, success) => electronAPI.invoke("getClipTelemetry", p).then(success).catch(e => success({ success: false, error: String(e.message || e), samples: [] })),
+          getClipTelemetry: (p, success) => electronAPI.invoke("getClipTelemetry", p).then(success).catch(e => success({ error: String(e.message || e) })),
           openBrowser: () => electronAPI.send("openBrowser"),
           deleteFiles: files => electronAPI.send("deleteFiles", files),
           deleteFolder: folder => electronAPI.send("deleteFolder", folder),

@@ -1031,7 +1031,7 @@
                     {
                         if ( token !== self.telemetryReqId ) return
 
-                        if ( !res || !res.success )
+                        if ( !res || res.error )
                         {
                             self.telemetryStatus = "error"
                             self.telemetryError = res && res.error ? res.error : "failed"
@@ -1039,7 +1039,7 @@
                             return
                         }
 
-                        if ( !res.samples || !res.samples.length )
+                        if ( !Array.isArray( res.samples ) || !res.samples.length )
                         {
                             self.telemetryStatus = "empty"
 

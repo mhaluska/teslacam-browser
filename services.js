@@ -343,7 +343,7 @@
 	async function readClipTelemetry( relativeFilePath )
 	{
 		if ( !lastArgs.folder || typeof relativeFilePath !== "string" || !relativeFilePath.length )
-			return { success: false, error: "no_folder", samples: [] }
+			return { error: "no_folder" }
 
 		try
 		{
@@ -351,7 +351,7 @@
 			var resolvedFile = target.resolved
 
 			try { await fs.promises.access( resolvedFile ) }
-			catch ( _e ) { return { success: false, error: "not_found", samples: [] } }
+			catch ( _e ) { return { error: "not_found" } }
 
 			var stat = await fs.promises.stat( resolvedFile )
 			var cacheKey = resolvedFile + clipTelemetryCacheKeySuffix
@@ -362,7 +362,7 @@
 
 			var samples = await seiTelemetry.extractSamplesFromFile( resolvedFile )
 
-			var result = { success: true, samples: samples }
+			var result = { samples: samples }
 
 			clipTelemetryCache.set( cacheKey, { mtimeMs: stat.mtimeMs, result: result } )
 
@@ -372,7 +372,7 @@
 		{
 			logger.warn( "read_clip_telemetry_failed", { error: e } )
 
-			return { success: false, error: String( e.message || e ), samples: [] }
+			return { error: String( e.message || e ) }
 		}
 	}
 
@@ -713,7 +713,7 @@
 			}
 			catch ( _e )
 			{
-				response.status( 400 ).json( { success: false, error: "invalid_path", samples: [] } )
+				response.status( 400 ).json( { error: "invalid_path" } )
 			}
 		} )
 

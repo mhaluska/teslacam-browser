@@ -62,7 +62,7 @@
       openFolder: (_p, success) => fetch( "openDefaultFolder").then(r => r.json()).then(a => success( lastArgs = a )),
       getFiles: (p, success) => fetch("files/" + p).then(r => r.json()).then(success),
       readEventJson: (p, success) => fetch("eventJson/" + p).then(r => r.json()).then(data => success(data)).catch(() => success(null)),
-      getClipTelemetry: (p, success) => fetch("clipTelemetry/" + encodeURI(p)).then(r => r.json()).then(data => success(data)).catch(() => success({ success: false, error: "request_failed", samples: [] })),
+      getClipTelemetry: (p, success) => fetch("clipTelemetry/" + encodeURI(p)).then(r => r.json()).then(data => success(data)).catch(() => success({ error: "request_failed" })),
       openBrowser: () => fetch("openBrowser", { method: "POST" }),
       deleteFiles: files => postJson( "/deleteFiles", { paths: files } ),
       deleteFolder: folder => postJson( "/deleteFolder", { path: folder } ),
