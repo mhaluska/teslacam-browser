@@ -16,7 +16,7 @@ While using the installation packages is the simplest option, you can also run t
 
 ```
 cd teslacam-browser
-npm install
+npm ci
 electron .
 ```
 
