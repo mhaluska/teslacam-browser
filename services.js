@@ -564,9 +564,10 @@
 						directives:
 						{
 							defaultSrc: [ "'self'" ],
-							scriptSrc: [ "'self'", "'unsafe-inline'", "'unsafe-eval'" ],
-							scriptSrcAttr: [ "'unsafe-inline'" ],
-							scriptSrcElem: [ "'self'", "'unsafe-inline'", "'unsafe-eval'" ],
+							// 'unsafe-eval' kept: Vue compiles string templates at runtime via new Function.
+							scriptSrc: [ "'self'", "'unsafe-eval'" ],
+							scriptSrcAttr: [ "'none'" ],
+							scriptSrcElem: [ "'self'", "'unsafe-eval'" ],
 							styleSrc: [ "'self'", "'unsafe-inline'" ],
 							imgSrc: [ "'self'", "data:" ],
 							fontSrc: [ "'self'", "data:" ],
