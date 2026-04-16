@@ -1,6 +1,7 @@
 (function () {
   var lastArgs = { folder: "" }
   var csrfToken = null
+  var csrfTokenPromise = null
 
   function joinFilePaths( filePaths )
   {
@@ -20,8 +21,9 @@
   function ensureCsrfToken()
   {
     if ( csrfToken ) return Promise.resolve( csrfToken )
+    if ( csrfTokenPromise ) return csrfTokenPromise
 
-    return fetch( "/csrf" )
+    csrfTokenPromise = fetch( "/csrf" )
       .then( r => r.ok ? r.json() : Promise.reject( new Error( "csrf_request_failed" ) ) )
       .then( function( data )
       {
@@ -29,6 +31,9 @@
         if ( !csrfToken ) throw new Error( "csrf_missing" )
         return csrfToken
       } )
+      .finally( function() { csrfTokenPromise = null } )
+
+    return csrfTokenPromise
   }
 
   function postJson( url, body )
