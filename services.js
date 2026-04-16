@@ -558,6 +558,13 @@
 				standardHeaders: true,
 				legacyHeaders: false
 			} )
+		var apiLimiter = rateLimit(
+			{
+				windowMs: 60 * 1000,
+				max: parseInt( process.env.TC_API_MAX_PER_MINUTE || "600", 10 ),
+				standardHeaders: true,
+				legacyHeaders: false
+			} )
 		var enableHelmet = parseBoolean( process.env.TC_ENABLE_HELMET, true )
 		var enableCspUpgradeInsecureRequests = parseBoolean( process.env.TC_CSP_UPGRADE_INSECURE_REQUESTS, false )
 
@@ -608,18 +615,18 @@
         }
 
         expressApp.get( "/", ( request, response ) => response.sendFile( __dirname + "/external.html" ) )
-        expressApp.get( "/reopenFolders", async ( request, response ) =>
+        expressApp.get( "/reopenFolders", apiLimiter, async ( request, response ) =>
 		{
 			try { response.send( await reopenFolders() ) }
 			catch ( _e ) { response.status( 400 ).json( { error: "reopen_failed" } ) }
 		} )
         expressApp.get( "/args", ( request, response ) => response.send( args() ) )
-		expressApp.get( "/openDefaultFolder", async ( request, response ) =>
+		expressApp.get( "/openDefaultFolder", apiLimiter, async ( request, response ) =>
 		{
 			try { response.send( serveVideos( await openFolder() ) ) }
 			catch ( _e ) { response.status( 400 ).json( { error: "invalid_root" } ) }
 		} )
-		expressApp.get( /^\/copyFilePaths(?:\/.*)?$/, ( request, response ) =>
+		expressApp.get( /^\/copyFilePaths(?:\/.*)?$/, apiLimiter, ( request, response ) =>
 		{
 			try
 			{
@@ -631,7 +638,7 @@
 				response.status( 400 ).json( { error: "invalid_path" } )
 			}
 		} )
-		expressApp.get( /^\/copyPath(?:\/.*)?$/, ( request, response ) =>
+		expressApp.get( /^\/copyPath(?:\/.*)?$/, apiLimiter, ( request, response ) =>
 		{
 			try
 			{
@@ -643,7 +650,7 @@
 				response.status( 400 ).json( { error: "invalid_path" } )
 			}
 		} )
-		expressApp.get( /^\/files(?:\/.*)?$/, async ( request, response ) =>
+		expressApp.get( /^\/files(?:\/.*)?$/, apiLimiter, async ( request, response ) =>
 		{
 			try
 			{
@@ -655,7 +662,7 @@
 				response.status( 400 ).json( { error: "invalid_path" } )
 			}
 		} )
-		expressApp.get( /^\/eventJson(?:\/.*)?$/, async ( request, response ) =>
+		expressApp.get( /^\/eventJson(?:\/.*)?$/, apiLimiter, async ( request, response ) =>
 		{
 			try
 			{
@@ -667,7 +674,7 @@
 				response.status( 400 ).json( { error: "invalid_path" } )
 			}
 		} )
-		expressApp.get( /^\/clipTelemetry(?:\/.*)?$/, async ( request, response ) =>
+		expressApp.get( /^\/clipTelemetry(?:\/.*)?$/, apiLimiter, async ( request, response ) =>
 		{
 			try
 			{
