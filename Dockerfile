@@ -1,4 +1,4 @@
-FROM node:24-slim AS deps
+FROM node:25-slim AS deps
 
 WORKDIR /app
 
@@ -7,7 +7,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts
 
 
-FROM node:24-slim AS runtime
+FROM node:25-slim AS runtime
 
 WORKDIR /app
 
