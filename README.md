@@ -215,6 +215,24 @@ images/       App icon and README assets
 
 Electron loads `src/renderer/index.html`; headless mode serves `src/renderer/external.html` over HTTP on port 8088.
 
+## Development
+
+Install dev dependencies and, optionally, activate the git hooks:
+
+```
+npm ci
+npx lefthook install    # one-time: sets up pre-commit (lint) and pre-push (tests)
+```
+
+Common scripts:
+
+```
+npm run lint      # Biome lint (catches real bugs, no style enforcement)
+npm run lint:fix  # apply safe lint fixes
+npm test          # run Vitest suite once
+npm run test:watch
+```
+
 ## License
 
 [CC0 1.0 (Public Domain)](LICENSE.md)

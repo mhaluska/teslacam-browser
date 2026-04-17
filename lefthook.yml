@@ -1,0 +1,11 @@
+pre-commit:
+  parallel: true
+  jobs:
+    - name: biome-lint
+      glob: "{src,scripts,test}/**/*.js"
+      run: npx biome lint --no-errors-on-unmatched {staged_files}
+
+pre-push:
+  jobs:
+    - name: vitest
+      run: npm test
