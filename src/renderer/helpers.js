@@ -151,6 +151,13 @@
 		return "camera " + key
 	}
 
+	function isTriggerReason( s )
+	{
+		if ( s == null || s === "" ) return false
+
+		return !/^user_interaction_/.test( String( s ) )
+	}
+
 	function shortenReason( s )
 	{
 		if ( s == null || s === "" ) return ""
@@ -207,6 +214,7 @@
 		parseEventTimestamp: parseEventTimestamp,
 		humanizeReason: humanizeReason,
 		shortenReason: shortenReason,
+		isTriggerReason: isTriggerReason,
 		cameraName: cameraName,
 		computeTriggerOffsetSeconds: computeTriggerOffsetSeconds
 	}

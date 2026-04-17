@@ -25,6 +25,7 @@
     var normalizeThemePreference = uiUtils.normalizeThemePreference
     var humanizeReason = helpers.humanizeReason
     var shortenReason = helpers.shortenReason
+    var isTriggerReason = helpers.isTriggerReason
     var parseEventTimestamp = helpers.parseEventTimestamp
     var computeTriggerOffsetSeconds = helpers.computeTriggerOffsetSeconds
 
@@ -282,6 +283,7 @@
                 triggerOffsetSeconds: function()
                 {
                     if ( !this.clipEvent || !this.timespans || this.timespans.length < 1 ) return null
+                    if ( !isTriggerReason( this.clipEvent.reason ) ) return null
 
                     var trigger = parseEventTimestamp( this.clipEvent.timestamp )
                     if ( !trigger ) return null
@@ -512,12 +514,9 @@
                 tryAutoSeek: function()
                 {
                     if ( !this._pendingAutoSeek || this._pendingAutoSeek !== this.selectedPath ) return
-                    if ( !this.clipEvent || !this.timespans || this.timespans.length < 1 ) return
+                    if ( !this.clipEvent ) return
 
-                    var trigger = parseEventTimestamp( this.clipEvent.timestamp )
-                    if ( !trigger ) { this._pendingAutoSeek = null; return }
-
-                    var offset = computeTriggerOffsetSeconds( this.timespans, trigger )
+                    var offset = this.triggerOffsetSeconds
                     if ( offset == null ) { this._pendingAutoSeek = null; return }
 
                     var total = this.duration

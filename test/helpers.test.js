@@ -182,6 +182,29 @@ describe("cameraName", () => {
 	})
 })
 
+describe("isTriggerReason", () => {
+	it("treats sentry_aware_* reasons as automated triggers", () => {
+		expect(helpers.isTriggerReason("sentry_aware_object_detection")).toBe(true)
+		expect(helpers.isTriggerReason("sentry_aware_accel_primary")).toBe(true)
+	})
+
+	it("treats user_interaction_* reasons as manual, not a trigger", () => {
+		expect(helpers.isTriggerReason("user_interaction_honk")).toBe(false)
+		expect(helpers.isTriggerReason("user_interaction_dashcam_launcher_action_tapped")).toBe(false)
+		expect(helpers.isTriggerReason("user_interaction_dashcam_panic_save_tapped")).toBe(false)
+	})
+
+	it("treats unknown, non-user reasons as triggers so future automatic events still mark", () => {
+		expect(helpers.isTriggerReason("hard_brake_auto_save")).toBe(true)
+	})
+
+	it("returns false for null/empty input", () => {
+		expect(helpers.isTriggerReason(null)).toBe(false)
+		expect(helpers.isTriggerReason(undefined)).toBe(false)
+		expect(helpers.isTriggerReason("")).toBe(false)
+	})
+})
+
 describe("shortenReason", () => {
 	it("maps known Tesla reasons to a one- or two-word form", () => {
 		expect(helpers.shortenReason("sentry_aware_object_detection")).toBe("Sentry")
