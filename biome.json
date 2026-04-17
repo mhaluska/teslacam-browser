@@ -1,0 +1,71 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.4.12/schema.json",
+	"vcs": {
+		"enabled": true,
+		"clientKind": "git",
+		"useIgnoreFile": true
+	},
+	"files": {
+		"ignoreUnknown": true,
+		"includes": [
+			"src/**",
+			"scripts/**",
+			"test/**",
+			"!**/node_modules",
+			"!**/dist",
+			"!src/renderer/vendor/**",
+			"!**/*.html",
+			"!**/*.css",
+			"!**/*.proto"
+		]
+	},
+	"formatter": {
+		"enabled": false
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"recommended": false,
+			"correctness": {
+				"noConstAssign": "error",
+				"noUnreachable": "error",
+				"noUnusedVariables": "warn",
+				"noInvalidConstructorSuper": "error",
+				"noSelfAssign": "error",
+				"useIsNan": "error"
+			},
+			"suspicious": {
+				"noDuplicateObjectKeys": "error",
+				"noDuplicateParameters": "error",
+				"noDuplicateCase": "error",
+				"noDebugger": "error",
+				"noEmptyBlockStatements": "warn",
+				"noFallthroughSwitchClause": "error",
+				"noFunctionAssign": "error",
+				"noRedeclare": "warn",
+				"noUnsafeNegation": "error",
+				"noMisleadingCharacterClass": "error",
+				"noControlCharactersInRegex": "error",
+				"noShadowRestrictedNames": "error"
+			},
+			"security": {
+				"noDangerouslySetInnerHtml": "error"
+			},
+			"complexity": {
+				"noUselessCatch": "warn"
+			}
+		}
+	},
+	"overrides": [
+		{
+			"includes": ["src/renderer/**"],
+			"linter": {
+				"rules": {
+					"correctness": {
+						"noUndeclaredVariables": "off"
+					}
+				}
+			}
+		}
+	]
+}

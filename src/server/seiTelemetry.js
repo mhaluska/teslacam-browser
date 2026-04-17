@@ -5,6 +5,7 @@
 	else root.seiTelemetry = factory( root.fs, root.path, root.protobuf );
 }( typeof self !== "undefined" ? self : this, function ( fs, path, protobuf )
 {
+	const logger = typeof require === "function" ? require( "./logger" ) : null;
 	const protoPath = path.join( __dirname, "dashcam.proto" );
 	var SeiMetadata = null;
 
@@ -187,12 +188,7 @@
 		}
 		catch ( e )
 		{
-			console.log( JSON.stringify( {
-				ts: new Date().toISOString(),
-				level: "warn",
-				event: "sei_telemetry_frame_times_failed",
-				error: ( e && e.message ) ? e.message : String( e )
-			} ) )
+			if ( logger ) logger.warn( "sei_telemetry_frame_times_failed", { error: e } )
 		}
 
 		return null

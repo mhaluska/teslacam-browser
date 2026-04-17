@@ -196,6 +196,17 @@
 		return path.resolve( lastArgs.folder )
 	}
 
+	/**
+	 * Normalize a user-supplied path fragment into a safe relative path.
+	 * Strips leading slashes (so Express-supplied "/foo/bar" is treated as
+	 * relative), rejects anything Node considers absolute, and rejects empty
+	 * strings unless explicitly allowed.
+	 *
+	 * @param {unknown} raw - caller-provided path fragment
+	 * @param {boolean} [allowEmpty=false] - permit an empty result (means "root")
+	 * @returns {string} sanitized relative path (may be empty when allowEmpty=true)
+	 * @throws {Error} invalid_path | absolute_path_not_allowed
+	 */
 	function sanitizeRelativePath( raw, allowEmpty )
 	{
 		if ( typeof raw !== "string" ) throw new Error( "invalid_path" )
@@ -206,6 +217,15 @@
 		return rel
 	}
 
+	/**
+	 * Resolve a caller-supplied relative path against the configured root and
+	 * guarantee the result stays inside the root (path traversal guard).
+	 *
+	 * @param {unknown} raw - caller-provided path fragment
+	 * @param {boolean} [allowEmpty=false] - treat empty as "the root"
+	 * @returns {{ root: string, relative: string, resolved: string }}
+	 * @throws {Error} invalid_path | absolute_path_not_allowed | path_outside_root | no_root_folder
+	 */
 	function resolveWithinRoot( raw, allowEmpty )
 	{
 		var root = ensureRootFolder()
@@ -253,6 +273,12 @@
 		if ( !cookieToken || !headerToken || cookieToken !== headerToken )
 			return response.status( 403 ).json( { error: "csrf_invalid" } )
 
+		next()
+	}
+
+	function requireDeletesEnabled( request, response, next )
+	{
+		if ( hideDeleteButtons ) return response.status( 403 ).json( { error: "delete_disabled" } )
 		next()
 	}
 
@@ -631,6 +657,7 @@
 				} ) )
 		}
 
+        expressApp.get( "/healthz", ( request, response ) => response.json( { ok: true } ) )
         expressApp.get( "/login", auth.loginPageHandler )
         expressApp.post( "/login", loginLimiter, auth.loginHandler )
 		expressApp.get( "/csrf", ( request, response ) => response.json( { token: ensureCsrfCookie( request, response ) } ) )
@@ -716,11 +743,8 @@
 			}
 		} )
 
-        expressApp.post( "/deleteFiles", deleteLimiter, requireCsrf, async ( request, response ) =>
+        expressApp.post( "/deleteFiles", requireDeletesEnabled, deleteLimiter, requireCsrf, async ( request, response ) =>
         {
-            if ( hideDeleteButtons )
-                return response.status( 403 ).json( { error: "delete_disabled" } )
-
             var paths = request.body && request.body.paths
 
             if ( !Array.isArray( paths ) )
@@ -739,11 +763,8 @@
             }
         } )
 
-        expressApp.post( "/deleteFolder", deleteLimiter, requireCsrf, async ( request, response ) =>
+        expressApp.post( "/deleteFolder", requireDeletesEnabled, deleteLimiter, requireCsrf, async ( request, response ) =>
         {
-            if ( hideDeleteButtons )
-                return response.status( 403 ).json( { error: "delete_disabled" } )
-
             var rel = request.body && request.body.path
 
             if ( typeof rel !== "string" || !rel.length )
@@ -775,6 +796,21 @@
 		expressApp.get( "/node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( path.join( nodeModulesDir, "bootstrap-icons/font/fonts/bootstrap-icons.woff" ) ) } )
 		expressApp.get( "/node_modules/vue/dist/vue.global.js", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( path.join( nodeModulesDir, "vue/dist/vue.global.js" ) ) } )
 
+		// Terminal error handler. Catches anything that slipped past route-level try/catch.
+		// Must have 4 args for Express to recognize it as an error handler.
+		expressApp.use( ( err, request, response, _next ) =>
+		{
+			logger.error( "unhandled_request_error", {
+				method: request.method,
+				path: request.path,
+				error: err
+			} )
+
+			if ( response.headersSent ) return
+
+			response.status( 500 ).json( { error: "internal" } )
+		} )
+
         var server = expressApp.listen( port, () =>
         {
             logger.info( "server_listening", { port: port } )
@@ -800,7 +836,6 @@
         copyFilePaths: copyFilePaths,
         deleteFolder: deleteFolder,
         copyPath: copyPath,
-        initializeExpress: initializeExpress,
-        openFolder: openFolder
+        initializeExpress: initializeExpress
 	}
 } ) );
