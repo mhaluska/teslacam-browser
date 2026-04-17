@@ -24,6 +24,7 @@
     var CAM_GRID_ALL = uiConstants.CAM_GRID_ALL
     var normalizeThemePreference = uiUtils.normalizeThemePreference
     var humanizeReason = helpers.humanizeReason
+    var shortenReason = helpers.shortenReason
     var parseEventTimestamp = helpers.parseEventTimestamp
     var computeTriggerOffsetSeconds = helpers.computeTriggerOffsetSeconds
 
@@ -450,12 +451,12 @@
                                     var name = new Date( time.date ).toLocaleTimeString()
 
                                     var folder = ( time.relative || "" ).split( /[/\\]/ )[ 0 ]
-                                    var pretty = time.reason ? humanizeReason( time.reason ) : null
+                                    var short = time.reason ? shortenReason( time.reason ) : null
 
-                                    if ( pretty ) name = pretty + " " + name
-                                    else if ( folder === "RecentClips" || time.recent ) name = "Recent " + name
-                                    else if ( folder === "SavedClips" ) name = "Saved " + name
-                                    else if ( folder === "SentryClips" || folder === "TeslaSentry" ) name = "Sentry " + name
+                                    if ( short ) name = "[" + short + "] " + name
+                                    else if ( folder === "RecentClips" || time.recent ) name = "[Recent] " + name
+                                    else if ( folder === "SavedClips" ) name = "[Saved] " + name
+                                    else if ( folder === "SentryClips" || folder === "TeslaSentry" ) name = "[Sentry] " + name
 
                                     var thumbUrl = ( time.hasThumb && handlers.getAssetUrl )
                                         ? handlers.getAssetUrl( time.relative + "/thumb.png" )

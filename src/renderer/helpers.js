@@ -116,6 +116,32 @@
 		return text.charAt( 0 ).toUpperCase() + text.slice( 1 )
 	}
 
+	const shortReasonMap = {
+		sentry_aware_object_detection: "Sentry",
+		sentry_aware_accel_primary: "Impact",
+		user_interaction_honk: "Honk",
+		user_interaction_dashcam_launcher_action_tapped: "Saved",
+		user_interaction_dashcam_icon_tapped: "Saved",
+		user_interaction_dashcam_panic_save_tapped: "Panic"
+	}
+
+	function shortenReason( s )
+	{
+		if ( s == null || s === "" ) return ""
+
+		var key = String( s )
+		if ( shortReasonMap[ key ] ) return shortReasonMap[ key ]
+
+		var stripped = key
+			.replace( /^(sentry_aware_|user_interaction_|user_interaction_dashcam_)/, "" )
+			.replace( /(_tapped|_primary|_action)$/, "" )
+
+		var parts = stripped.split( "_" ).filter( Boolean )
+		var tail = parts.length ? parts[ parts.length - 1 ] : stripped
+
+		return tail.charAt( 0 ).toUpperCase() + tail.slice( 1 )
+	}
+
 	function computeTriggerOffsetSeconds( timespans, triggerDate )
 	{
 		if ( !Array.isArray( timespans ) || timespans.length < 1 ) return null
@@ -154,6 +180,7 @@
 		isInViewport: isInViewport,
 		parseEventTimestamp: parseEventTimestamp,
 		humanizeReason: humanizeReason,
+		shortenReason: shortenReason,
 		computeTriggerOffsetSeconds: computeTriggerOffsetSeconds
 	}
 } ) );

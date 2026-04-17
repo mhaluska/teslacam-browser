@@ -154,6 +154,28 @@ describe("humanizeReason", () => {
 	})
 })
 
+describe("shortenReason", () => {
+	it("maps known Tesla reasons to a one- or two-word form", () => {
+		expect(helpers.shortenReason("sentry_aware_object_detection")).toBe("Sentry")
+		expect(helpers.shortenReason("sentry_aware_accel_primary")).toBe("Impact")
+		expect(helpers.shortenReason("user_interaction_honk")).toBe("Honk")
+		expect(helpers.shortenReason("user_interaction_dashcam_launcher_action_tapped")).toBe("Saved")
+		expect(helpers.shortenReason("user_interaction_dashcam_icon_tapped")).toBe("Saved")
+		expect(helpers.shortenReason("user_interaction_dashcam_panic_save_tapped")).toBe("Panic")
+	})
+
+	it("falls back to the trailing token for unknown reasons", () => {
+		expect(helpers.shortenReason("some_new_future_event")).toBe("Event")
+		expect(helpers.shortenReason("user_interaction_whistle")).toBe("Whistle")
+	})
+
+	it("returns an empty string for null/empty input", () => {
+		expect(helpers.shortenReason(null)).toBe("")
+		expect(helpers.shortenReason(undefined)).toBe("")
+		expect(helpers.shortenReason("")).toBe("")
+	})
+})
+
 describe("computeTriggerOffsetSeconds", () => {
 	const sampleTimespans = [
 		{ time: new Date(2026, 2, 23, 17, 48, 47), duration: 60.03 },
