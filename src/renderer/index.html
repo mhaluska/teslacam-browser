@@ -9,13 +9,16 @@
   <link rel="stylesheet" href="../../node_modules/flatpickr/dist/flatpickr.min.css">
   <link rel="stylesheet" href="../../node_modules/bootstrap/dist/css/bootstrap.min.css" />
   <link rel="stylesheet" href="../../node_modules/bootstrap-icons/font/bootstrap-icons.css" />
+  <link rel="stylesheet" href="../../node_modules/leaflet/dist/leaflet.css" />
   <link rel="stylesheet" href="app.css" />
   <script type="text/javascript" src="../../node_modules/vue/dist/vue.global.js"></script>
   <script type="text/javascript" src="../../node_modules/flatpickr/dist/flatpickr.min.js"></script>
+  <script type="text/javascript" src="../../node_modules/leaflet/dist/leaflet.js"></script>
   <script type="text/javascript" src="helpers.js"></script>
   <script type="text/javascript" src="ui-constants.js"></script>
   <script type="text/javascript" src="ui-utils.js"></script>
   <script type="text/javascript" src="ui-video.js"></script>
+  <script type="text/javascript" src="ui-map.js"></script>
   <script type="text/javascript" src="ui.js"></script>
 
 </head>
@@ -123,8 +126,8 @@
                   <div class="event-json-row"><span class="text-muted">Street</span> {{ displayStreet( clipEvent.street ) }}</div>
                   <div class="event-json-row"><span class="text-muted">Reason</span> {{ formatEventReason( clipEvent.reason ) }}</div>
                   <div class="event-json-row"><span class="text-muted">Camera</span> {{ displayCameraName( clipEvent.camera ) }}</div>
-                  <div class="event-json-row" v-if="eventMapEmbedUrl"><span class="text-muted">Location</span> {{ clipEvent.est_lat }}, {{ clipEvent.est_lon }}</div>
-                  <iframe v-if="eventMapEmbedUrl" class="event-json-map" :src="eventMapEmbedUrl" title="Map preview (requires network)"></iframe>
+                  <div class="event-json-row" v-if="eventLatNum != null && eventLonNum != null"><span class="text-muted">Location</span> {{ clipEvent.est_lat }}, {{ clipEvent.est_lon }}</div>
+                  <event-map v-if="eventLatNum != null && eventLonNum != null" :event-lat="eventLatNum" :event-lon="eventLonNum" :current-lat="currentGps && currentGps.lat" :current-lon="currentGps && currentGps.lon"></event-map>
                   <div v-if="openStreetMapUrl" class="mt-1">
                     <a :href="openStreetMapUrl" target="_blank" rel="noopener noreferrer">Open in OpenStreetMap</a>
                   </div>

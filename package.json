@@ -70,6 +70,7 @@
     "express-rate-limit": "^8.3.2",
     "flatpickr": "^4.6.13",
     "helmet": "^8.1.0",
+    "leaflet": "^1.9.4",
     "protobufjs": "^8.0.1",
     "vue": "^3.5.32"
   },

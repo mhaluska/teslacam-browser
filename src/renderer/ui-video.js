@@ -255,6 +255,9 @@
     {
         return {
             props: [ "timespan", "view", "playbackRate" ],
+            inject: {
+                publishGps: { default: null }
+            },
             data: function()
             {
                 return {
@@ -407,6 +410,14 @@
                     {
                         this.syncPausedPosition()
                     }
+                },
+                overlayVideoTime: function()
+                {
+                    this.publishCurrentGps()
+                },
+                telemetryStatus: function()
+                {
+                    if ( this.telemetryStatus === "ready" ) this.publishCurrentGps()
                 }
             },
             methods:
@@ -444,6 +455,38 @@
                         self.telemetrySamples = res.samples
                         self.telemetryStatus = "ready"
                     } )
+                },
+                publishCurrentGps: function()
+                {
+                    if ( this.view.camera !== "front" || typeof this.publishGps !== "function" ) return
+                    if ( this.telemetryStatus !== "ready" || !this.telemetrySamples.length ) return
+
+                    var br = pickSeiInterpolationBracket(
+                        this.telemetrySamples,
+                        this.overlayVideoTime,
+                        this.overlayVideoDuration )
+
+                    if ( !br ) return
+
+                    var cur = br.cur
+                    var next = br.next
+                    var alpha = br.alpha
+
+                    var curLat = ( cur && typeof cur.latitudeDeg === "number" ) ? cur.latitudeDeg : null
+                    var curLon = ( cur && typeof cur.longitudeDeg === "number" ) ? cur.longitudeDeg : null
+                    var nextLat = ( next && typeof next.latitudeDeg === "number" ) ? next.latitudeDeg : null
+                    var nextLon = ( next && typeof next.longitudeDeg === "number" ) ? next.longitudeDeg : null
+
+                    var lat = ( curLat != null && nextLat != null )
+                        ? curLat * ( 1 - alpha ) + nextLat * alpha
+                        : ( curLat != null ? curLat : nextLat )
+                    var lon = ( curLon != null && nextLon != null )
+                        ? curLon * ( 1 - alpha ) + nextLon * alpha
+                        : ( curLon != null ? curLon : nextLon )
+
+                    if ( lat == null || lon == null || !isFinite( lat ) || !isFinite( lon ) ) return
+
+                    this.publishGps( { lat: lat, lon: lon } )
                 },
                 startPlayback: function()
                 {
