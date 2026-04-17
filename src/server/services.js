@@ -637,6 +637,7 @@
 				} ) )
 		}
 
+        expressApp.get( "/healthz", ( request, response ) => response.json( { ok: true } ) )
         expressApp.get( "/login", auth.loginPageHandler )
         expressApp.post( "/login", loginLimiter, auth.loginHandler )
 		expressApp.get( "/csrf", ( request, response ) => response.json( { token: ensureCsrfCookie( request, response ) } ) )
