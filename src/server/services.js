@@ -365,6 +365,51 @@
 		}
 	}
 
+	async function readEventMetaForAbsoluteFolder( absoluteFolder )
+	{
+		var meta = { reason: null, hasThumb: false }
+
+		if ( typeof absoluteFolder !== "string" || !absoluteFolder.length ) return meta
+
+		try
+		{
+			var content = await fs.promises.readFile( path.join( absoluteFolder, "event.json" ), "utf8" )
+			var parsed = JSON.parse( content )
+
+			if ( parsed && typeof parsed.reason === "string" && parsed.reason.length ) meta.reason = parsed.reason
+		}
+		catch ( _e ) { /* missing or unreadable event.json — leave reason null */ }
+
+		try
+		{
+			await fs.promises.access( path.join( absoluteFolder, "thumb.png" ) )
+			meta.hasThumb = true
+		}
+		catch ( _e ) { /* no thumb.png — leave hasThumb false */ }
+
+		return meta
+	}
+
+	async function runPool( items, limit, fn )
+	{
+		var i = 0
+
+		async function worker()
+		{
+			while ( i < items.length )
+			{
+				var index = i++
+				await fn( items[ index ] )
+			}
+		}
+
+		var workers = []
+		var n = Math.min( Math.max( 1, limit ), items.length )
+		for ( var w = 0; w < n; w++ ) workers.push( worker() )
+
+		await Promise.all( workers )
+	}
+
 	async function readClipTelemetry( relativeFilePath )
 	{
 		if ( !lastArgs.folder || typeof relativeFilePath !== "string" || !relativeFilePath.length )
@@ -527,6 +572,13 @@
 		folder = path.normalize( ( folder || "" ) + path.sep )
 
 		await addSubfolders( folder )
+
+		await runPool( folderInfos, 16, async info =>
+		{
+			var meta = await readEventMetaForAbsoluteFolder( info.path )
+			info.reason = meta.reason
+			info.hasThumb = meta.hasThumb
+		} )
 
 		var dateGroups = helpers.groupBy( folderInfos, g => g.date.toDateString() )
 		var dates = Array.from( dateGroups.keys() ).map( d => new Date( d ) )
