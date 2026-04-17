@@ -99,9 +99,9 @@
               </div>
               <div class="px-2 mb-2">
                 <div class="list-group list-group-flush overflow-auto times">
-                  <a v-for="t in times" href="" class="list-group-item list-group-item-action"
+                  <a v-for="t in times" href="" class="list-group-item list-group-item-action d-flex align-items-center"
                     :class="{active: t === selectedTime}" @click.prevent="selectedTime = t"
-                    style="cursor: pointer;">{{ t.name }}</a>
+                    style="cursor: pointer;"><img v-if="t.thumbUrl" :src="t.thumbUrl" class="time-thumb me-2" alt=""><span>{{ t.name }}</span></a>
                 </div>
               </div>
               <div class="px-2 mb-2 d-flex justify-content-center gap-2">

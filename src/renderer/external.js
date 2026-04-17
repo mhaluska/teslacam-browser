@@ -57,12 +57,13 @@
 
   var vueApp = ui.initialize(
     {
-      openFolders: success => fetch("openDefaultFolder").then(r => r.json()).then(success),
-      reopenFolders: success => fetch("reopenFolders").then(r => r.json()).then(success),
+      openFolders: success => fetch("openDefaultFolder").then(r => r.json()).then(a => success( lastArgs = a )),
+      reopenFolders: success => fetch("reopenFolders").then(r => r.json()).then(a => success( lastArgs = a )),
       openFolder: (_p, success) => fetch( "openDefaultFolder").then(r => r.json()).then(a => success( lastArgs = a )),
       getFiles: (p, success) => fetch("files/" + p).then(r => r.json()).then(success),
       readEventJson: (p, success) => fetch("eventJson/" + p).then(r => r.json()).then(data => success(data)).catch(() => success(null)),
       getClipTelemetry: (p, success) => fetch("clipTelemetry/" + encodeURI(p)).then(r => r.json()).then(data => success(data)).catch(() => success({ error: "request_failed" })),
+      getAssetUrl: rel => rel ? "videos/" + rel : null,
       openBrowser: () => fetch("openBrowser", { method: "POST" }),
       deleteFiles: files => postJson( "/deleteFiles", { paths: files } ),
       deleteFolder: folder => postJson( "/deleteFolder", { path: folder } ),

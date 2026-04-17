@@ -423,7 +423,11 @@
                                     else if ( folder === "SavedClips" ) name = "Saved " + name
                                     else if ( folder === "SentryClips" || folder === "TeslaSentry" ) name = "Sentry " + name
 
-                                    times.push( { time: time, name: name } )
+                                    var thumbUrl = ( time.hasThumb && handlers.getAssetUrl )
+                                        ? handlers.getAssetUrl( time.relative + "/thumb.png" )
+                                        : null
+
+                                    times.push( { time: time, name: name, thumbUrl: thumbUrl } )
                                 }
                             }
                     
