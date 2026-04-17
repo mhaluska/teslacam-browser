@@ -695,7 +695,7 @@
 							scriptSrcAttr: [ "'none'" ],
 							scriptSrcElem: [ "'self'", "'unsafe-eval'" ],
 							styleSrc: [ "'self'", "'unsafe-inline'" ],
-							imgSrc: [ "'self'", "data:" ],
+							imgSrc: [ "'self'", "data:", "https://*.tile.openstreetmap.org", "https://tile.openstreetmap.org" ],
 							fontSrc: [ "'self'", "data:" ],
 							connectSrc: [ "'self'" ],
 							frameSrc: [ "'self'", "https://www.openstreetmap.org" ],
@@ -847,6 +847,9 @@
 		expressApp.get( "/node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff2", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( path.join( nodeModulesDir, "bootstrap-icons/font/fonts/bootstrap-icons.woff2" ) ) } )
 		expressApp.get( "/node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( path.join( nodeModulesDir, "bootstrap-icons/font/fonts/bootstrap-icons.woff" ) ) } )
 		expressApp.get( "/node_modules/vue/dist/vue.global.js", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( path.join( nodeModulesDir, "vue/dist/vue.global.js" ) ) } )
+		expressApp.get( "/node_modules/leaflet/dist/leaflet.css", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( path.join( nodeModulesDir, "leaflet/dist/leaflet.css" ) ) } )
+		expressApp.get( "/node_modules/leaflet/dist/leaflet.js", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( path.join( nodeModulesDir, "leaflet/dist/leaflet.js" ) ) } )
+		expressApp.use( "/node_modules/leaflet/dist/images", express.static( path.join( nodeModulesDir, "leaflet/dist/images" ), { maxAge: "365d", immutable: true } ) )
 
 		// Terminal error handler. Catches anything that slipped past route-level try/catch.
 		// Must have 4 args for Express to recognize it as an error handler.
