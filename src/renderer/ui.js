@@ -515,20 +515,24 @@
                 {
                     if ( !this._pendingAutoSeek || this._pendingAutoSeek !== this.selectedPath ) return
                     if ( !this.clipEvent ) return
+                    if ( !this.timespans || this.timespans.length < 1 ) return
 
-                    var offset = this.triggerOffsetSeconds
-                    if ( offset == null ) { this._pendingAutoSeek = null; return }
-
-                    var total = this.duration
-                    if ( !( total > 0 ) ) return
-
+                    // Wait for every timespan to report a duration before committing —
+                    // triggerOffsetSeconds is null while any is still loading, and we
+                    // must not treat that loading state as "no trigger".
                     for ( var ts of this.timespans )
                     {
                         if ( !( ts.duration > 0 ) ) return
                     }
 
+                    var total = this.duration
+                    if ( !( total > 0 ) ) return
+
+                    var offset = this.triggerOffsetSeconds
+                    if ( offset == null ) { this._pendingAutoSeek = null; return }
+
                     this.controls.playing = false
-                    this.currentTime = Math.max( 0, Math.min( total, offset - 5 ) )
+                    this.currentTime = Math.max( 0, Math.min( total, offset - 10 ) )
                     this._pendingAutoSeek = null
                 },
                 deleteFiles: function( timespan )
