@@ -17,8 +17,13 @@
         ? window.uiVideo
         : require( "./ui-video" )
 
+    var helpers = ( typeof window !== "undefined" && window.helpers )
+        ? window.helpers
+        : require( "./helpers" )
+
     var CAM_GRID_ALL = uiConstants.CAM_GRID_ALL
     var normalizeThemePreference = uiUtils.normalizeThemePreference
+    var humanizeReason = helpers.humanizeReason
 
     function createVueApp( handlers )
     {
@@ -411,9 +416,12 @@
                                     var name = new Date( time.date ).toLocaleTimeString()
 
                                     var folder = ( time.relative || "" ).split( /[/\\]/ )[ 0 ]
-                                    if ( folder === "SentryClips" || folder === "TeslaSentry" ) name = "Sentry: " + name
-                                    else if ( folder === "SavedClips" ) name = "Saved: " + name
+                                    var pretty = time.reason ? humanizeReason( time.reason ) : null
+
+                                    if ( pretty ) name = pretty + " " + name
                                     else if ( folder === "RecentClips" || time.recent ) name = "Recent " + name
+                                    else if ( folder === "SavedClips" ) name = "Saved " + name
+                                    else if ( folder === "SentryClips" || folder === "TeslaSentry" ) name = "Sentry " + name
 
                                     times.push( { time: time, name: name } )
                                 }
