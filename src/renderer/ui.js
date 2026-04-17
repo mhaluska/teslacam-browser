@@ -138,6 +138,8 @@
 
                             self.clipEventLoading = false
                             self.clipEvent = data
+                            self._pendingAutoSeek = newPath
+                            self.tryAutoSeek()
                         } )
 
                         handlers.getFiles( newPath, files =>
@@ -152,6 +154,7 @@
                         this.clipEventLoading = false
                         this.clipEvent = null
                         this.timespans = []
+                        this._pendingAutoSeek = null
                     }
                 },
                 "args.dates": function( dates, oldDates )
@@ -209,12 +212,15 @@
                 },
                 duration: function( duration )
                 {
-                    if ( this._lastResetTimespans === this.timespans ) return
+                    if ( this._lastResetTimespans !== this.timespans )
+                    {
+                        this._lastResetTimespans = this.timespans
+                        this.controls.timespan = ( this.timespans.length > 0 ) ? this.timespans[ 0 ] : null
+                        this.controls.playing = false
+                        this.controls.scrub = 0
+                    }
 
-                    this._lastResetTimespans = this.timespans
-                    this.controls.timespan = ( this.timespans.length > 0 ) ? this.timespans[ 0 ] : null
-                    this.controls.playing = false
-                    this.controls.scrub = 0
+                    this.tryAutoSeek()
                 }
             },
             computed:
@@ -493,6 +499,31 @@
                     timespan.playing = false
 
                     if ( this.controls ) this.controls.timespan = timespan
+
+                    this._pendingAutoSeek = null
+                },
+                tryAutoSeek: function()
+                {
+                    if ( !this._pendingAutoSeek || this._pendingAutoSeek !== this.selectedPath ) return
+                    if ( !this.clipEvent || !this.timespans || this.timespans.length < 1 ) return
+
+                    var trigger = parseEventTimestamp( this.clipEvent.timestamp )
+                    if ( !trigger ) { this._pendingAutoSeek = null; return }
+
+                    var offset = computeTriggerOffsetSeconds( this.timespans, trigger )
+                    if ( offset == null ) { this._pendingAutoSeek = null; return }
+
+                    var total = this.duration
+                    if ( !( total > 0 ) ) return
+
+                    for ( var ts of this.timespans )
+                    {
+                        if ( !( ts.duration > 0 ) ) return
+                    }
+
+                    this.controls.playing = false
+                    this.currentTime = Math.max( 0, Math.min( total, offset - 5 ) )
+                    this._pendingAutoSeek = null
                 },
                 deleteFiles: function( timespan )
                 {
