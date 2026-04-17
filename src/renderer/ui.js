@@ -17,6 +17,10 @@
         ? window.uiVideo
         : require( "./ui-video" )
 
+    var uiMap = ( typeof window !== "undefined" && window.uiMap )
+        ? window.uiMap
+        : require( "./ui-map" )
+
     var helpers = ( typeof window !== "undefined" && window.helpers )
         ? window.helpers
         : require( "./helpers" )
@@ -61,7 +65,25 @@
                 loading: null,
                 themePreference: "system",
                 confirmMessage: "",
-                confirmCallback: null
+                confirmCallback: null,
+                currentGps: null
+                }
+            },
+            provide: function()
+            {
+                var self = this
+
+                return {
+                    publishGps: function( gps )
+                    {
+                        if ( !gps || typeof gps.lat !== "number" || typeof gps.lon !== "number" ) return
+
+                        var prev = self.currentGps
+
+                        if ( prev && prev.lat === gps.lat && prev.lon === gps.lon ) return
+
+                        self.currentGps = { lat: gps.lat, lon: gps.lon }
+                    }
                 }
             },
             watch:
@@ -125,6 +147,8 @@
                             viewMap: viewMap
                         }
                     }
+
+                    this.currentGps = null
 
                     if ( newPath )
                     {
@@ -307,21 +331,21 @@
 
                     return humanizeReason( this.clipEvent.reason ) || "Trigger"
                 },
-                eventMapEmbedUrl: function()
+                eventLatNum: function()
                 {
-                    if ( !this.clipEvent ) return ""
+                    if ( !this.clipEvent ) return null
 
                     var lat = parseFloat( this.clipEvent.est_lat )
+
+                    return isFinite( lat ) ? lat : null
+                },
+                eventLonNum: function()
+                {
+                    if ( !this.clipEvent ) return null
+
                     var lon = parseFloat( this.clipEvent.est_lon )
 
-                    if ( !isFinite( lat ) || !isFinite( lon ) ) return ""
-
-                    // Degrees — half-width of the OpenStreetMap embed bbox around the event marker (~333 m lat; lon narrows at higher latitudes).
-                    var d = 0.003
-
-                    return "https://www.openstreetmap.org/export/embed.html?bbox="
-                        + ( lon - d ) + "," + ( lat - d ) + "," + ( lon + d ) + "," + ( lat + d )
-                        + "&layer=mapnik&marker=" + lat + "," + lon
+                    return isFinite( lon ) ? lon : null
                 },
                 openStreetMapUrl: function()
                 {
@@ -625,6 +649,7 @@
         app.component( "VideoGroup", uiVideo.createVideoGroupComponent( handlers ) )
         app.component( "Videos", uiVideo.createVideosComponent( handlers ) )
         app.component( "SynchronizedVideo", uiVideo.createVideoComponent( handlers ) )
+        app.component( "EventMap", uiMap.createEventMapComponent() )
 
         var vueApp = app.mount( '#root' )
 
