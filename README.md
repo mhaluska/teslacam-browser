@@ -51,6 +51,41 @@ Example:
 
 When running behind a reverse proxy, set `TC_TRUST_IP` to your proxy IP/CIDR ranges so the logged `ip` field reflects the real client address.
 
+## Running with Docker
+
+Pre-built images are published to GitHub Container Registry for `linux/amd64` and `linux/arm64` (including Raspberry Pi 4/5):
+
+```
+ghcr.io/mhaluska/teslacam-browser:latest      # most recent master build
+ghcr.io/mhaluska/teslacam-browser:0.1.11      # specific release
+ghcr.io/mhaluska/teslacam-browser:0.1         # latest patch of a minor line
+```
+
+Quick start with `docker run`:
+
+```
+docker run -d \
+  --name teslacam \
+  --restart unless-stopped \
+  -p 8088:8088 \
+  -v /mnt/teslacam:/data:ro \
+  ghcr.io/mhaluska/teslacam-browser:latest
+```
+
+The image mounts TeslaCam footage at `/data` and serves the web UI on port `8088`. Mount read-only (`:ro`) to disable deletes at the filesystem level; drop `:ro` if you want the Delete controls in the UI to work.
+
+### docker-compose
+
+A complete example with authentication and reverse-proxy-aware settings is in [docker-compose.yaml](docker-compose.yaml):
+
+```
+docker compose up -d
+```
+
+Edit the file to set `TC_AUTH_USER` / `TC_AUTH_PASS_HASH` / `TC_AUTH_SECRET` before starting. All authentication and tuning env vars from the [Authentication](#authentication) section below are supported — pass them as `environment:` entries.
+
+When setting `TC_AUTH_PASS_HASH` in a compose file, escape each `$` as `$$` so Compose does not try to interpolate it (e.g. `scrypt$$N$$r$$p$$salt$$dk`).
+
 ## Authentication
 
 When running as a headless server on a network, authentication should be enabled.
