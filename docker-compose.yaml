@@ -11,6 +11,12 @@ services:
     restart: unless-stopped
     ports:
       - "8088:8088"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:8088/healthz',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
     volumes:
       # Path on the host containing your TeslaCam folder (SavedClips, SentryClips, RecentClips).
       # Mounted read-only; remove `:ro` if you want to allow deletes from the web UI.
