@@ -24,6 +24,8 @@
     var CAM_GRID_ALL = uiConstants.CAM_GRID_ALL
     var normalizeThemePreference = uiUtils.normalizeThemePreference
     var humanizeReason = helpers.humanizeReason
+    var parseEventTimestamp = helpers.parseEventTimestamp
+    var computeTriggerOffsetSeconds = helpers.computeTriggerOffsetSeconds
 
     function createVueApp( handlers )
     {
@@ -269,6 +271,32 @@
                             startTime += timespan.duration
                         }
                     }
+                },
+                triggerOffsetSeconds: function()
+                {
+                    if ( !this.clipEvent || !this.timespans || this.timespans.length < 1 ) return null
+
+                    var trigger = parseEventTimestamp( this.clipEvent.timestamp )
+                    if ( !trigger ) return null
+
+                    return computeTriggerOffsetSeconds( this.timespans, trigger )
+                },
+                triggerMarkerStyle: function()
+                {
+                    var offset = this.triggerOffsetSeconds
+                    var total = this.duration
+
+                    if ( offset == null || !( total > 0 ) ) return { display: "none" }
+
+                    var pct = Math.max( 0, Math.min( 100, ( offset / total ) * 100 ) )
+
+                    return { left: pct + "%" }
+                },
+                triggerMarkerTitle: function()
+                {
+                    if ( !this.clipEvent || this.triggerOffsetSeconds == null ) return ""
+
+                    return humanizeReason( this.clipEvent.reason ) || "Trigger"
                 },
                 eventMapEmbedUrl: function()
                 {

@@ -149,8 +149,12 @@
                         title="Pause"></span></button>
                   </div>
                   <div class="px-2 flex-grow-1 controls">
-                    <input class="form-range scrub" v-model="currentTime" type="range" :max="duration"
-                      @input="controls.playing = false"/>
+                    <div class="scrub-wrap">
+                      <input class="form-range scrub" v-model="currentTime" type="range" :max="duration"
+                        @input="controls.playing = false"/>
+                      <div v-if="triggerOffsetSeconds != null" class="trigger-marker"
+                        :style="triggerMarkerStyle" :title="triggerMarkerTitle"></div>
+                    </div>
                   </div>
                   <div class="px-2 controls">
                     <select class="form-control" v-model="controls.speed">
