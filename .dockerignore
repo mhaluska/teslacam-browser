@@ -1,0 +1,13 @@
+node_modules
+dist
+.git
+.github
+images
+*.md
+!package.json
+.vscode
+.idea
+Dockerfile
+.dockerignore
+docker-compose.yaml
+docker-compose.yml
