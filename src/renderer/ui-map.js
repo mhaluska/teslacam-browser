@@ -44,9 +44,10 @@
                 this._map = L.map( this.$refs.mapEl, { zoomControl: true, attributionControl: true } )
                     .setView( [ lat, lon ], 16 )
 
-                L.tileLayer( "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                L.tileLayer( "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
                     maxZoom: 19,
-                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    subdomains: "abcd",
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
                 } ).addTo( this._map )
 
                 this._triggerMarker = L.marker( [ lat, lon ], { title: "Event location" } ).addTo( this._map )
