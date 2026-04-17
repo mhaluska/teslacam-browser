@@ -256,6 +256,12 @@
 		next()
 	}
 
+	function requireDeletesEnabled( request, response, next )
+	{
+		if ( hideDeleteButtons ) return response.status( 403 ).json( { error: "delete_disabled" } )
+		next()
+	}
+
     function setVersion( v )
     {
 		version = v
@@ -716,11 +722,8 @@
 			}
 		} )
 
-        expressApp.post( "/deleteFiles", deleteLimiter, requireCsrf, async ( request, response ) =>
+        expressApp.post( "/deleteFiles", requireDeletesEnabled, deleteLimiter, requireCsrf, async ( request, response ) =>
         {
-            if ( hideDeleteButtons )
-                return response.status( 403 ).json( { error: "delete_disabled" } )
-
             var paths = request.body && request.body.paths
 
             if ( !Array.isArray( paths ) )
@@ -739,11 +742,8 @@
             }
         } )
 
-        expressApp.post( "/deleteFolder", deleteLimiter, requireCsrf, async ( request, response ) =>
+        expressApp.post( "/deleteFolder", requireDeletesEnabled, deleteLimiter, requireCsrf, async ( request, response ) =>
         {
-            if ( hideDeleteButtons )
-                return response.status( 403 ).json( { error: "delete_disabled" } )
-
             var rel = request.body && request.body.path
 
             if ( typeof rel !== "string" || !rel.length )
