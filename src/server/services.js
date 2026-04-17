@@ -196,6 +196,17 @@
 		return path.resolve( lastArgs.folder )
 	}
 
+	/**
+	 * Normalize a user-supplied path fragment into a safe relative path.
+	 * Strips leading slashes (so Express-supplied "/foo/bar" is treated as
+	 * relative), rejects anything Node considers absolute, and rejects empty
+	 * strings unless explicitly allowed.
+	 *
+	 * @param {unknown} raw - caller-provided path fragment
+	 * @param {boolean} [allowEmpty=false] - permit an empty result (means "root")
+	 * @returns {string} sanitized relative path (may be empty when allowEmpty=true)
+	 * @throws {Error} invalid_path | absolute_path_not_allowed
+	 */
 	function sanitizeRelativePath( raw, allowEmpty )
 	{
 		if ( typeof raw !== "string" ) throw new Error( "invalid_path" )
@@ -206,6 +217,15 @@
 		return rel
 	}
 
+	/**
+	 * Resolve a caller-supplied relative path against the configured root and
+	 * guarantee the result stays inside the root (path traversal guard).
+	 *
+	 * @param {unknown} raw - caller-provided path fragment
+	 * @param {boolean} [allowEmpty=false] - treat empty as "the root"
+	 * @returns {{ root: string, relative: string, resolved: string }}
+	 * @throws {Error} invalid_path | absolute_path_not_allowed | path_outside_root | no_root_folder
+	 */
 	function resolveWithinRoot( raw, allowEmpty )
 	{
 		var root = ensureRootFolder()
