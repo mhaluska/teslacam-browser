@@ -78,6 +78,10 @@
                     {
                         if ( !gps || typeof gps.lat !== "number" || typeof gps.lon !== "number" ) return
 
+                        // Keep the map on the trigger location until the user presses play
+                        // for this event. Once unlocked, keep tracking even when paused or scrubbing.
+                        if ( !self.controls.playing && !self.currentGps ) return
+
                         var prev = self.currentGps
 
                         if ( prev && prev.lat === gps.lat && prev.lon === gps.lon ) return
