@@ -1,0 +1,40 @@
+# Example docker-compose file for running teslacam-browser in headless mode.
+#
+# Do NOT expose port 8088 directly to the public internet.
+# For remote access, run behind an HTTPS reverse proxy (Nginx, Caddy, Traefik, ...)
+# or a VPN. See README.md "Public deployment checklist (headless)".
+
+services:
+  teslacam:
+    image: ghcr.io/mhaluska/teslacam-browser:latest
+    container_name: teslacam-browser
+    restart: unless-stopped
+    ports:
+      - "8088:8088"
+    volumes:
+      # Path on the host containing your TeslaCam folder (SavedClips, SentryClips, RecentClips).
+      # Mounted read-only; remove `:ro` if you want to allow deletes from the web UI.
+      - /mnt/teslacam:/data:ro
+    environment:
+      # --- Authentication (recommended for any network-accessible deployment) ---
+      # Generate TC_AUTH_PASS_HASH with `npm run hash-password` (see README.md).
+      TC_AUTH_USER: admin
+      TC_AUTH_PASS_HASH: "scrypt$$N$$r$$p$$saltBase64$$dkBase64"
+      # Persistent secret — if unset, sessions are invalidated on restart.
+      TC_AUTH_SECRET: "change-me-to-a-long-random-string"
+
+      # --- Reverse proxy ---
+      # Comma-separated trusted proxy IP/CIDR ranges so the logged client IP is correct.
+      # TC_TRUST_IP: "10.0.0.0/8,192.168.0.0/16,172.16.0.0/12"
+      # TC_COOKIE_SECURE: "auto"
+      # TC_CSP_UPGRADE_INSECURE_REQUESTS: "false"
+
+      # --- Session / rate limits ---
+      # TC_SESSION_DAYS: "7"
+      # TC_LOGIN_MAX_ATTEMPTS: "10"
+      # TC_DELETE_MAX_PER_MINUTE: "20"
+      # TC_API_MAX_PER_MINUTE: "600"
+
+      # --- UI ---
+      # Set "false" to show delete buttons in the web UI (requires writable volume).
+      # TC_HIDE_DELETE_BUTTONS: "true"
