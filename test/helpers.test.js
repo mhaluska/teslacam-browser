@@ -154,6 +154,34 @@ describe("humanizeReason", () => {
 	})
 })
 
+describe("cameraName", () => {
+	it("maps the numeric camera index to a Tesla camera name", () => {
+		expect(helpers.cameraName("0")).toBe("front")
+		expect(helpers.cameraName("5")).toBe("left_repeater")
+		expect(helpers.cameraName("6")).toBe("right_repeater")
+		expect(helpers.cameraName("7")).toBe("back")
+	})
+
+	it("accepts numeric input as well as strings", () => {
+		expect(helpers.cameraName(0)).toBe("front")
+	})
+
+	it("passes through a value that is already a valid camera name", () => {
+		expect(helpers.cameraName("front")).toBe("front")
+		expect(helpers.cameraName("back")).toBe("back")
+	})
+
+	it("falls back to 'camera <value>' for unknown indices", () => {
+		expect(helpers.cameraName("42")).toBe("camera 42")
+	})
+
+	it("returns an empty string for null/empty input", () => {
+		expect(helpers.cameraName(null)).toBe("")
+		expect(helpers.cameraName(undefined)).toBe("")
+		expect(helpers.cameraName("")).toBe("")
+	})
+})
+
 describe("shortenReason", () => {
 	it("maps known Tesla reasons to a one- or two-word form", () => {
 		expect(helpers.shortenReason("sentry_aware_object_detection")).toBe("Sentry")

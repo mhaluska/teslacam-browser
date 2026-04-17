@@ -117,7 +117,7 @@
                   <div class="event-json-row"><span class="text-muted">City</span> {{ clipEvent.city || "—" }}</div>
                   <div class="event-json-row"><span class="text-muted">Street</span> {{ displayStreet( clipEvent.street ) }}</div>
                   <div class="event-json-row"><span class="text-muted">Reason</span> {{ formatEventReason( clipEvent.reason ) }}</div>
-                  <div class="event-json-row"><span class="text-muted">Camera</span> {{ clipEvent.camera != null && clipEvent.camera !== "" ? clipEvent.camera : "—" }}</div>
+                  <div class="event-json-row"><span class="text-muted">Camera</span> {{ displayCameraName( clipEvent.camera ) }}</div>
                   <div class="event-json-row" v-if="eventMapEmbedUrl"><span class="text-muted">Location</span> {{ clipEvent.est_lat }}, {{ clipEvent.est_lon }}</div>
                   <iframe v-if="eventMapEmbedUrl" class="event-json-map" :src="eventMapEmbedUrl" title="Map preview (requires network)"></iframe>
                   <div v-if="openStreetMapUrl" class="mt-1">

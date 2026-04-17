@@ -125,6 +125,32 @@
 		user_interaction_dashcam_panic_save_tapped: "Panic"
 	}
 
+	const cameraNameMap = {
+		"0": "front",
+		"1": "fisheye",
+		"2": "narrow",
+		"3": "left_pillar",
+		"4": "right_pillar",
+		"5": "left_repeater",
+		"6": "right_repeater",
+		"7": "back"
+	}
+
+	const validCameraNames = new Set( [
+		"front", "back", "left_pillar", "right_pillar", "left_repeater", "right_repeater", "fisheye", "narrow"
+	] )
+
+	function cameraName( v )
+	{
+		if ( v == null || v === "" ) return ""
+
+		var key = String( v )
+		if ( cameraNameMap[ key ] ) return cameraNameMap[ key ]
+		if ( validCameraNames.has( key ) ) return key
+
+		return "camera " + key
+	}
+
 	function shortenReason( s )
 	{
 		if ( s == null || s === "" ) return ""
@@ -181,6 +207,7 @@
 		parseEventTimestamp: parseEventTimestamp,
 		humanizeReason: humanizeReason,
 		shortenReason: shortenReason,
+		cameraName: cameraName,
 		computeTriggerOffsetSeconds: computeTriggerOffsetSeconds
 	}
 } ) );

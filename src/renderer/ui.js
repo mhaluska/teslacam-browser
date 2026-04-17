@@ -427,6 +427,12 @@
 
                     return street
                 },
+                displayCameraName: function( camera )
+                {
+                    var name = helpers.cameraName( camera )
+
+                    return name || "—"
+                },
                 openFolders: function()
                 {
                     handlers.openFolders( this.loaded )
