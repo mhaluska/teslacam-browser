@@ -61,7 +61,9 @@ ghcr.io/mhaluska/teslacam-browser:0.1.11      # specific release
 ghcr.io/mhaluska/teslacam-browser:0.1         # latest patch of a minor line
 ```
 
-Quick start with `docker run`:
+The image mounts your TeslaCam folder at `/data`, serves the web UI on port `8088`, and runs as an unprivileged user (`uid 1000`, `gid 1000`).
+
+### Quick start (no authentication, LAN only)
 
 ```
 docker run -d \
@@ -72,19 +74,78 @@ docker run -d \
   ghcr.io/mhaluska/teslacam-browser:latest
 ```
 
-The image mounts TeslaCam footage at `/data` and serves the web UI on port `8088`. Mount read-only (`:ro`) to disable deletes at the filesystem level; drop `:ro` if you want the Delete controls in the UI to work.
+Then open `http://<host>:8088` in a browser.
+
+Mount read-only (`:ro`) to disable deletes at the filesystem level. Drop `:ro` if you want the Delete controls in the UI to work — in that case the TeslaCam folder must also be writable by `uid 1000` on the host.
+
+### With authentication
+
+Never expose the container without auth outside a trusted LAN. Generate a password hash first (using the image itself, so you don't need Node on the host):
+
+```
+docker run --rm -it ghcr.io/mhaluska/teslacam-browser:latest \
+  node scripts/hash-password.js
+```
+
+Copy the printed `scrypt$...` line, then:
+
+```
+docker run -d \
+  --name teslacam \
+  --restart unless-stopped \
+  -p 8088:8088 \
+  -v /mnt/teslacam:/data:ro \
+  -e TC_AUTH_USER=admin \
+  -e 'TC_AUTH_PASS_HASH=scrypt$N$r$p$salt$dk' \
+  -e TC_AUTH_SECRET="$(openssl rand -hex 32)" \
+  ghcr.io/mhaluska/teslacam-browser:latest
+```
+
+Single-quote `TC_AUTH_PASS_HASH` on the shell so the `$` characters aren't expanded. See [Authentication](#authentication) below for the full list of supported env vars.
 
 ### docker-compose
 
 A complete example with authentication and reverse-proxy-aware settings is in [docker-compose.yaml](docker-compose.yaml):
 
 ```
+curl -O https://raw.githubusercontent.com/mhaluska/teslacam-browser/master/docker-compose.yaml
+# edit auth env vars, volume path, and any TC_* tuning options
 docker compose up -d
 ```
 
-Edit the file to set `TC_AUTH_USER` / `TC_AUTH_PASS_HASH` / `TC_AUTH_SECRET` before starting. All authentication and tuning env vars from the [Authentication](#authentication) section below are supported — pass them as `environment:` entries.
+When setting `TC_AUTH_PASS_HASH` in a compose file, escape each `$` as `$$` so Compose does not try to interpolate it (e.g. `scrypt$$N$$r$$p$$salt$$dk`). This escaping is only needed in compose files — not on the `docker run` command line.
 
-When setting `TC_AUTH_PASS_HASH` in a compose file, escape each `$` as `$$` so Compose does not try to interpolate it (e.g. `scrypt$$N$$r$$p$$salt$$dk`).
+### Common operations
+
+```
+docker logs -f teslacam                                   # follow access log (JSON per line)
+docker restart teslacam                                   # restart
+docker stop teslacam && docker rm teslacam                # remove
+docker pull ghcr.io/mhaluska/teslacam-browser:latest \
+  && docker restart teslacam                              # upgrade to newest master
+```
+
+With compose the upgrade is:
+
+```
+docker compose pull && docker compose up -d
+```
+
+### Behind a reverse proxy
+
+Keep the container bound to localhost and let Nginx / Caddy / Traefik terminate HTTPS. Replace `-p 8088:8088` with `-p 127.0.0.1:8088:8088` in the `docker run` examples above, then:
+
+- Set `TC_TRUST_IP` to your proxy's IP/CIDR so the access log records the real client address.
+- Leave `TC_COOKIE_SECURE=auto` (default) so cookies are flagged `Secure` over HTTPS.
+- Optionally set `TC_CSP_UPGRADE_INSECURE_REQUESTS=true` if all browser traffic is HTTPS.
+
+See the [Public deployment checklist](#public-deployment-checklist-headless) below for the full list.
+
+### Troubleshooting
+
+- **`EACCES` / permission errors in logs** — the host path mounted at `/data` is not readable by `uid 1000`. Fix with `sudo chown -R 1000:1000 /mnt/teslacam` or mount read-only and grant group/other read (`chmod -R a+rX`).
+- **Calendar is empty** — the mounted folder must contain `SavedClips`, `SentryClips`, or `RecentClips` subdirectories (i.e. the actual `TeslaCam` folder, not its parent).
+- **`docker pull` says `unauthorized`** — the package is still private. Ask the maintainer to make it public, or `docker login ghcr.io` with a GitHub PAT that has `read:packages`.
 
 ## Authentication
 
