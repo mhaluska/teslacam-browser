@@ -89,12 +89,71 @@
 		)
 	}
 
+	const eventTimestampRegex = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)/
+
+	function parseEventTimestamp( s )
+	{
+		if ( typeof s !== "string" ) return null
+
+		var m = eventTimestampRegex.exec( s )
+		if ( !m ) return null
+
+		return new Date(
+			Number( m[ 1 ] ),
+			Number( m[ 2 ] ) - 1,
+			Number( m[ 3 ] ),
+			Number( m[ 4 ] ),
+			Number( m[ 5 ] ),
+			Number( m[ 6 ] ) )
+	}
+
+	function humanizeReason( s )
+	{
+		if ( s == null || s === "" ) return ""
+
+		var text = String( s ).replace( /_/g, " " )
+
+		return text.charAt( 0 ).toUpperCase() + text.slice( 1 )
+	}
+
+	function computeTriggerOffsetSeconds( timespans, triggerDate )
+	{
+		if ( !Array.isArray( timespans ) || timespans.length < 1 ) return null
+		if ( !( triggerDate instanceof Date ) || isNaN( triggerDate.getTime() ) ) return null
+
+		var triggerMs = triggerDate.getTime()
+		var cumulative = 0
+
+		for ( var ts of timespans )
+		{
+			var duration = Number( ts.duration )
+			if ( !isFinite( duration ) || duration <= 0 ) return null
+
+			var startMs = ts.time instanceof Date ? ts.time.getTime() : new Date( ts.time ).getTime()
+			if ( isNaN( startMs ) ) return null
+
+			var endMs = startMs + duration * 1000
+
+			if ( triggerMs >= startMs && triggerMs < endMs )
+			{
+				return cumulative + ( triggerMs - startMs ) / 1000
+			}
+
+			cumulative += duration
+		}
+
+		return null
+	}
+
 	return {
 		matchFolder: matchFolder,
 		matchClip: matchClip,
 		extractDate: extractDate,
 		groupBy: groupBy,
 		groupFiles: groupFiles,
-		isInViewport: isInViewport
+		isInViewport: isInViewport,
+		parseEventTimestamp: parseEventTimestamp,
+		humanizeReason: humanizeReason,
+		computeTriggerOffsetSeconds: computeTriggerOffsetSeconds
 	}
 } ) );
