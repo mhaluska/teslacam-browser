@@ -815,7 +815,6 @@
         copyFilePaths: copyFilePaths,
         deleteFolder: deleteFolder,
         copyPath: copyPath,
-        initializeExpress: initializeExpress,
-        openFolder: openFolder
+        initializeExpress: initializeExpress
 	}
 } ) );
