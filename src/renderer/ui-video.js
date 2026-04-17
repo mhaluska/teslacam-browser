@@ -405,21 +405,7 @@
                 {
                     handler: function( currentTime, oldTime )
                     {
-                        var video = this.$refs[ "video" ]
-
-                        if ( video && !this.timespan.playing )
-                        {
-                            var adjustedTime = currentTime - ( this.timespan.duration - video.duration )
-
-                            if ( !isNaN( adjustedTime ) && isFinite( adjustedTime ) && adjustedTime >= 0 )
-                            {
-                                video.currentTime = adjustedTime
-                                video.style.opacity = 1.0
-                            }
-                            else video.style.opacity = 0.3
-
-                            this.syncOverlayClock()
-                        }
+                        this.syncPausedPosition()
                     }
                 }
             },
@@ -551,6 +537,37 @@
                     var video = event.target
 
                     this.timespan.duration = Math.max( this.timespan.duration || 0, video.duration )
+                    this.syncOverlayClock()
+                },
+                syncPausedPosition: function()
+                {
+                    var video = this.$refs[ "video" ]
+
+                    if ( !video || this.timespan.playing ) return
+
+                    // If this camera's metadata hasn't loaded yet, leave it fully visible and
+                    // retry the sync once it does — otherwise the NaN from video.duration
+                    // traps the video at opacity 0.3 because the watcher only re-fires on
+                    // currentTime changes, not on metadata arriving.
+                    if ( !isFinite( video.duration ) )
+                    {
+                        var self = this
+                        video.addEventListener( "loadedmetadata",
+                            function() { self.syncPausedPosition() },
+                            { once: true } )
+                        video.style.opacity = 1.0
+                        return
+                    }
+
+                    var adjustedTime = this.timespan.currentTime - ( this.timespan.duration - video.duration )
+
+                    if ( isFinite( adjustedTime ) && adjustedTime >= 0 )
+                    {
+                        video.currentTime = adjustedTime
+                        video.style.opacity = 1.0
+                    }
+                    else video.style.opacity = 0.3
+
                     this.syncOverlayClock()
                 },
                 timeChanged: function( event )
