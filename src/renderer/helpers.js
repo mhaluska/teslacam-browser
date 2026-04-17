@@ -89,12 +89,133 @@
 		)
 	}
 
+	const eventTimestampRegex = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)/
+
+	function parseEventTimestamp( s )
+	{
+		if ( typeof s !== "string" ) return null
+
+		var m = eventTimestampRegex.exec( s )
+		if ( !m ) return null
+
+		return new Date(
+			Number( m[ 1 ] ),
+			Number( m[ 2 ] ) - 1,
+			Number( m[ 3 ] ),
+			Number( m[ 4 ] ),
+			Number( m[ 5 ] ),
+			Number( m[ 6 ] ) )
+	}
+
+	function humanizeReason( s )
+	{
+		if ( s == null || s === "" ) return ""
+
+		var text = String( s ).replace( /_/g, " " )
+
+		return text.charAt( 0 ).toUpperCase() + text.slice( 1 )
+	}
+
+	const shortReasonMap = {
+		sentry_aware_object_detection: "Sentry",
+		sentry_aware_accel_primary: "Impact",
+		user_interaction_honk: "Honk",
+		user_interaction_dashcam_launcher_action_tapped: "Saved",
+		user_interaction_dashcam_icon_tapped: "Saved",
+		user_interaction_dashcam_panic_save_tapped: "Panic"
+	}
+
+	const cameraNameMap = {
+		"0": "front",
+		"1": "fisheye",
+		"2": "narrow",
+		"3": "left_pillar",
+		"4": "right_pillar",
+		"5": "left_repeater",
+		"6": "right_repeater",
+		"7": "back"
+	}
+
+	const validCameraNames = new Set( [
+		"front", "back", "left_pillar", "right_pillar", "left_repeater", "right_repeater", "fisheye", "narrow"
+	] )
+
+	function cameraName( v )
+	{
+		if ( v == null || v === "" ) return ""
+
+		var key = String( v )
+		if ( cameraNameMap[ key ] ) return cameraNameMap[ key ]
+		if ( validCameraNames.has( key ) ) return key
+
+		return "camera " + key
+	}
+
+	function isTriggerReason( s )
+	{
+		if ( s == null || s === "" ) return false
+
+		return !/^user_interaction_/.test( String( s ) )
+	}
+
+	function shortenReason( s )
+	{
+		if ( s == null || s === "" ) return ""
+
+		var key = String( s )
+		if ( shortReasonMap[ key ] ) return shortReasonMap[ key ]
+
+		var stripped = key
+			.replace( /^(sentry_aware_|user_interaction_|user_interaction_dashcam_)/, "" )
+			.replace( /(_tapped|_primary|_action)$/, "" )
+
+		var parts = stripped.split( "_" ).filter( Boolean )
+		var tail = parts.length ? parts[ parts.length - 1 ] : stripped
+
+		return tail.charAt( 0 ).toUpperCase() + tail.slice( 1 )
+	}
+
+	function computeTriggerOffsetSeconds( timespans, triggerDate )
+	{
+		if ( !Array.isArray( timespans ) || timespans.length < 1 ) return null
+		if ( !( triggerDate instanceof Date ) || isNaN( triggerDate.getTime() ) ) return null
+
+		var triggerMs = triggerDate.getTime()
+		var cumulative = 0
+
+		for ( var ts of timespans )
+		{
+			var duration = Number( ts.duration )
+			if ( !isFinite( duration ) || duration <= 0 ) return null
+
+			var startMs = ts.time instanceof Date ? ts.time.getTime() : new Date( ts.time ).getTime()
+			if ( isNaN( startMs ) ) return null
+
+			var endMs = startMs + duration * 1000
+
+			if ( triggerMs >= startMs && triggerMs < endMs )
+			{
+				return cumulative + ( triggerMs - startMs ) / 1000
+			}
+
+			cumulative += duration
+		}
+
+		return null
+	}
+
 	return {
 		matchFolder: matchFolder,
 		matchClip: matchClip,
 		extractDate: extractDate,
 		groupBy: groupBy,
 		groupFiles: groupFiles,
-		isInViewport: isInViewport
+		isInViewport: isInViewport,
+		parseEventTimestamp: parseEventTimestamp,
+		humanizeReason: humanizeReason,
+		shortenReason: shortenReason,
+		isTriggerReason: isTriggerReason,
+		cameraName: cameraName,
+		computeTriggerOffsetSeconds: computeTriggerOffsetSeconds
 	}
 } ) );

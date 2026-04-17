@@ -114,3 +114,169 @@ describe("groupFiles", () => {
 		expect(result.size).toBe(0)
 	})
 })
+
+describe("parseEventTimestamp", () => {
+	it("parses Tesla event.json timestamp as local wall time", () => {
+		const d = helpers.parseEventTimestamp("2026-03-23T17:49:47")
+		expect(d).toBeInstanceOf(Date)
+		expect(d.getFullYear()).toBe(2026)
+		expect(d.getMonth()).toBe(2)
+		expect(d.getDate()).toBe(23)
+		expect(d.getHours()).toBe(17)
+		expect(d.getMinutes()).toBe(49)
+		expect(d.getSeconds()).toBe(47)
+	})
+
+	it("ignores trailing characters after seconds", () => {
+		const d = helpers.parseEventTimestamp("2026-03-23T17:49:47.500Z")
+		expect(d.getSeconds()).toBe(47)
+	})
+
+	it("returns null for non-matching input", () => {
+		expect(helpers.parseEventTimestamp("not a date")).toBeNull()
+		expect(helpers.parseEventTimestamp("")).toBeNull()
+		expect(helpers.parseEventTimestamp(null)).toBeNull()
+		expect(helpers.parseEventTimestamp(undefined)).toBeNull()
+		expect(helpers.parseEventTimestamp(12345)).toBeNull()
+	})
+})
+
+describe("humanizeReason", () => {
+	it("replaces underscores with spaces and capitalizes the first letter", () => {
+		expect(helpers.humanizeReason("sentry_aware_object_detection")).toBe("Sentry aware object detection")
+		expect(helpers.humanizeReason("user_interaction_honk")).toBe("User interaction honk")
+	})
+
+	it("returns an empty string for null/empty input", () => {
+		expect(helpers.humanizeReason(null)).toBe("")
+		expect(helpers.humanizeReason(undefined)).toBe("")
+		expect(helpers.humanizeReason("")).toBe("")
+	})
+})
+
+describe("cameraName", () => {
+	it("maps the numeric camera index to a Tesla camera name", () => {
+		expect(helpers.cameraName("0")).toBe("front")
+		expect(helpers.cameraName("5")).toBe("left_repeater")
+		expect(helpers.cameraName("6")).toBe("right_repeater")
+		expect(helpers.cameraName("7")).toBe("back")
+	})
+
+	it("accepts numeric input as well as strings", () => {
+		expect(helpers.cameraName(0)).toBe("front")
+	})
+
+	it("passes through a value that is already a valid camera name", () => {
+		expect(helpers.cameraName("front")).toBe("front")
+		expect(helpers.cameraName("back")).toBe("back")
+	})
+
+	it("falls back to 'camera <value>' for unknown indices", () => {
+		expect(helpers.cameraName("42")).toBe("camera 42")
+	})
+
+	it("returns an empty string for null/empty input", () => {
+		expect(helpers.cameraName(null)).toBe("")
+		expect(helpers.cameraName(undefined)).toBe("")
+		expect(helpers.cameraName("")).toBe("")
+	})
+})
+
+describe("isTriggerReason", () => {
+	it("treats sentry_aware_* reasons as automated triggers", () => {
+		expect(helpers.isTriggerReason("sentry_aware_object_detection")).toBe(true)
+		expect(helpers.isTriggerReason("sentry_aware_accel_primary")).toBe(true)
+	})
+
+	it("treats user_interaction_* reasons as manual, not a trigger", () => {
+		expect(helpers.isTriggerReason("user_interaction_honk")).toBe(false)
+		expect(helpers.isTriggerReason("user_interaction_dashcam_launcher_action_tapped")).toBe(false)
+		expect(helpers.isTriggerReason("user_interaction_dashcam_panic_save_tapped")).toBe(false)
+	})
+
+	it("treats unknown, non-user reasons as triggers so future automatic events still mark", () => {
+		expect(helpers.isTriggerReason("hard_brake_auto_save")).toBe(true)
+	})
+
+	it("returns false for null/empty input", () => {
+		expect(helpers.isTriggerReason(null)).toBe(false)
+		expect(helpers.isTriggerReason(undefined)).toBe(false)
+		expect(helpers.isTriggerReason("")).toBe(false)
+	})
+})
+
+describe("shortenReason", () => {
+	it("maps known Tesla reasons to a one- or two-word form", () => {
+		expect(helpers.shortenReason("sentry_aware_object_detection")).toBe("Sentry")
+		expect(helpers.shortenReason("sentry_aware_accel_primary")).toBe("Impact")
+		expect(helpers.shortenReason("user_interaction_honk")).toBe("Honk")
+		expect(helpers.shortenReason("user_interaction_dashcam_launcher_action_tapped")).toBe("Saved")
+		expect(helpers.shortenReason("user_interaction_dashcam_icon_tapped")).toBe("Saved")
+		expect(helpers.shortenReason("user_interaction_dashcam_panic_save_tapped")).toBe("Panic")
+	})
+
+	it("falls back to the trailing token for unknown reasons", () => {
+		expect(helpers.shortenReason("some_new_future_event")).toBe("Event")
+		expect(helpers.shortenReason("user_interaction_whistle")).toBe("Whistle")
+	})
+
+	it("returns an empty string for null/empty input", () => {
+		expect(helpers.shortenReason(null)).toBe("")
+		expect(helpers.shortenReason(undefined)).toBe("")
+		expect(helpers.shortenReason("")).toBe("")
+	})
+})
+
+describe("computeTriggerOffsetSeconds", () => {
+	const sampleTimespans = [
+		{ time: new Date(2026, 2, 23, 17, 48, 47), duration: 60.03 },
+		{ time: new Date(2026, 2, 23, 17, 49, 47), duration: 59.45 },
+	]
+
+	it("returns the offset for the verified Sentry sample", () => {
+		// Trigger 17:49:47 is the exact boundary between the two clips; it falls
+		// inside the tail of clip 1 (which ends 30 ms later), so the offset is
+		// 60 s — visually indistinguishable from 60.03 s on the scrubber.
+		const trigger = new Date(2026, 2, 23, 17, 49, 47)
+		const offset = helpers.computeTriggerOffsetSeconds(sampleTimespans, trigger)
+		expect(offset).toBeCloseTo(60, 2)
+	})
+
+	it("returns the offset relative to the second timespan when trigger falls inside it", () => {
+		const trigger = new Date(2026, 2, 23, 17, 50, 17) // 30 s into clip 2
+		const offset = helpers.computeTriggerOffsetSeconds(sampleTimespans, trigger)
+		expect(offset).toBeCloseTo(90.03, 2)
+	})
+
+	it("returns the offset within the first timespan", () => {
+		const trigger = new Date(2026, 2, 23, 17, 49, 17) // 30 s into clip 1
+		const offset = helpers.computeTriggerOffsetSeconds(sampleTimespans, trigger)
+		expect(offset).toBeCloseTo(30, 2)
+	})
+
+	it("returns null when the trigger falls before the first timespan", () => {
+		const trigger = new Date(2026, 2, 23, 17, 47, 0)
+		expect(helpers.computeTriggerOffsetSeconds(sampleTimespans, trigger)).toBeNull()
+	})
+
+	it("returns null when the trigger falls after the last timespan", () => {
+		const trigger = new Date(2026, 2, 23, 17, 51, 0)
+		expect(helpers.computeTriggerOffsetSeconds(sampleTimespans, trigger)).toBeNull()
+	})
+
+	it("returns null for empty timespans", () => {
+		expect(helpers.computeTriggerOffsetSeconds([], new Date())).toBeNull()
+		expect(helpers.computeTriggerOffsetSeconds(null, new Date())).toBeNull()
+	})
+
+	it("returns null when a timespan has no usable duration", () => {
+		const trigger = new Date(2026, 2, 23, 17, 49, 47)
+		const broken = [{ time: new Date(2026, 2, 23, 17, 48, 47), duration: null }]
+		expect(helpers.computeTriggerOffsetSeconds(broken, trigger)).toBeNull()
+	})
+
+	it("returns null for an invalid trigger date", () => {
+		expect(helpers.computeTriggerOffsetSeconds(sampleTimespans, null)).toBeNull()
+		expect(helpers.computeTriggerOffsetSeconds(sampleTimespans, new Date("invalid"))).toBeNull()
+	})
+})

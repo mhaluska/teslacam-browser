@@ -17,8 +17,17 @@
         ? window.uiVideo
         : require( "./ui-video" )
 
+    var helpers = ( typeof window !== "undefined" && window.helpers )
+        ? window.helpers
+        : require( "./helpers" )
+
     var CAM_GRID_ALL = uiConstants.CAM_GRID_ALL
     var normalizeThemePreference = uiUtils.normalizeThemePreference
+    var humanizeReason = helpers.humanizeReason
+    var shortenReason = helpers.shortenReason
+    var isTriggerReason = helpers.isTriggerReason
+    var parseEventTimestamp = helpers.parseEventTimestamp
+    var computeTriggerOffsetSeconds = helpers.computeTriggerOffsetSeconds
 
     function createVueApp( handlers )
     {
@@ -131,6 +140,8 @@
 
                             self.clipEventLoading = false
                             self.clipEvent = data
+                            self._pendingAutoSeek = newPath
+                            self.tryAutoSeek()
                         } )
 
                         handlers.getFiles( newPath, files =>
@@ -145,6 +156,7 @@
                         this.clipEventLoading = false
                         this.clipEvent = null
                         this.timespans = []
+                        this._pendingAutoSeek = null
                     }
                 },
                 "args.dates": function( dates, oldDates )
@@ -202,12 +214,15 @@
                 },
                 duration: function( duration )
                 {
-                    if ( this._lastResetTimespans === this.timespans ) return
+                    if ( this._lastResetTimespans !== this.timespans )
+                    {
+                        this._lastResetTimespans = this.timespans
+                        this.controls.timespan = ( this.timespans.length > 0 ) ? this.timespans[ 0 ] : null
+                        this.controls.playing = false
+                        this.controls.scrub = 0
+                    }
 
-                    this._lastResetTimespans = this.timespans
-                    this.controls.timespan = ( this.timespans.length > 0 ) ? this.timespans[ 0 ] : null
-                    this.controls.playing = false
-                    this.controls.scrub = 0
+                    this.tryAutoSeek()
                 }
             },
             computed:
@@ -264,6 +279,33 @@
                             startTime += timespan.duration
                         }
                     }
+                },
+                triggerOffsetSeconds: function()
+                {
+                    if ( !this.clipEvent || !this.timespans || this.timespans.length < 1 ) return null
+                    if ( !isTriggerReason( this.clipEvent.reason ) ) return null
+
+                    var trigger = parseEventTimestamp( this.clipEvent.timestamp )
+                    if ( !trigger ) return null
+
+                    return computeTriggerOffsetSeconds( this.timespans, trigger )
+                },
+                triggerMarkerStyle: function()
+                {
+                    var offset = this.triggerOffsetSeconds
+                    var total = this.duration
+
+                    if ( offset == null || !( total > 0 ) ) return { display: "none" }
+
+                    var pct = Math.max( 0, Math.min( 100, ( offset / total ) * 100 ) )
+
+                    return { left: pct + "%" }
+                },
+                triggerMarkerTitle: function()
+                {
+                    if ( !this.clipEvent || this.triggerOffsetSeconds == null ) return ""
+
+                    return humanizeReason( this.clipEvent.reason ) || "Trigger"
                 },
                 eventMapEmbedUrl: function()
                 {
@@ -387,6 +429,12 @@
 
                     return street
                 },
+                displayCameraName: function( camera )
+                {
+                    var name = helpers.cameraName( camera )
+
+                    return name || "—"
+                },
                 openFolders: function()
                 {
                     handlers.openFolders( this.loaded )
@@ -411,11 +459,18 @@
                                     var name = new Date( time.date ).toLocaleTimeString()
 
                                     var folder = ( time.relative || "" ).split( /[/\\]/ )[ 0 ]
-                                    if ( folder === "SentryClips" || folder === "TeslaSentry" ) name = "Sentry: " + name
-                                    else if ( folder === "SavedClips" ) name = "Saved: " + name
-                                    else if ( folder === "RecentClips" || time.recent ) name = "Recent " + name
+                                    var short = time.reason ? shortenReason( time.reason ) : null
 
-                                    times.push( { time: time, name: name } )
+                                    if ( short ) name = "[" + short + "] " + name
+                                    else if ( folder === "RecentClips" || time.recent ) name = "[Recent] " + name
+                                    else if ( folder === "SavedClips" ) name = "[Saved] " + name
+                                    else if ( folder === "SentryClips" || folder === "TeslaSentry" ) name = "[Sentry] " + name
+
+                                    var thumbUrl = ( time.hasThumb && handlers.getAssetUrl )
+                                        ? handlers.getAssetUrl( time.relative + "/thumb.png" )
+                                        : null
+
+                                    times.push( { time: time, name: name, thumbUrl: thumbUrl } )
                                 }
                             }
                     
@@ -453,6 +508,32 @@
                     timespan.playing = false
 
                     if ( this.controls ) this.controls.timespan = timespan
+
+                    this._pendingAutoSeek = null
+                },
+                tryAutoSeek: function()
+                {
+                    if ( !this._pendingAutoSeek || this._pendingAutoSeek !== this.selectedPath ) return
+                    if ( !this.clipEvent ) return
+                    if ( !this.timespans || this.timespans.length < 1 ) return
+
+                    // Wait for every timespan to report a duration before committing —
+                    // triggerOffsetSeconds is null while any is still loading, and we
+                    // must not treat that loading state as "no trigger".
+                    for ( var ts of this.timespans )
+                    {
+                        if ( !( ts.duration > 0 ) ) return
+                    }
+
+                    var total = this.duration
+                    if ( !( total > 0 ) ) return
+
+                    var offset = this.triggerOffsetSeconds
+                    if ( offset == null ) { this._pendingAutoSeek = null; return }
+
+                    this.controls.playing = false
+                    this.currentTime = Math.max( 0, Math.min( total, offset - 10 ) )
+                    this._pendingAutoSeek = null
                 },
                 deleteFiles: function( timespan )
                 {

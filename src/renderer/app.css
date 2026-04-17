@@ -692,3 +692,32 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
   transition: height 0.08s linear;
 }
 
+.time-thumb
+{
+  width: 48px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.scrub-wrap
+{
+  position: relative;
+}
+
+.trigger-marker
+{
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 3px;
+  height: 14px;
+  transform: translate( -50%, -50% );
+  background: var( --bs-danger, #dc3545 );
+  border-radius: 1px;
+  cursor: help;
+  z-index: 2;
+  pointer-events: auto;
+}
+
