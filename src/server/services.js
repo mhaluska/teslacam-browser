@@ -775,6 +775,21 @@
 		expressApp.get( "/node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( path.join( nodeModulesDir, "bootstrap-icons/font/fonts/bootstrap-icons.woff" ) ) } )
 		expressApp.get( "/node_modules/vue/dist/vue.global.js", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( path.join( nodeModulesDir, "vue/dist/vue.global.js" ) ) } )
 
+		// Terminal error handler. Catches anything that slipped past route-level try/catch.
+		// Must have 4 args for Express to recognize it as an error handler.
+		expressApp.use( ( err, request, response, _next ) =>
+		{
+			logger.error( "unhandled_request_error", {
+				method: request.method,
+				path: request.path,
+				error: err
+			} )
+
+			if ( response.headersSent ) return
+
+			response.status( 500 ).json( { error: "internal" } )
+		} )
+
         var server = expressApp.listen( port, () =>
         {
             logger.info( "server_listening", { port: port } )
