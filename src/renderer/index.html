@@ -188,17 +188,37 @@
                   </div>
                   <div class="tc-cam-skeleton" v-if="loading != null" aria-hidden="true">
                     <div class="tc-skel-row tc-skel-row-top">
-                      <div class="tc-skel-cell tc-skel-pulse"></div>
-                      <div class="tc-skel-cell tc-skel-pulse"></div>
-                      <div class="tc-skel-cell tc-skel-pulse"></div>
+                      <div class="tc-skel-cell">
+                        <div class="text-center cam-label">left_pillar</div>
+                        <div class="tc-skel-tile tc-skel-pulse"></div>
+                      </div>
+                      <div class="tc-skel-cell">
+                        <div class="text-center cam-label">front</div>
+                        <div class="tc-skel-tile tc-skel-pulse"></div>
+                      </div>
+                      <div class="tc-skel-cell">
+                        <div class="text-center cam-label">right_pillar</div>
+                        <div class="tc-skel-tile tc-skel-pulse"></div>
+                      </div>
                     </div>
                     <div class="tc-skel-row tc-skel-row-bottom">
-                      <div class="tc-skel-cell tc-skel-pulse"></div>
-                      <div class="tc-skel-cell tc-skel-pulse"></div>
-                      <div class="tc-skel-cell tc-skel-pulse"></div>
+                      <div class="tc-skel-cell">
+                        <div class="tc-skel-tile tc-skel-pulse"></div>
+                        <div class="text-center cam-label">right_repeater</div>
+                      </div>
+                      <div class="tc-skel-cell">
+                        <div class="tc-skel-tile tc-skel-pulse"></div>
+                        <div class="text-center cam-label">back</div>
+                      </div>
+                      <div class="tc-skel-cell">
+                        <div class="tc-skel-tile tc-skel-pulse"></div>
+                        <div class="text-center cam-label">left_repeater</div>
+                      </div>
                     </div>
                   </div>
-                  <video-group :controls="controls" :timespans="timespans"></video-group>
+                  <div :class="{ 'tc-videos-probing': loading != null }">
+                    <video-group :controls="controls" :timespans="timespans"></video-group>
+                  </div>
                   <div class="text-center">{{ timespanTime( controls.timespan ) }}</div>
                 </div>
               </div>

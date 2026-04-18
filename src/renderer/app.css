@@ -554,9 +554,24 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
 
 .tc-cam-skeleton .tc-skel-cell
 {
+  min-width: 0;
+}
+
+.tc-cam-skeleton .tc-skel-tile
+{
   min-height: 80px;
   background: var( --tc-placeholder-bg );
   border-radius: 0.2rem;
+}
+
+.tc-videos-probing
+{
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+  clip: rect( 0, 0, 0, 0 );
 }
 
 .tc-skel-pulse
