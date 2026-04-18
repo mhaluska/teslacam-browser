@@ -181,7 +181,7 @@
                       <span class="small">Loading video info…</span>
                       <span class="small text-muted">{{ Math.round( loading ) }}%</span>
                     </div>
-                    <div class="progress" style="height: 0.5rem;" :aria-valuenow="Math.round( loading )" aria-valuemin="0" aria-valuemax="100">
+                    <div class="progress" style="height: 1rem;" :aria-valuenow="Math.round( loading )" aria-valuemin="0" aria-valuemax="100">
                       <div class="progress-bar progress-bar-striped progress-bar-animated" :style="{ width: Math.round( loading ) + '%' }"></div>
                     </div>
                     <div v-if="selectedTime.time.recent" class="small text-muted mt-1">Clips from RecentFiles take longer to load.</div>
