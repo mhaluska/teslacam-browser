@@ -559,9 +559,24 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
 
 .tc-cam-skeleton .tc-skel-tile
 {
-  aspect-ratio: 4 / 3;
   background: var( --tc-placeholder-bg );
   border-radius: 0.2rem;
+}
+
+.tc-cam-skeleton .tc-skel-row-top .tc-skel-cell:nth-child( 1 ) .tc-skel-tile,
+.tc-cam-skeleton .tc-skel-row-top .tc-skel-cell:nth-child( 3 ) .tc-skel-tile
+{
+  aspect-ratio: 1 / 1;
+}
+
+.tc-cam-skeleton .tc-skel-row-top .tc-skel-cell:nth-child( 2 ) .tc-skel-tile
+{
+  aspect-ratio: 2 / 1;
+}
+
+.tc-cam-skeleton .tc-skel-row-bottom .tc-skel-tile
+{
+  aspect-ratio: 16 / 9;
 }
 
 .tc-videos-probing
