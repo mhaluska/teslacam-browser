@@ -55,7 +55,7 @@
 
   var THEME_STORAGE_KEY = "themePreference"
 
-  var vueApp = ui.initialize(
+  ui.initialize(
     {
       openFolders: success => fetch("openDefaultFolder").then(r => r.json()).then(a => success( lastArgs = a )),
       reopenFolders: success => fetch("reopenFolders").then(r => r.json()).then(a => { success( lastArgs = a ); return lastArgs }),
