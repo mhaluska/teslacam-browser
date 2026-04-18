@@ -532,6 +532,57 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
   cursor: pointer;
   display: block;
 }
+
+.tc-video-loading
+{
+  margin-bottom: 0.5rem;
+}
+
+.tc-cam-skeleton
+{
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
+
+.tc-cam-skeleton .tc-skel-row-top
+{
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  gap: 0.175rem;
+  margin-bottom: 0.175rem;
+}
+
+.tc-cam-skeleton .tc-skel-row-bottom
+{
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.175rem;
+}
+
+.tc-cam-skeleton .tc-skel-cell
+{
+  min-height: 80px;
+  background: var( --tc-placeholder-bg );
+  border-radius: 0.2rem;
+}
+
+.tc-skel-pulse
+{
+  animation: tc-skel-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes tc-skel-pulse
+{
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
+}
+
+@media ( prefers-reduced-motion: reduce )
+{
+  .tc-skel-pulse { animation: none; }
+  .progress-bar-animated { animation: none; }
+}
+
 .form-range
 {
 	/* HACK: fix the custom scrub bar slow expansion in Edge */
