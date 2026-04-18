@@ -35,7 +35,7 @@ describe("auth.middleware", () => {
 		const next = () => {
 			called = true
 		}
-		auth.middleware({ path: "/login", headers: {} }, { redirect: () => {} }, next)
+		auth.middleware({ path: "/login", headers: {} }, { redirect: () => { /* stub */ } }, next)
 		expect(called).toBe(true)
 	})
 })
