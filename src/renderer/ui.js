@@ -156,6 +156,14 @@
 
                     if ( newPath )
                     {
+                        // Unmount the previous clip's videos before firing the
+                        // new fetches. Otherwise the active <video> elements
+                        // keep saturating the HTTP/1.1 pool while the files/
+                        // eventJson requests queue behind them, producing a
+                        // long stall when switching dates during playback.
+                        this.timespans = []
+                        this.loading = 0
+
                         var self = this
                         var token = ++self.clipEventLoadId
 
