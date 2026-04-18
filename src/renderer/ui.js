@@ -182,8 +182,21 @@
 
                         handlers.getFiles( newPath, files =>
                             {
-                                this.timespans = files
+                                var timespans = files
                                     .map( ( [ key, value ] ) => makeTimespan( key, value ) )
+
+                                // Kick off the front-cam telemetry fetch before
+                                // the synchronized-video mounts so it enters the
+                                // HTTP/1.1 connection pool ahead of the video
+                                // preloads that would otherwise saturate it.
+                                if ( timespans.length > 0 && timespans[ 0 ].viewMap )
+                                {
+                                    var front = timespans[ 0 ].viewMap.get( "front" )
+
+                                    if ( front ) uiVideo.primeClipTelemetry( front.filePath, handlers )
+                                }
+
+                                this.timespans = timespans
                             } )
                     }
                     else

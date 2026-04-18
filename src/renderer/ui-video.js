@@ -26,6 +26,35 @@
     var probeActiveCount = 0
     var probeQueue = []
 
+    var telemetryPrimeCache = new Map()
+
+    function primeClipTelemetry( filePath, handlers )
+    {
+        if ( !filePath || !handlers || typeof handlers.getClipTelemetry !== "function" ) return null
+
+        telemetryPrimeCache.clear()
+
+        var promise = new Promise( function( resolve )
+        {
+            handlers.getClipTelemetry( filePath, resolve )
+        } )
+
+        telemetryPrimeCache.set( filePath, promise )
+
+        return promise
+    }
+
+    function consumeClipTelemetry( filePath )
+    {
+        if ( !filePath || !telemetryPrimeCache.has( filePath ) ) return null
+
+        var promise = telemetryPrimeCache.get( filePath )
+
+        telemetryPrimeCache.delete( filePath )
+
+        return promise
+    }
+
     function acquireProbeSlot( startFn )
     {
         var token = { start: startFn, cancelled: false, active: false, released: false }
@@ -474,12 +503,19 @@
 
                     var self = this
                     var token = ++this.telemetryReqId
+                    var filePath = this.view.filePath
 
                     this.telemetryStatus = "loading"
                     this.telemetrySamples = []
                     this.telemetryError = null
 
-                    handlers.getClipTelemetry( this.view.filePath, function( res )
+                    var primed = consumeClipTelemetry( filePath )
+                    var promise = primed || new Promise( function( resolve )
+                    {
+                        handlers.getClipTelemetry( filePath, resolve )
+                    } )
+
+                    promise.then( function( res )
                     {
                         if ( token !== self.telemetryReqId ) return
 
@@ -805,6 +841,7 @@
         createVideosComponent: createVideosComponent,
         createVideoComponent: createVideoComponent,
         createMetadataProbeComponent: createMetadataProbeComponent,
+        primeClipTelemetry: primeClipTelemetry,
         _probeQueueForTesting:
         {
             acquire: acquireProbeSlot,
