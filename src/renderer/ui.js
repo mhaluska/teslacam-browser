@@ -653,6 +653,7 @@
         app.component( "VideoGroup", uiVideo.createVideoGroupComponent( handlers ) )
         app.component( "Videos", uiVideo.createVideosComponent( handlers ) )
         app.component( "SynchronizedVideo", uiVideo.createVideoComponent( handlers ) )
+        app.component( "MetadataProbe", uiVideo.createMetadataProbeComponent( handlers ) )
         app.component( "EventMap", uiMap.createEventMapComponent() )
 
         var vueApp = app.mount( '#root' )

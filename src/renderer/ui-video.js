@@ -65,17 +65,10 @@
                                 </div>
                             </div>
                         </div>
-                        <video v-else-if="metadataProbeView( timespan )"
-                            :src="metadataProbeView( timespan ).file"
-                            preload="metadata"
-                            muted
-                            playsinline
-                            crossorigin="anonymous"
-                            tabindex="-1"
-                            aria-hidden="true"
-                            style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;clip:rect(0,0,0,0)"
-                            @durationchange="inactiveTimespanDuration( timespan, $event )"
-                        ></video>
+                        <metadata-probe v-else-if="metadataProbeView( timespan )"
+                            :view="metadataProbeView( timespan )"
+                            @duration="onProbeDuration( timespan, $event )"
+                        ></metadata-probe>
                         <div class="alert alert-danger error" v-if="timespan === controls.timespan" v-show="error">
                             <div>{{ error }}</div>
                             <div @click="openBrowser" style="cursor: pointer;">Try external browser</div>
@@ -135,13 +128,11 @@
 
                     return null
                 },
-                inactiveTimespanDuration: function( timespan, event )
+                onProbeDuration: function( timespan, duration )
                 {
-                    var video = event.target
+                    if ( !duration || !isFinite( duration ) ) return
 
-                    if ( !video.duration || !isFinite( video.duration ) ) return
-
-                    timespan.duration = Math.max( timespan.duration || 0, video.duration )
+                    timespan.duration = Math.max( timespan.duration || 0, duration )
                 },
                 currentTime: function( scrub, view )
                 {
@@ -646,9 +637,53 @@
         }
     }
 
+    function createMetadataProbeComponent( handlers )
+    {
+        return {
+            props: [ "view" ],
+            emits: [ "duration" ],
+            template:
+                `<video ref="video"
+                    v-if="view"
+                    :src="view.file"
+                    preload="metadata"
+                    muted
+                    playsinline
+                    crossorigin="anonymous"
+                    tabindex="-1"
+                    aria-hidden="true"
+                    style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;clip:rect(0,0,0,0)"
+                    @durationchange="onDurationChange"
+                ></video>`,
+            beforeUnmount: function()
+            {
+                var video = this.$refs[ "video" ]
+
+                if ( video )
+                {
+                    video.pause()
+                    video.removeAttribute( "src" )
+                    video.load()
+                }
+            },
+            methods:
+            {
+                onDurationChange: function( event )
+                {
+                    var video = event.target
+
+                    if ( !video || !isFinite( video.duration ) ) return
+
+                    this.$emit( "duration", video.duration )
+                }
+            }
+        }
+    }
+
     return {
         createVideoGroupComponent: createVideoGroupComponent,
         createVideosComponent: createVideosComponent,
-        createVideoComponent: createVideoComponent
+        createVideoComponent: createVideoComponent,
+        createMetadataProbeComponent: createMetadataProbeComponent
     }
 } ) );
