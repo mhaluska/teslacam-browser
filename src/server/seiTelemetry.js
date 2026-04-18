@@ -128,7 +128,6 @@
 		var off = 8;
 		var starts = [];
 		var totalTicks = 0;
-		var frame = 0;
 
 		for ( var e = 0; e < entryCount; e++ )
 		{
@@ -143,7 +142,6 @@
 			{
 				starts.push( totalTicks / timescale );
 				totalTicks += delta;
-				frame++
 			}
 		}
 
