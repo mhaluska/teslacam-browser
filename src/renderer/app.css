@@ -559,7 +559,7 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
 
 .tc-cam-skeleton .tc-skel-tile
 {
-  min-height: 80px;
+  aspect-ratio: 4 / 3;
   background: var( --tc-placeholder-bg );
   border-radius: 0.2rem;
 }
