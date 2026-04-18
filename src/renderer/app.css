@@ -338,13 +338,6 @@ html[data-theme="dark"] .btn-close
     filter: invert( 1 ) grayscale( 100% ) brightness( 200% );
 }
 
-html[data-theme="dark"] .alert-info
-{
-    background-color: #1a3a4a;
-    border-color: #2c5282;
-    color: #c5e8ff;
-}
-
 html[data-theme="dark"] .form-range::-webkit-slider-runnable-track
 {
     background-color: var( --tc-range-track );
