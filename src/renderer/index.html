@@ -176,7 +176,16 @@
                   </div>
                 </div>
                 <div class="videoContainer card-body">
-                  <div class="alert alert-info" v-if="loading != null">Loading {{ Math.round( loading ) }}%...<span v-if="selectedTime.time.recent"> (Clips from RecentFiles will take longer to load)</span></div>
+                  <div class="tc-video-loading" v-if="loading != null" role="status" aria-live="polite">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                      <span class="small">Loading video info…</span>
+                      <span class="small text-muted">{{ Math.round( loading ) }}%</span>
+                    </div>
+                    <div class="progress" style="height: 0.5rem;" :aria-valuenow="Math.round( loading )" aria-valuemin="0" aria-valuemax="100">
+                      <div class="progress-bar progress-bar-striped progress-bar-animated" :style="{ width: Math.round( loading ) + '%' }"></div>
+                    </div>
+                    <div v-if="selectedTime.time.recent" class="small text-muted mt-1">Clips from RecentFiles take longer to load.</div>
+                  </div>
                   <video-group :controls="controls" :timespans="timespans"></video-group>
                   <div class="text-center">{{ timespanTime( controls.timespan ) }}</div>
                 </div>
