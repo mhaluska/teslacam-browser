@@ -98,7 +98,7 @@
     {
       if ( data && data.enabled )
       {
-        ensureCsrfToken().catch( function() {} )
+        ensureCsrfToken().catch( function() { /* ignore */ } )
         var btn = document.getElementById( "logoutBtn" )
         btn.style.display = ""
         btn.addEventListener( "click", function()
