@@ -47,7 +47,7 @@
 		var f = u * ( n - 1 )
 		var i0 = Math.floor( f )
 		var i1 = Math.min( n - 1, i0 + 1 )
-		var alpha = f - i0
+		alpha = f - i0
 
 		return { cur: samples[ i0 ], next: samples[ i1 ], alpha: alpha }
 	}
