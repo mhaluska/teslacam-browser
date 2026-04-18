@@ -567,9 +567,9 @@
                 {
                     var files = timespan.views.map( v => v.filePath )
 
-                    this.showConfirm( `Are you sure you want to delete ${files.length} files from ${timespan.title}?`, () =>
+                    this.showConfirm( `Are you sure you want to delete ${files.length} files from ${timespan.title}?`, async () =>
                     {
-                        handlers.deleteFiles( files )
+                        await handlers.deleteFiles( files )
 
                         this.timespans = this.timespans.filter( t => t !== timespan )
 
@@ -615,9 +615,9 @@
                 },
                 deleteFolder: function( folder )
                 {
-                    this.showConfirm( `Are you sure you want to delete ${folder}?`, () =>
+                    this.showConfirm( `Are you sure you want to delete ${folder}?`, async () =>
                     {
-                        handlers.deleteFolder( folder )
+                        await handlers.deleteFolder( folder )
 
                         this.timespans = []
                         this.times = this.times.filter( t => t.time.relative !== folder )

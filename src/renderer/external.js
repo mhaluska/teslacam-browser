@@ -58,7 +58,7 @@
   var vueApp = ui.initialize(
     {
       openFolders: success => fetch("openDefaultFolder").then(r => r.json()).then(a => success( lastArgs = a )),
-      reopenFolders: success => fetch("reopenFolders").then(r => r.json()).then(a => success( lastArgs = a )),
+      reopenFolders: success => fetch("reopenFolders").then(r => r.json()).then(a => { success( lastArgs = a ); return lastArgs }),
       openFolder: (_p, success) => fetch( "openDefaultFolder").then(r => r.json()).then(a => success( lastArgs = a )),
       getFiles: (p, success) => fetch("files/" + p).then(r => r.json()).then(success),
       readEventJson: (p, success) => fetch("eventJson/" + p).then(r => r.json()).then(data => success(data)).catch(() => success(null)),
