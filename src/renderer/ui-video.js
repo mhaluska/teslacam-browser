@@ -21,6 +21,61 @@
     var pickSeiInterpolationBracket = uiUtils.pickSeiInterpolationBracket
     var blendDashSamples = uiUtils.blendDashSamples
 
+    var METADATA_PROBE_CONCURRENCY = 3
+    var METADATA_PROBE_SAFETY_TIMEOUT_MS = 15000
+    var probeActiveCount = 0
+    var probeQueue = []
+
+    function acquireProbeSlot( startFn )
+    {
+        var token = { start: startFn, cancelled: false, active: false, released: false }
+
+        if ( probeActiveCount < METADATA_PROBE_CONCURRENCY )
+        {
+            token.active = true
+            probeActiveCount++
+        }
+        else
+        {
+            probeQueue.push( token )
+        }
+
+        return token
+    }
+
+    function releaseProbeSlot( token )
+    {
+        if ( !token || token.released ) return
+
+        token.released = true
+
+        if ( !token.active )
+        {
+            token.cancelled = true
+            return
+        }
+
+        probeActiveCount--
+
+        while ( probeActiveCount < METADATA_PROBE_CONCURRENCY && probeQueue.length > 0 )
+        {
+            var next = probeQueue.shift()
+
+            if ( next.cancelled || next.released ) continue
+
+            next.active = true
+            probeActiveCount++
+            next.start()
+            break
+        }
+    }
+
+    function _resetProbeQueueForTests()
+    {
+        probeActiveCount = 0
+        probeQueue.length = 0
+    }
+
     function createVideoGroupComponent( handlers )
     {
         return {
@@ -642,10 +697,16 @@
         return {
             props: [ "view" ],
             emits: [ "duration" ],
+            data: function()
+            {
+                return {
+                    slotToken: null,
+                    safetyTimer: null,
+                    resolved: false
+                }
+            },
             template:
                 `<video ref="video"
-                    v-if="view"
-                    :src="view.file"
                     preload="metadata"
                     muted
                     playsinline
@@ -654,9 +715,20 @@
                     aria-hidden="true"
                     style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;clip:rect(0,0,0,0)"
                     @durationchange="onDurationChange"
+                    @error="onLoadError"
                 ></video>`,
+            mounted: function()
+            {
+                var self = this
+
+                this.slotToken = acquireProbeSlot( function() { self.beginLoad() } )
+
+                if ( this.slotToken.active ) this.beginLoad()
+            },
             beforeUnmount: function()
             {
+                this.finish()
+
                 var video = this.$refs[ "video" ]
 
                 if ( video )
@@ -668,13 +740,61 @@
             },
             methods:
             {
+                beginLoad: function()
+                {
+                    if ( this.resolved ) return
+
+                    var video = this.$refs[ "video" ]
+
+                    if ( !video || !this.view )
+                    {
+                        this.finish()
+                        return
+                    }
+
+                    video.setAttribute( "src", this.view.file )
+                    video.load()
+
+                    var self = this
+
+                    this.safetyTimer = window.setTimeout( function()
+                    {
+                        self.safetyTimer = null
+                        self.finish()
+                    }, METADATA_PROBE_SAFETY_TIMEOUT_MS )
+                },
                 onDurationChange: function( event )
                 {
                     var video = event.target
 
-                    if ( !video || !isFinite( video.duration ) ) return
+                    if ( video && isFinite( video.duration ) )
+                    {
+                        this.$emit( "duration", video.duration )
+                    }
 
-                    this.$emit( "duration", video.duration )
+                    this.finish()
+                },
+                onLoadError: function()
+                {
+                    this.finish()
+                },
+                finish: function()
+                {
+                    if ( this.resolved ) return
+
+                    this.resolved = true
+
+                    if ( this.safetyTimer )
+                    {
+                        window.clearTimeout( this.safetyTimer )
+                        this.safetyTimer = null
+                    }
+
+                    if ( this.slotToken )
+                    {
+                        releaseProbeSlot( this.slotToken )
+                        this.slotToken = null
+                    }
                 }
             }
         }
@@ -684,6 +804,15 @@
         createVideoGroupComponent: createVideoGroupComponent,
         createVideosComponent: createVideosComponent,
         createVideoComponent: createVideoComponent,
-        createMetadataProbeComponent: createMetadataProbeComponent
+        createMetadataProbeComponent: createMetadataProbeComponent,
+        _probeQueueForTesting:
+        {
+            acquire: acquireProbeSlot,
+            release: releaseProbeSlot,
+            reset: _resetProbeQueueForTests,
+            get activeCount() { return probeActiveCount },
+            get queueLength() { return probeQueue.length },
+            get limit() { return METADATA_PROBE_CONCURRENCY }
+        }
     }
 } ) );
