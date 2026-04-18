@@ -545,7 +545,7 @@
 
 							if ( clipMatch && clipMatch.length > 0 )
 							{
-								var date = helpers.extractDate( clipMatch )
+								date = helpers.extractDate( clipMatch )
 								var existing = folderInfos.find( i => i.path == baseFolder )
 
 								if ( existing )
@@ -554,7 +554,7 @@
 								}
 								else
 								{
-									var relative = path.relative( folder, baseFolder )
+									relative = path.relative( folder, baseFolder )
 
 									folderInfos.push( { date: date, path: baseFolder, relative: relative, recent: true } )
 								}
