@@ -11,4 +11,3 @@ Dockerfile
 .dockerignore
 docker-compose.yaml
 docker-compose.yml
-certs
