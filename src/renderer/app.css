@@ -766,6 +766,19 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
   transition: height 0.08s linear;
 }
 
+.tc-g-meter
+{
+  width: 2.25rem;
+  height: 2.25rem;
+  margin-top: 0.25rem;
+  color: rgba( 255, 255, 255, 0.85 );
+}
+
+.tc-g-meter.clipped
+{
+  color: #f87171;
+}
+
 .time-thumb
 {
   width: 48px;

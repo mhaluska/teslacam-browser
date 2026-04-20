@@ -380,6 +380,13 @@
                                     <line x1="24" y1="20" x2="35" y2="20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                                     <line x1="20" y1="24" x2="20" y2="35" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                                 </svg>
+                                <svg v-if="gMeter.visible" class="tc-g-meter" :class="{ clipped: gMeter.clipped }" viewBox="-1.4 -1.4 2.8 2.8" aria-hidden="true" :title="gMeter.title">
+                                    <circle cx="0" cy="0" r="1.2" fill="none" stroke="currentColor" stroke-width="0.08" opacity="0.45"/>
+                                    <circle cx="0" cy="0" r="0.6" fill="none" stroke="currentColor" stroke-width="0.05" opacity="0.3"/>
+                                    <line x1="-1.2" y1="0" x2="1.2" y2="0" stroke="currentColor" stroke-width="0.04" opacity="0.3"/>
+                                    <line x1="0" y1="-1.2" x2="0" y2="1.2" stroke="currentColor" stroke-width="0.04" opacity="0.3"/>
+                                    <circle :cx="gMeter.x" :cy="gMeter.y" r="0.22" fill="currentColor"/>
+                                </svg>
                                 <div class="tc-throttle" title="Accelerator">
                                     <div class="tc-throttle-fill" :style="{ height: throttleFillPct + '%' }"></div>
                                 </div>
@@ -410,6 +417,39 @@
                     if ( !d || d.acceleratorPedal == null ) return 0
 
                     return Math.round( Math.max( 0, Math.min( 1, d.acceleratorPedal ) ) * 100 )
+                },
+                gMeter: function()
+                {
+                    var d = this.dashDisplay
+                    var G = 9.80665
+                    var MAX_G = 1.2
+
+                    if ( !d || d.accelX == null || d.accelY == null ) return { visible: false, x: 0, y: 0, clipped: false, title: "" }
+
+                    // Tesla IMU: +X forward, +Y left, +Z up.
+                    // "Ball in bowl" feel: dot lags behind the felt force.
+                    // Accel forward (+X) → dot toward rear (+y in SVG where +y is down if we treat screen-up as forward)
+                    // Accel left  (+Y) → dot toward right
+                    var longG = d.accelX / G
+                    var latG = d.accelY / G
+                    var clamped = false
+                    var magSq = longG * longG + latG * latG
+
+                    if ( magSq > MAX_G * MAX_G )
+                    {
+                        var mag = Math.sqrt( magSq )
+                        longG = longG * MAX_G / mag
+                        latG = latG * MAX_G / mag
+                        clamped = true
+                    }
+
+                    return {
+                        visible: true,
+                        x: -latG,
+                        y: longG,
+                        clipped: clamped,
+                        title: "G: " + ( Math.sqrt( magSq ) ).toFixed( 2 ) + "g"
+                    }
                 },
                 speedDisplay: function()
                 {

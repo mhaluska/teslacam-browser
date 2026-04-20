@@ -77,7 +77,10 @@
 			blinkerRight: cur.blinkerRight,
 			brakeApplied: cur.brakeApplied,
 			autopilot: cur.autopilot,
-			steeringWheelAngle: cur.steeringWheelAngle
+			steeringWheelAngle: cur.steeringWheelAngle,
+			accelX: lerpNum( cur.accelX, next.accelX, alpha ),
+			accelY: lerpNum( cur.accelY, next.accelY, alpha ),
+			accelZ: lerpNum( cur.accelZ, next.accelZ, alpha )
 		}
 	}
 
