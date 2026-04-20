@@ -832,28 +832,41 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
 .tc-seq-diagnostics
 {
   font-size: 0.75rem;
-  background: var( --tc-muted-bg, rgba( 0, 0, 0, 0.04 ) );
+  background: var( --tc-panel-bg );
+  border: 1px solid var( --tc-panel-border );
   border-radius: 0.25rem;
   padding: 0.35rem 0.5rem;
+  max-height: 14rem;
+  overflow-y: auto;
 }
 
-.tc-seq-diagnostics table
+.tc-seq-diagnostics-grid
 {
-  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  column-gap: 0.6rem;
+  row-gap: 0.15rem;
+  align-items: baseline;
 }
 
-.tc-seq-diagnostics th
+.tc-seq-diagnostics-grid > div
+{
+  padding: 0.1rem 0;
+  white-space: nowrap;
+}
+
+.tc-seq-diagnostics-head
 {
   font-weight: 600;
   color: var( --tc-muted-color, #6c757d );
-  border: 0;
-  padding: 0.1rem 0.25rem;
+  border-bottom: 1px solid var( --tc-panel-border );
+  margin-bottom: 0.2rem;
 }
 
-.tc-seq-diagnostics td
+.tc-seq-delta-warn
 {
-  padding: 0.1rem 0.25rem;
-  border: 0;
+  color: #f59f0a;
+  font-weight: 600;
 }
 
 .time-thumb

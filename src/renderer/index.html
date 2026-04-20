@@ -146,17 +146,18 @@
                   <div v-if="seqDiagnostics.open" class="tc-seq-diagnostics mt-2">
                     <div v-if="seqDiagnostics.loading" class="text-muted">Checking cameras…</div>
                     <div v-else-if="seqDiagnostics.error" class="text-danger">{{ seqDiagnostics.error }}</div>
-                    <table v-else-if="seqDiagnostics.results" class="table table-sm table-borderless mb-0">
-                      <thead><tr><th>Camera</th><th>First seq</th><th>Samples</th><th>Δ</th></tr></thead>
-                      <tbody>
-                        <tr v-for="r in seqDiagnostics.results" :key="r.fileName">
-                          <td>{{ r.camera }}</td>
-                          <td>{{ r.summary.error ? "—" : ( r.summary.firstSeq != null ? r.summary.firstSeq : "—" ) }}</td>
-                          <td>{{ r.summary.error ? "—" : r.summary.sampleCount }}</td>
-                          <td :class="{ 'text-warning': r.delta != null && Math.abs( r.delta ) > 1 }">{{ r.delta != null ? ( r.delta > 0 ? "+" + r.delta : r.delta ) : "—" }}</td>
-                        </tr>
-                      </tbody>
-                    </table>
+                    <div v-else-if="seqDiagnostics.results" class="tc-seq-diagnostics-grid">
+                      <div class="tc-seq-diagnostics-head">Camera</div>
+                      <div class="tc-seq-diagnostics-head">First seq</div>
+                      <div class="tc-seq-diagnostics-head">Samples</div>
+                      <div class="tc-seq-diagnostics-head">Δ</div>
+                      <template v-for="r in seqDiagnostics.results" :key="r.fileName">
+                        <div>{{ r.camera }}</div>
+                        <div>{{ r.summary.error ? "—" : ( r.summary.firstSeq != null ? r.summary.firstSeq : "—" ) }}</div>
+                        <div>{{ r.summary.error ? "—" : r.summary.sampleCount }}</div>
+                        <div :class="{ 'tc-seq-delta-warn': r.delta != null && Math.abs( r.delta ) > 1 }">{{ r.delta != null ? ( r.delta > 0 ? "+" + r.delta : r.delta ) : "—" }}</div>
+                      </template>
+                    </div>
                   </div>
                 </div>
               </div>
