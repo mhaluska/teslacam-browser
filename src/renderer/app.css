@@ -924,3 +924,17 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
   font-style: italic;
 }
 
+.clip-trail-controls
+{
+  padding: 0.25rem 0.5rem;
+}
+
+.clip-trail-map
+{
+  width: 100%;
+  height: 52vh;
+  min-height: 320px;
+  border-radius: 0.25rem;
+  border: 1px solid var( --tc-panel-border );
+}
+

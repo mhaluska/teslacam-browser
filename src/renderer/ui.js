@@ -76,7 +76,7 @@
                 currentGps: null,
                 currentHeading: null,
                 seqDiagnostics: { loading: false, results: null, error: null },
-                clipAnalytics: { loading: false, error: null, samples: [], loadId: 0 }
+                clipAnalytics: { loading: false, error: null, samples: [], loadId: 0, shownCounter: 0 }
                 }
             },
             provide: function()
@@ -171,7 +171,7 @@
                     }
 
                     this.currentGps = null
-                    this.clipAnalytics = { loading: false, error: null, samples: [], loadId: this.clipAnalytics.loadId + 1 }
+                    this.clipAnalytics = { loading: false, error: null, samples: [], loadId: this.clipAnalytics.loadId + 1, shownCounter: this.clipAnalytics.shownCounter }
 
                     if ( newPath )
                     {
@@ -702,7 +702,18 @@
                     {
                         var el = document.getElementById( "clipAnalyticsModal" )
 
-                        if ( el && window.bootstrap ) window.bootstrap.Modal.getOrCreateInstance( el ).show()
+                        if ( !el || !window.bootstrap ) return
+
+                        if ( !self._clipAnalyticsShownBound )
+                        {
+                            el.addEventListener( "shown.bs.modal", function()
+                            {
+                                self.clipAnalytics = Object.assign( {}, self.clipAnalytics, { shownCounter: self.clipAnalytics.shownCounter + 1 } )
+                            } )
+                            self._clipAnalyticsShownBound = true
+                        }
+
+                        window.bootstrap.Modal.getOrCreateInstance( el ).show()
                     } )
 
                     if ( !handlers.getClipTelemetry )
