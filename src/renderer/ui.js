@@ -27,6 +27,8 @@
 
     var CAM_GRID_ALL = uiConstants.CAM_GRID_ALL
     var normalizeThemePreference = uiUtils.normalizeThemePreference
+    var normalizeSpeedUnit = uiUtils.normalizeSpeedUnit
+    var effectiveSpeedUnit = uiUtils.effectiveSpeedUnit
     var humanizeReason = helpers.humanizeReason
     var shortenReason = helpers.shortenReason
     var isTriggerReason = helpers.isTriggerReason
@@ -64,9 +66,12 @@
                 playing: null,
                 loading: null,
                 themePreference: "system",
+                speedUnitPreference: "auto",
                 confirmMessage: "",
                 confirmCallback: null,
-                currentGps: null
+                currentGps: null,
+                currentHeading: null,
+                seqDiagnostics: { loading: false, results: null, error: null }
                 }
             },
             provide: function()
@@ -82,11 +87,19 @@
                         // for this event. Once unlocked, keep tracking even when paused or scrubbing.
                         if ( !self.controls.playing && !self.currentGps ) return
 
+                        var heading = ( typeof gps.heading === "number" && isFinite( gps.heading ) ) ? gps.heading : null
+
+                        if ( self.currentHeading !== heading ) self.currentHeading = heading
+
                         var prev = self.currentGps
 
                         if ( prev && prev.lat === gps.lat && prev.lon === gps.lon ) return
 
                         self.currentGps = { lat: gps.lat, lon: gps.lon }
+                    },
+                    getSpeedUnit: function()
+                    {
+                        return self.resolvedSpeedUnit
                     }
                 }
             },
@@ -396,6 +409,30 @@
                     if ( this.themePreference === "light" ) return "Theme: Light — click for Dark"
 
                     return "Theme: Dark — click for System"
+                },
+                resolvedSpeedUnit: function()
+                {
+                    var locale = ""
+
+                    if ( typeof navigator !== "undefined" )
+                    {
+                        locale = navigator.language || ( navigator.languages && navigator.languages[ 0 ] ) || ""
+                    }
+
+                    return effectiveSpeedUnit( this.speedUnitPreference, locale )
+                },
+                speedUnitCycleIconClass: function()
+                {
+                    return "bi bi-speedometer2"
+                },
+                speedUnitCycleTitle: function()
+                {
+                    var resolved = this.resolvedSpeedUnit === "mi" ? "mph" : "km/h"
+
+                    if ( this.speedUnitPreference === "auto" ) return "Speed: Auto (" + resolved + ") — click for km/h"
+                    if ( this.speedUnitPreference === "km" ) return "Speed: km/h — click for mph"
+
+                    return "Speed: mph — click for Auto"
                 }
             },
             mounted: function()
@@ -419,6 +456,14 @@
 
                 if ( handlers.getThemePreference ) handlers.getThemePreference( applyLoaded )
                 else applyLoaded( "system" )
+
+                function applySpeedUnit( pref )
+                {
+                    self.speedUnitPreference = normalizeSpeedUnit( pref )
+                }
+
+                if ( handlers.getSpeedUnit ) handlers.getSpeedUnit( applySpeedUnit )
+                else applySpeedUnit( "auto" )
             },
             beforeUnmount: function()
             {
@@ -465,6 +510,28 @@
                     if ( i < 0 ) i = 0
 
                     this.setThemePreference( order[ ( i + 1 ) % order.length ] )
+                },
+                setSpeedUnitPreference: function( mode )
+                {
+                    var self = this
+                    var m = normalizeSpeedUnit( mode )
+
+                    function done()
+                    {
+                        self.speedUnitPreference = m
+                    }
+
+                    if ( handlers.setSpeedUnit ) handlers.setSpeedUnit( m, done )
+                    else done()
+                },
+                cycleSpeedUnitPreference: function()
+                {
+                    var order = [ "auto", "km", "mi" ]
+                    var i = order.indexOf( this.speedUnitPreference )
+
+                    if ( i < 0 ) i = 0
+
+                    this.setSpeedUnitPreference( order[ ( i + 1 ) % order.length ] )
                 },
                 formatEventReason: function( reason )
                 {
@@ -611,6 +678,68 @@
                     handlers.copyFilePaths( files )
 
                     alert( "Copied file paths to clipboard" )
+                },
+                openSeqDiagnostics: function()
+                {
+                    var self = this
+
+                    self.seqDiagnostics = { loading: true, results: null, error: null }
+
+                    self.$nextTick( function()
+                    {
+                        var el = document.getElementById( "seqDiagnosticsModal" )
+
+                        if ( el && window.bootstrap ) window.bootstrap.Modal.getOrCreateInstance( el ).show()
+                    } )
+
+                    if ( !handlers.getClipSeqSummary )
+                    {
+                        self.seqDiagnostics = { loading: false, results: null, error: "Unsupported in this build" }
+
+                        return
+                    }
+
+                    var timespan = self.controls.timespan || ( self.timespans.length ? self.timespans[ 0 ] : null )
+
+                    if ( !timespan || !timespan.views || !timespan.views.length )
+                    {
+                        self.seqDiagnostics = { loading: false, results: null, error: "No clip loaded" }
+
+                        return
+                    }
+
+                    var views = timespan.views.slice()
+                    var pending = views.length
+                    var results = []
+
+                    views.forEach( function( v, idx )
+                    {
+                        handlers.getClipSeqSummary( v.filePath, function( res )
+                        {
+                            results[ idx ] = { camera: v.camera, fileName: v.fileName, summary: res || { error: "empty" } }
+
+                            if ( --pending === 0 )
+                            {
+                                var baseline = null
+
+                                for ( var i = 0; i < results.length; i++ )
+                                {
+                                    var s = results[ i ].summary
+                                    if ( s && !s.error && typeof s.firstSeq === "number" ) { baseline = s.firstSeq; break }
+                                }
+
+                                results.forEach( function( r )
+                                {
+                                    if ( r.summary && !r.summary.error && typeof r.summary.firstSeq === "number" && baseline != null )
+                                        r.delta = r.summary.firstSeq - baseline
+                                    else
+                                        r.delta = null
+                                } )
+
+                                self.seqDiagnostics = { loading: false, results: results, error: null }
+                            }
+                        } )
+                    } )
                 },
                 showConfirm: function( message, callback )
                 {

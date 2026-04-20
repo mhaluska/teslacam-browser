@@ -281,7 +281,7 @@
 			return {
 				gear: typeof g === "number" && g >= 0 && g <= 3 ? GEAR_LABELS[ g ] : null,
 				frameSeqNo: fsq != null ? fsq.toString() : null,
-				speedKmh: typeof msg.vehicleSpeedMps === "number" ? Math.round( msg.vehicleSpeedMps * 3.6 ) : null,
+				speedMps: typeof msg.vehicleSpeedMps === "number" ? msg.vehicleSpeedMps : null,
 				acceleratorPedal: normalizeAcceleratorPedal( msg.acceleratorPedalPosition ),
 				steeringWheelAngle: typeof msg.steeringWheelAngle === "number" ? msg.steeringWheelAngle : null,
 				blinkerLeft: !!msg.blinkerOnLeft,
@@ -290,7 +290,10 @@
 				autopilot: typeof a === "number" && a >= 0 && a <= 3 ? AUTOPILOT_LABELS[ a ] : "NONE",
 				latitudeDeg: typeof msg.latitudeDeg === "number" ? msg.latitudeDeg : null,
 				longitudeDeg: typeof msg.longitudeDeg === "number" ? msg.longitudeDeg : null,
-				headingDeg: typeof msg.headingDeg === "number" ? msg.headingDeg : null
+				headingDeg: typeof msg.headingDeg === "number" ? msg.headingDeg : null,
+				accelX: typeof msg.linearAccelerationMps2X === "number" ? msg.linearAccelerationMps2X : null,
+				accelY: typeof msg.linearAccelerationMps2Y === "number" ? msg.linearAccelerationMps2Y : null,
+				accelZ: typeof msg.linearAccelerationMps2Z === "number" ? msg.linearAccelerationMps2Z : null
 			};
 		}
 		catch ( _e )

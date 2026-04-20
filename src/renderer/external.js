@@ -54,6 +54,7 @@
   }
 
   var THEME_STORAGE_KEY = "themePreference"
+  var SPEED_UNIT_STORAGE_KEY = "speedUnit"
 
   ui.initialize(
     {
@@ -63,6 +64,7 @@
       getFiles: (p, success) => fetch("files/" + p).then(r => r.json()).then(success),
       readEventJson: (p, success) => fetch("eventJson/" + p).then(r => r.json()).then(data => success(data)).catch(() => success(null)),
       getClipTelemetry: (p, success) => fetch("clipTelemetry/" + encodeURI(p)).then(r => r.json()).then(data => success(data)).catch(() => success({ error: "request_failed" })),
+      getClipSeqSummary: (p, success) => fetch("clipSeqSummary/" + encodeURI(p)).then(r => r.json()).then(data => success(data)).catch(() => success({ error: "request_failed" })),
       getAssetUrl: rel => rel ? "videos/" + rel : null,
       openBrowser: () => fetch("openBrowser", { method: "POST" }),
       deleteFiles: files => postJson( "/deleteFiles", { paths: files } ),
@@ -81,6 +83,20 @@
       setThemePreference: function( mode, success )
       {
         localStorage.setItem( THEME_STORAGE_KEY, mode )
+
+        if ( success ) success()
+      },
+      getSpeedUnit: function( success )
+      {
+        var v = localStorage.getItem( SPEED_UNIT_STORAGE_KEY )
+
+        if ( v !== "km" && v !== "mi" && v !== "auto" ) v = "auto"
+
+        success( v )
+      },
+      setSpeedUnit: function( mode, success )
+      {
+        localStorage.setItem( SPEED_UNIT_STORAGE_KEY, mode )
 
         if ( success ) success()
       }

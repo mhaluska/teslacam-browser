@@ -20,6 +20,8 @@
 
     var pickSeiInterpolationBracket = uiUtils.pickSeiInterpolationBracket
     var blendDashSamples = uiUtils.blendDashSamples
+    var lerpAngleDeg = uiUtils.lerpAngleDeg
+    var detectSeqGaps = uiUtils.detectSeqGaps
 
     var METADATA_PROBE_CONCURRENCY = 3
     var METADATA_PROBE_SAFETY_TIMEOUT_MS = 15000
@@ -331,7 +333,8 @@
         return {
             props: [ "timespan", "view", "playbackRate" ],
             inject: {
-                publishGps: { default: null }
+                publishGps: { default: null },
+                getSpeedUnit: { default: null }
             },
             data: function()
             {
@@ -344,6 +347,8 @@
                     telemetryError: null,
                     telemetryReqId: 0,
                     telemetryDebounceTimer: null,
+                    telemetryGaps: [],
+                    telemetryGapsExpanded: false,
                     overlayVideoTime: 0,
                     overlayVideoDuration: 0,
                     overlayRafHandle: null
@@ -351,11 +356,25 @@
             },
             template:
                 `<div :class="[ 'tc-cam-stack', view.camera === 'front' ? 'tc-cam-front' : '' ]">
+                    <div v-if="view.camera === 'front' && telemetryGaps.length" class="tc-telemetry-gap-chip" :title="telemetryGapSummary">
+                        <span class="bi bi-exclamation-triangle-fill" aria-hidden="true"></span>
+                        {{ telemetryGaps.length }} telemetry gap{{ telemetryGaps.length === 1 ? "" : "s" }}
+                    </div>
                     <div v-if="view.camera === 'front'" class="tc-dash-overlay" aria-hidden="true">
                         <div v-if="telemetryStatus === 'loading'" class="tc-dash-msg">Loading telemetry…</div>
                         <div v-else-if="telemetryStatus === 'error'" class="tc-dash-msg tc-dash-err">{{ telemetryError }}</div>
                         <div v-else-if="telemetryStatus === 'empty'" class="tc-dash-msg">No telemetry in this clip</div>
                         <div v-else-if="telemetryStatus === 'ready' && dashDisplay" class="tc-dash-cluster">
+                            <svg v-if="dashDisplay.headingDeg != null" class="tc-compass" viewBox="-1.4 -1.4 2.8 2.8" aria-hidden="true" :title="'Heading: ' + Math.round( dashDisplay.headingDeg ) + '\u00b0'">
+                                <circle cx="0" cy="0" r="1.15" fill="none" stroke="currentColor" stroke-width="0.08" opacity="0.55"/>
+                                <g :style="{ transform: 'rotate(' + ( -dashDisplay.headingDeg ) + 'deg)', transformOrigin: '0 0', transition: 'transform 0.08s linear' }">
+                                    <text x="0" y="-0.75" text-anchor="middle" font-size="0.55" fill="#f87171" font-weight="700">N</text>
+                                    <text x="0.85" y="0.2" text-anchor="middle" font-size="0.4" fill="currentColor" opacity="0.7">E</text>
+                                    <text x="0" y="1.05" text-anchor="middle" font-size="0.4" fill="currentColor" opacity="0.7">S</text>
+                                    <text x="-0.85" y="0.2" text-anchor="middle" font-size="0.4" fill="currentColor" opacity="0.7">W</text>
+                                </g>
+                                <polygon points="0,-0.55 0.2,0.15 -0.2,0.15" fill="currentColor"/>
+                            </svg>
                             <div class="tc-dash-col tc-dash-col-left">
                                 <div class="tc-dash-gear">{{ dashDisplay.gear || "—" }}</div>
                                 <svg class="tc-ico-pedal tc-ico-brake" :class="{ on: dashDisplay.brakeApplied }" viewBox="4 2 24 36" aria-hidden="true">
@@ -367,8 +386,8 @@
                             </div>
                             <svg class="tc-arrow" :class="{ on: dashDisplay.blinkerLeft }" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M10 3L2 12l8 9v-6h12V9H10V3z"/></svg>
                             <div class="tc-speed-block">
-                                <div class="tc-speed-val">{{ dashDisplay.speedKmh != null ? dashDisplay.speedKmh : "—" }}</div>
-                                <div class="tc-speed-unit">km/h</div>
+                                <div class="tc-speed-val">{{ speedDisplay.value }}</div>
+                                <div class="tc-speed-unit">{{ speedDisplay.unit }}</div>
                             </div>
                             <svg class="tc-arrow" :class="{ on: dashDisplay.blinkerRight }" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M14 3l8 9-8 9v-6H2V9h12V3z"/></svg>
                             <div class="tc-dash-col tc-dash-col-right">
@@ -383,6 +402,13 @@
                                     <div class="tc-throttle-fill" :style="{ height: throttleFillPct + '%' }"></div>
                                 </div>
                             </div>
+                            <svg v-if="gMeter.visible" class="tc-g-meter" :class="{ clipped: gMeter.clipped }" viewBox="-1.4 -1.4 2.8 2.8" aria-hidden="true" :title="gMeter.title">
+                                <circle cx="0" cy="0" r="1.2" fill="none" stroke="currentColor" stroke-width="0.08" opacity="0.55"/>
+                                <circle cx="0" cy="0" r="0.6" fill="none" stroke="currentColor" stroke-width="0.05" opacity="0.35"/>
+                                <line x1="-1.2" y1="0" x2="1.2" y2="0" stroke="currentColor" stroke-width="0.04" opacity="0.35"/>
+                                <line x1="0" y1="-1.2" x2="0" y2="1.2" stroke="currentColor" stroke-width="0.04" opacity="0.35"/>
+                                <circle :cx="gMeter.x" :cy="gMeter.y" r="0.22" fill="currentColor"/>
+                            </svg>
                         </div>
                     </div>
                     <video ref="video" class="video" :class="view.camera" :src="view.file" :playbackRate="playbackRate" crossorigin="anonymous" preload="auto" @durationchange="durationChanged" @timeupdate="timeChanged" @ended="ended" title="Open in file explorer" @click="openExternal" playsinline></video>
@@ -409,6 +435,82 @@
                     if ( !d || d.acceleratorPedal == null ) return 0
 
                     return Math.round( Math.max( 0, Math.min( 1, d.acceleratorPedal ) ) * 100 )
+                },
+                telemetryGapSummary: function()
+                {
+                    if ( !this.telemetryGaps.length ) return ""
+
+                    var parts = []
+                    var max = Math.min( this.telemetryGaps.length, 5 )
+
+                    for ( var i = 0; i < max; i++ )
+                    {
+                        var g = this.telemetryGaps[ i ]
+                        var secs = g.approxSec != null ? ( " (" + g.approxSec.toFixed( 2 ) + "s)" ) : ""
+
+                        parts.push( "~" + g.missing + " frames missing at seq " + g.fromSeq + "→" + g.toSeq + secs )
+                    }
+
+                    if ( this.telemetryGaps.length > max ) parts.push( "…and " + ( this.telemetryGaps.length - max ) + " more" )
+
+                    return parts.join( "\n" )
+                },
+                gMeter: function()
+                {
+                    var d = this.dashDisplay
+                    var G = 9.80665
+                    var MAX_G = 1.2
+
+                    if ( !d || d.accelX == null || d.accelY == null ) return { visible: false, x: 0, y: 0, clipped: false, title: "" }
+
+                    // Axis mapping verified empirically against real clips:
+                    //   accelY  → longitudinal, with positive = deceleration/braking
+                    //   accelX  → lateral (right-positive assumed; flip if a right turn
+                    //             produces the wrong side).
+                    // "Ball in bowl" convention: the dot lags the felt force, so
+                    // accelerating forward pushes the dot down (toward the rear).
+                    var longG = -d.accelY / G
+                    var latG = d.accelX / G
+                    var magSq = longG * longG + latG * latG
+                    var clamped = false
+                    var dotX = -latG
+                    var dotY = longG
+
+                    if ( magSq > MAX_G * MAX_G )
+                    {
+                        var mag = Math.sqrt( magSq )
+                        dotX = dotX * MAX_G / mag
+                        dotY = dotY * MAX_G / mag
+                        clamped = true
+                    }
+
+                    return {
+                        visible: true,
+                        x: dotX,
+                        y: dotY,
+                        clipped: clamped,
+                        title: "G: " + ( Math.sqrt( magSq ) ).toFixed( 2 ) + "g"
+                    }
+                },
+                speedDisplay: function()
+                {
+                    var unit = "km"
+
+                    if ( this.getSpeedUnit )
+                    {
+                        var resolved = this.getSpeedUnit()
+
+                        if ( resolved === "mi" ) unit = "mi"
+                    }
+
+                    var unitLabel = unit === "mi" ? "mph" : "km/h"
+                    var d = this.dashDisplay
+
+                    if ( !d || d.speedMps == null ) return { value: "—", unit: unitLabel }
+
+                    var factor = unit === "mi" ? 2.2369362920544 : 3.6
+
+                    return { value: Math.round( d.speedMps * factor ), unit: unitLabel }
                 }
             },
             mounted: function()
@@ -508,6 +610,8 @@
                     this.telemetryStatus = "loading"
                     this.telemetrySamples = []
                     this.telemetryError = null
+                    this.telemetryGaps = []
+                    this.telemetryGapsExpanded = false
 
                     var primed = consumeClipTelemetry( filePath )
                     var promise = primed || new Promise( function( resolve )
@@ -535,6 +639,8 @@
                         }
 
                         self.telemetrySamples = res.samples
+                        self.telemetryGaps = detectSeqGaps( res.samples )
+                        self.telemetryGapsExpanded = false
                         self.telemetryStatus = "ready"
                     } )
                 },
@@ -568,7 +674,11 @@
 
                     if ( lat == null || lon == null || !isFinite( lat ) || !isFinite( lon ) ) return
 
-                    this.publishGps( { lat: lat, lon: lon } )
+                    var curHeading = ( cur && typeof cur.headingDeg === "number" ) ? cur.headingDeg : null
+                    var nextHeading = ( next && typeof next.headingDeg === "number" ) ? next.headingDeg : null
+                    var heading = lerpAngleDeg( curHeading, nextHeading, alpha )
+
+                    this.publishGps( { lat: lat, lon: lon, heading: typeof heading === "number" ? heading : null } )
                 },
                 startPlayback: function()
                 {

@@ -179,6 +179,29 @@ body
     border-radius: 0.2rem;
 }
 
+.event-vehicle-marker
+{
+    background: transparent;
+    border: 0;
+}
+
+.event-vehicle-arrow
+{
+    width: 22px;
+    height: 22px;
+    transition: transform 0.08s linear;
+}
+
+.event-vehicle-dot
+{
+    width: 14px;
+    height: 14px;
+    margin: 4px;
+    background: #0d6efd;
+    border: 2px solid #fff;
+    border-radius: 50%;
+}
+
 #times
 {
   overflow-y: auto;
@@ -651,10 +674,10 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
-  min-width: min( 100%, 22rem );
+  gap: 1.1rem;
+  min-width: min( 100%, 33rem );
   max-width: 100%;
-  padding: 0.4rem 0.65rem;
+  padding: 0.5rem 1rem;
   background: rgba( 74, 85, 85, 0.88 );
   border-radius: 0.65rem;
   color: rgba( 255, 255, 255, 0.55 );
@@ -764,6 +787,76 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
   bottom: 0;
   background: linear-gradient( to top, #2b8a3e, #69db7c );
   transition: height 0.08s linear;
+}
+
+.tc-g-meter
+{
+  width: 3.75rem;
+  height: 3.75rem;
+  flex-shrink: 0;
+  color: rgba( 255, 255, 255, 0.9 );
+}
+
+.tc-g-meter.clipped
+{
+  color: #f87171;
+}
+
+.tc-compass
+{
+  width: 3.75rem;
+  height: 3.75rem;
+  flex-shrink: 0;
+  color: rgba( 255, 255, 255, 0.9 );
+}
+
+.tc-telemetry-gap-chip
+{
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  z-index: 3;
+  background: rgba( 180, 83, 9, 0.88 );
+  color: #fff;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  white-space: pre-line;
+  pointer-events: auto;
+}
+
+.tc-seq-diagnostics-grid
+{
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  column-gap: 0.9rem;
+  row-gap: 0.2rem;
+  align-items: baseline;
+  font-size: 0.85rem;
+}
+
+.tc-seq-diagnostics-grid > div
+{
+  padding: 0.1rem 0;
+  white-space: nowrap;
+}
+
+.tc-seq-diagnostics-head
+{
+  font-weight: 600;
+  color: var( --tc-muted-color, #6c757d );
+  border-bottom: 1px solid var( --tc-panel-border );
+  margin-bottom: 0.2rem;
+}
+
+.tc-seq-delta-warn
+{
+  color: #f59f0a;
+  font-weight: 600;
 }
 
 .time-thumb

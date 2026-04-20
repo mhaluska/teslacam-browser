@@ -25,6 +25,13 @@ function normalizeThemePreference( p )
 	return "system"
 }
 
+function normalizeSpeedUnit( u )
+{
+	if ( u === "km" || u === "mi" || u === "auto" ) return u
+
+	return "auto"
+}
+
 function syncNativeThemeSource( preference )
 {
 	var p = normalizeThemePreference( preference )
@@ -165,6 +172,7 @@ function initialize()
 		ipcMain.handle( "readEventJson", async ( _event, p ) => await services.readEventJson( p ) )
 
 		ipcMain.handle( "getClipTelemetry", async ( _event, p ) => await services.readClipTelemetry( p ) )
+		ipcMain.handle( "getClipSeqSummary", async ( _event, p ) => await services.readClipSeqSummary( p ) )
 
 		ipcMain.handle( "getThemePreference", () => normalizeThemePreference( settings.getSync( "themePreference" ) ) )
 		ipcMain.handle( "setThemePreference", ( _event, mode ) =>
@@ -178,6 +186,16 @@ function initialize()
 		} )
 
 		syncNativeThemeSource( normalizeThemePreference( settings.getSync( "themePreference" ) ) )
+
+		ipcMain.handle( "getSpeedUnit", () => normalizeSpeedUnit( settings.getSync( "speedUnit" ) ) )
+		ipcMain.handle( "setSpeedUnit", ( _event, mode ) =>
+		{
+			var m = normalizeSpeedUnit( mode )
+
+			settings.setSync( "speedUnit", m )
+
+			return m
+		} )
 
 		ipcMain.on( "openBrowser", () => browse() )
 		ipcMain.on( "deleteFiles", ( _event, files ) => services.deleteFiles( files ).catch( e => logger.warn( "ipc_delete_files_failed", { error: e } ) ) )

@@ -2,8 +2,9 @@ const { contextBridge, ipcRenderer } = require( "electron" )
 
 const INVOKE_CHANNELS = [
 	"openFolders", "reopenFolders", "openFolder", "getFiles",
-	"readEventJson", "getClipTelemetry",
-	"getThemePreference", "setThemePreference"
+	"readEventJson", "getClipTelemetry", "getClipSeqSummary",
+	"getThemePreference", "setThemePreference",
+	"getSpeedUnit", "setSpeedUnit"
 ]
 
 const SEND_CHANNELS = [
