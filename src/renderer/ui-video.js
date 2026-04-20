@@ -463,27 +463,31 @@
 
                     if ( !d || d.accelX == null || d.accelY == null ) return { visible: false, x: 0, y: 0, clipped: false, title: "" }
 
-                    // Tesla IMU: +X forward, +Y left, +Z up.
-                    // "Ball in bowl" feel: dot lags behind the felt force.
-                    // Accel forward (+X) → dot toward rear (+y in SVG where +y is down if we treat screen-up as forward)
-                    // Accel left  (+Y) → dot toward right
-                    var longG = d.accelX / G
-                    var latG = d.accelY / G
-                    var clamped = false
+                    // Axis mapping verified empirically against real clips:
+                    //   accelY  → longitudinal, with positive = deceleration/braking
+                    //   accelX  → lateral (right-positive assumed; flip if a right turn
+                    //             produces the wrong side).
+                    // "Ball in bowl" convention: the dot lags the felt force, so
+                    // accelerating forward pushes the dot down (toward the rear).
+                    var longG = -d.accelY / G
+                    var latG = d.accelX / G
                     var magSq = longG * longG + latG * latG
+                    var clamped = false
+                    var dotX = -latG
+                    var dotY = longG
 
                     if ( magSq > MAX_G * MAX_G )
                     {
                         var mag = Math.sqrt( magSq )
-                        longG = longG * MAX_G / mag
-                        latG = latG * MAX_G / mag
+                        dotX = dotX * MAX_G / mag
+                        dotY = dotY * MAX_G / mag
                         clamped = true
                     }
 
                     return {
                         visible: true,
-                        x: -latG,
-                        y: longG,
+                        x: dotX,
+                        y: dotY,
                         clipped: clamped,
                         title: "G: " + ( Math.sqrt( magSq ) ).toFixed( 2 ) + "g"
                     }
