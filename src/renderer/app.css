@@ -779,6 +779,14 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
   color: #f87171;
 }
 
+.tc-compass
+{
+  width: 2rem;
+  height: 2rem;
+  margin-top: 0.25rem;
+  color: rgba( 255, 255, 255, 0.85 );
+}
+
 .time-thumb
 {
   width: 48px;

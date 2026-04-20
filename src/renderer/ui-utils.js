@@ -52,6 +52,20 @@
 		return { cur: samples[ i0 ], next: samples[ i1 ], alpha: alpha }
 	}
 
+	function lerpAngleDeg( a, b, alpha )
+	{
+		if ( a == null && b == null ) return null
+
+		if ( a == null ) return b
+
+		if ( b == null ) return a
+
+		var diff = ( ( b - a + 540 ) % 360 ) - 180
+		var result = a + diff * alpha
+
+		return ( result % 360 + 360 ) % 360
+	}
+
 	function blendDashSamples( cur, next, alpha )
 	{
 		function lerpNum( a, b, al )
@@ -80,7 +94,8 @@
 			steeringWheelAngle: cur.steeringWheelAngle,
 			accelX: lerpNum( cur.accelX, next.accelX, alpha ),
 			accelY: lerpNum( cur.accelY, next.accelY, alpha ),
-			accelZ: lerpNum( cur.accelZ, next.accelZ, alpha )
+			accelZ: lerpNum( cur.accelZ, next.accelZ, alpha ),
+			headingDeg: lerpAngleDeg( cur.headingDeg, next.headingDeg, alpha )
 		}
 	}
 
@@ -130,6 +145,7 @@
 	return {
 		pickSeiInterpolationBracket: pickSeiInterpolationBracket,
 		blendDashSamples: blendDashSamples,
+		lerpAngleDeg: lerpAngleDeg,
 		normalizeThemePreference: normalizeThemePreference,
 		normalizeSpeedUnit: normalizeSpeedUnit,
 		resolveAutoSpeedUnit: resolveAutoSpeedUnit,

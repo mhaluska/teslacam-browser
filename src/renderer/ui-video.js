@@ -365,6 +365,16 @@
                                     <line x1="9" y1="18" x2="23" y2="18" stroke="currentColor" stroke-width="2"/>
                                     <line x1="9" y1="24" x2="23" y2="24" stroke="currentColor" stroke-width="2"/>
                                 </svg>
+                                <svg v-if="dashDisplay.headingDeg != null" class="tc-compass" viewBox="-1.4 -1.4 2.8 2.8" aria-hidden="true" :title="'Heading: ' + Math.round( dashDisplay.headingDeg ) + '\u00b0'">
+                                    <circle cx="0" cy="0" r="1.15" fill="none" stroke="currentColor" stroke-width="0.08" opacity="0.45"/>
+                                    <g :style="{ transform: 'rotate(' + ( -dashDisplay.headingDeg ) + 'deg)', transformOrigin: '0 0', transition: 'transform 0.08s linear' }">
+                                        <text x="0" y="-0.75" text-anchor="middle" font-size="0.55" fill="#f87171" font-weight="700">N</text>
+                                        <text x="0.85" y="0.2" text-anchor="middle" font-size="0.4" fill="currentColor" opacity="0.65">E</text>
+                                        <text x="0" y="1.05" text-anchor="middle" font-size="0.4" fill="currentColor" opacity="0.65">S</text>
+                                        <text x="-0.85" y="0.2" text-anchor="middle" font-size="0.4" fill="currentColor" opacity="0.65">W</text>
+                                    </g>
+                                    <polygon points="0,-0.5 0.18,0.15 -0.18,0.15" fill="currentColor"/>
+                                </svg>
                             </div>
                             <svg class="tc-arrow" :class="{ on: dashDisplay.blinkerLeft }" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M10 3L2 12l8 9v-6h12V9H10V3z"/></svg>
                             <div class="tc-speed-block">
