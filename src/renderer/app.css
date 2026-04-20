@@ -888,3 +888,131 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
   pointer-events: auto;
 }
 
+.clip-analytics
+{
+  display: flex;
+  flex-direction: column;
+  min-height: 420px;
+}
+
+.clip-analytics-tabs
+{
+  margin-bottom: 0.75rem;
+}
+
+.clip-analytics-msg
+{
+  padding: 2rem 1rem;
+  text-align: center;
+  font-size: 1rem;
+}
+
+.clip-analytics-status
+{
+  padding: 0.25rem 0.5rem 0.5rem;
+  border-bottom: 1px solid var( --tc-panel-border );
+  margin-bottom: 0.5rem;
+}
+
+.clip-analytics-body
+{
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.clip-analytics-tab
+{
+  min-height: 360px;
+}
+
+.clip-analytics-placeholder
+{
+  padding: 2.5rem 1rem;
+  text-align: center;
+  font-style: italic;
+}
+
+.clip-trail-controls
+{
+  padding: 0.25rem 0.5rem;
+}
+
+.clip-trail-map
+{
+  width: 100%;
+  height: 52vh;
+  min-height: 320px;
+  border-radius: 0.25rem;
+  border: 1px solid var( --tc-panel-border );
+}
+
+.clip-analytics-charts
+{
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.clip-analytics-chart-wrap
+{
+  position: relative;
+  width: 100%;
+}
+
+.clip-analytics-chart
+{
+  width: 100%;
+  user-select: none;
+  cursor: col-resize;
+}
+
+.clip-analytics-playhead
+{
+  position: absolute;
+  width: 2px;
+  background: rgba( 220, 53, 69, 0.85 );
+  pointer-events: none;
+  display: none;
+  z-index: 2;
+}
+
+.clip-analytics-stats-grid
+{
+  display: grid;
+  grid-template-columns: repeat( auto-fit, minmax( 150px, 1fr ) );
+  gap: 0.75rem;
+  padding: 1rem 0.5rem;
+}
+
+.clip-analytics-stat
+{
+  border: 1px solid var( --tc-panel-border );
+  border-radius: 0.35rem;
+  padding: 0.6rem 0.8rem;
+  background: var( --tc-panel-bg );
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.clip-analytics-stat-label
+{
+  font-size: 0.8rem;
+  color: var( --tc-muted-color );
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.clip-analytics-stat-value
+{
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.clip-analytics-export
+{
+  padding: 1.5rem 1rem;
+  max-width: 36rem;
+  margin: 0 auto;
+}
+

@@ -894,6 +894,8 @@
 		expressApp.get( "/node_modules/leaflet/dist/leaflet.css", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( path.join( nodeModulesDir, "leaflet/dist/leaflet.css" ) ) } )
 		expressApp.get( "/node_modules/leaflet/dist/leaflet.js", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( path.join( nodeModulesDir, "leaflet/dist/leaflet.js" ) ) } )
 		expressApp.use( "/node_modules/leaflet/dist/images", express.static( path.join( nodeModulesDir, "leaflet/dist/images" ), { maxAge: "365d", immutable: true } ) )
+		expressApp.get( "/node_modules/uplot/dist/uPlot.min.css", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( path.join( nodeModulesDir, "uplot/dist/uPlot.min.css" ) ) } )
+		expressApp.get( "/node_modules/uplot/dist/uPlot.iife.min.js", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( path.join( nodeModulesDir, "uplot/dist/uPlot.iife.min.js" ) ) } )
 
 		// Terminal error handler. Catches anything that slipped past route-level try/catch.
 		// Must have 4 args for Express to recognize it as an error handler.

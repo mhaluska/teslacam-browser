@@ -213,6 +213,282 @@
 		return gaps
 	}
 
+	var G = 9.80665
+	var EARTH_RADIUS_M = 6371008.8
+
+	function haversineMeters( lat1, lon1, lat2, lon2 )
+	{
+		var toRad = Math.PI / 180
+		var dLat = ( lat2 - lat1 ) * toRad
+		var dLon = ( lon2 - lon1 ) * toRad
+		var a = Math.sin( dLat / 2 ) * Math.sin( dLat / 2 )
+			+ Math.cos( lat1 * toRad ) * Math.cos( lat2 * toRad )
+			* Math.sin( dLon / 2 ) * Math.sin( dLon / 2 )
+		var c = 2 * Math.atan2( Math.sqrt( a ), Math.sqrt( 1 - a ) )
+
+		return EARTH_RADIUS_M * c
+	}
+
+	/** Summary trip statistics derived from stitched SEI samples.
+	 *  Expects samples with `tSec`, optional `latitudeDeg`/`longitudeDeg`,
+	 *  `speedMps`, `accelY`, and `autopilot`. Missing fields are skipped
+	 *  silently — callers render "—" when a metric is null. */
+	function computeTripStats( samples )
+	{
+		var result = {
+			count: 0,
+			firstTSec: null,
+			lastTSec: null,
+			durationSec: null,
+			minSpeedMps: null,
+			maxSpeedMps: null,
+			avgSpeedMps: null,
+			distanceMeters: null,
+			maxLateralG: null,
+			autopilotPct: null
+		}
+
+		if ( !Array.isArray( samples ) || !samples.length ) return result
+
+		result.count = samples.length
+
+		var firstT = null
+		var lastT = null
+		var minSpeed = null
+		var maxSpeed = null
+		var speedSum = 0
+		var speedWeight = 0
+		var distance = 0
+		var prevGps = null
+		var prevT = null
+		var maxLatAbs = 0
+		var hasLat = false
+		var apOn = 0
+		var apTotal = 0
+
+		for ( var i = 0; i < samples.length; i++ )
+		{
+			var s = samples[ i ]
+			var t = ( typeof s.tSec === "number" && isFinite( s.tSec ) ) ? s.tSec : null
+
+			if ( t != null )
+			{
+				if ( firstT == null || t < firstT ) firstT = t
+				if ( lastT == null || t > lastT ) lastT = t
+			}
+
+			if ( typeof s.speedMps === "number" && isFinite( s.speedMps ) )
+			{
+				if ( minSpeed == null || s.speedMps < minSpeed ) minSpeed = s.speedMps
+				if ( maxSpeed == null || s.speedMps > maxSpeed ) maxSpeed = s.speedMps
+
+				var dt = ( prevT != null && t != null ) ? ( t - prevT ) : 0
+
+				if ( dt > 0 && dt < 5 )
+				{
+					speedSum += s.speedMps * dt
+					speedWeight += dt
+				}
+			}
+
+			if ( typeof s.accelY === "number" && isFinite( s.accelY ) )
+			{
+				hasLat = true
+
+				var absLat = Math.abs( s.accelY )
+
+				if ( absLat > maxLatAbs ) maxLatAbs = absLat
+			}
+
+			if ( typeof s.autopilot === "string" )
+			{
+				apTotal += 1
+				if ( s.autopilot !== "NONE" && s.autopilot !== "" ) apOn += 1
+			}
+
+			var lat = s.latitudeDeg
+			var lon = s.longitudeDeg
+			var gpsValid = typeof lat === "number" && typeof lon === "number"
+				&& isFinite( lat ) && isFinite( lon )
+				&& !( lat === 0 && lon === 0 )
+
+			if ( gpsValid )
+			{
+				if ( prevGps ) distance += haversineMeters( prevGps.lat, prevGps.lon, lat, lon )
+
+				prevGps = { lat: lat, lon: lon }
+			}
+
+			prevT = t
+		}
+
+		result.firstTSec = firstT
+		result.lastTSec = lastT
+		result.durationSec = ( firstT != null && lastT != null ) ? Math.max( 0, lastT - firstT ) : null
+		result.minSpeedMps = minSpeed
+		result.maxSpeedMps = maxSpeed
+		result.avgSpeedMps = speedWeight > 0 ? ( speedSum / speedWeight ) : null
+		result.distanceMeters = prevGps ? distance : null
+		result.maxLateralG = hasLat ? ( maxLatAbs / G ) : null
+		result.autopilotPct = apTotal > 0 ? ( apOn / apTotal ) : null
+
+		return result
+	}
+
+	var CSV_COLUMNS = [
+		"tSec", "isoTime",
+		"latitudeDeg", "longitudeDeg",
+		"speedMps", "speedKph",
+		"headingDeg", "steeringDeg",
+		"accelerator", "brakeApplied",
+		"accelX", "accelY", "accelZ",
+		"gear", "autopilot",
+		"blinkerLeft", "blinkerRight",
+		"frameSeqNo"
+	]
+
+	function escapeCsvCell( v )
+	{
+		if ( v == null ) return ""
+
+		var s = String( v )
+
+		if ( s.indexOf( "\"" ) >= 0 || s.indexOf( "," ) >= 0 || s.indexOf( "\n" ) >= 0 || s.indexOf( "\r" ) >= 0 )
+		{
+			return "\"" + s.replace( /"/g, "\"\"" ) + "\""
+		}
+
+		return s
+	}
+
+	function escapeXml( v )
+	{
+		if ( v == null ) return ""
+
+		return String( v )
+			.replace( /&/g, "&amp;" )
+			.replace( /</g, "&lt;" )
+			.replace( />/g, "&gt;" )
+			.replace( /"/g, "&quot;" )
+			.replace( /'/g, "&apos;" )
+	}
+
+	function sampleIsoTime( sample, baseTime )
+	{
+		if ( !baseTime || !( baseTime instanceof Date ) || isNaN( baseTime.getTime() ) ) return ""
+
+		var t = ( typeof sample.tSec === "number" && isFinite( sample.tSec ) ) ? sample.tSec : 0
+
+		return new Date( baseTime.getTime() + t * 1000 ).toISOString()
+	}
+
+	function fmtNum( v, digits )
+	{
+		if ( v == null || typeof v !== "number" || !isFinite( v ) ) return ""
+
+		return digits != null ? v.toFixed( digits ) : String( v )
+	}
+
+	function buildTelemetryCsv( samples, baseTime )
+	{
+		var lines = [ CSV_COLUMNS.join( "," ) ]
+
+		if ( !Array.isArray( samples ) ) return lines.join( "\n" ) + "\n"
+
+		for ( var i = 0; i < samples.length; i++ )
+		{
+			var s = samples[ i ]
+			var speedMps = ( typeof s.speedMps === "number" && isFinite( s.speedMps ) ) ? s.speedMps : null
+			var speedKph = speedMps != null ? speedMps * 3.6 : null
+
+			var row = [
+				fmtNum( s.tSec, 3 ),
+				escapeCsvCell( sampleIsoTime( s, baseTime ) ),
+				fmtNum( s.latitudeDeg, 7 ),
+				fmtNum( s.longitudeDeg, 7 ),
+				fmtNum( speedMps, 3 ),
+				fmtNum( speedKph, 2 ),
+				fmtNum( s.headingDeg, 2 ),
+				fmtNum( s.steeringWheelAngle, 2 ),
+				fmtNum( s.acceleratorPedal, 3 ),
+				s.brakeApplied ? "1" : "0",
+				fmtNum( s.accelX, 3 ),
+				fmtNum( s.accelY, 3 ),
+				fmtNum( s.accelZ, 3 ),
+				escapeCsvCell( s.gear ),
+				escapeCsvCell( s.autopilot ),
+				s.blinkerLeft ? "1" : "0",
+				s.blinkerRight ? "1" : "0",
+				escapeCsvCell( s.frameSeqNo )
+			]
+
+			lines.push( row.join( "," ) )
+		}
+
+		return lines.join( "\n" ) + "\n"
+	}
+
+	function buildTelemetryGpx( samples, baseTime, opts )
+	{
+		opts = opts || {}
+
+		var trackName = opts.name ? opts.name : "TeslaCam clip"
+		var creator = opts.creator ? opts.creator : "TeslaCam Browser"
+		var metaTime = ( baseTime instanceof Date && !isNaN( baseTime.getTime() ) ) ? baseTime.toISOString() : new Date().toISOString()
+		var head = ""
+			+ "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+			+ "<gpx version=\"1.1\" creator=\"" + escapeXml( creator ) + "\""
+			+ " xmlns=\"http://www.topografix.com/GPX/1/1\""
+			+ " xmlns:gpxtpx=\"http://www.garmin.com/xmlschemas/TrackPointExtension/v1\""
+			+ " xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\""
+			+ " xsi:schemaLocation=\"http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd\">\n"
+			+ "  <metadata>\n"
+			+ "    <name>" + escapeXml( trackName ) + "</name>\n"
+			+ "    <time>" + escapeXml( metaTime ) + "</time>\n"
+			+ "  </metadata>\n"
+			+ "  <trk>\n"
+			+ "    <name>" + escapeXml( trackName ) + "</name>\n"
+			+ "    <trkseg>\n"
+		var tail = "    </trkseg>\n  </trk>\n</gpx>\n"
+		var body = ""
+
+		if ( Array.isArray( samples ) )
+		{
+			for ( var i = 0; i < samples.length; i++ )
+			{
+				var s = samples[ i ]
+				var lat = s.latitudeDeg
+				var lon = s.longitudeDeg
+
+				if ( typeof lat !== "number" || typeof lon !== "number"
+					|| !isFinite( lat ) || !isFinite( lon )
+					|| ( lat === 0 && lon === 0 ) ) continue
+
+				var speedMps = ( typeof s.speedMps === "number" && isFinite( s.speedMps ) ) ? s.speedMps : null
+				var courseDeg = ( typeof s.headingDeg === "number" && isFinite( s.headingDeg ) ) ? s.headingDeg : null
+				var iso = sampleIsoTime( s, baseTime )
+
+				body += "      <trkpt lat=\"" + lat.toFixed( 7 ) + "\" lon=\"" + lon.toFixed( 7 ) + "\">\n"
+
+				if ( iso ) body += "        <time>" + iso + "</time>\n"
+
+				if ( speedMps != null || courseDeg != null )
+				{
+					body += "        <extensions>\n"
+					body += "          <gpxtpx:TrackPointExtension>\n"
+					if ( speedMps != null ) body += "            <gpxtpx:speed>" + speedMps.toFixed( 3 ) + "</gpxtpx:speed>\n"
+					if ( courseDeg != null ) body += "            <gpxtpx:course>" + courseDeg.toFixed( 2 ) + "</gpxtpx:course>\n"
+					body += "          </gpxtpx:TrackPointExtension>\n"
+					body += "        </extensions>\n"
+				}
+
+				body += "      </trkpt>\n"
+			}
+		}
+
+		return head + body + tail
+	}
+
 	return {
 		pickSeiInterpolationBracket: pickSeiInterpolationBracket,
 		blendDashSamples: blendDashSamples,
@@ -221,6 +497,11 @@
 		normalizeThemePreference: normalizeThemePreference,
 		normalizeSpeedUnit: normalizeSpeedUnit,
 		resolveAutoSpeedUnit: resolveAutoSpeedUnit,
-		effectiveSpeedUnit: effectiveSpeedUnit
+		effectiveSpeedUnit: effectiveSpeedUnit,
+		haversineMeters: haversineMeters,
+		computeTripStats: computeTripStats,
+		buildTelemetryCsv: buildTelemetryCsv,
+		buildTelemetryGpx: buildTelemetryGpx,
+		CSV_COLUMNS: CSV_COLUMNS
 	}
 } ) );

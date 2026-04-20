@@ -10,15 +10,18 @@
   <link rel="stylesheet" href="../../node_modules/bootstrap/dist/css/bootstrap.min.css" />
   <link rel="stylesheet" href="../../node_modules/bootstrap-icons/font/bootstrap-icons.css" />
   <link rel="stylesheet" href="../../node_modules/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="../../node_modules/uplot/dist/uPlot.min.css" />
   <link rel="stylesheet" href="app.css" />
   <script type="text/javascript" src="../../node_modules/vue/dist/vue.global.js"></script>
   <script type="text/javascript" src="../../node_modules/flatpickr/dist/flatpickr.min.js"></script>
   <script type="text/javascript" src="../../node_modules/leaflet/dist/leaflet.js"></script>
+  <script type="text/javascript" src="../../node_modules/uplot/dist/uPlot.iife.min.js"></script>
   <script type="text/javascript" src="helpers.js"></script>
   <script type="text/javascript" src="ui-constants.js"></script>
   <script type="text/javascript" src="ui-utils.js"></script>
   <script type="text/javascript" src="ui-video.js"></script>
   <script type="text/javascript" src="ui-map.js"></script>
+  <script type="text/javascript" src="ui-analytics.js"></script>
   <script type="text/javascript" src="ui.js"></script>
 
 </head>
@@ -138,10 +141,14 @@
                   </div>
                 </template>
                 <div v-else class="text-muted">No event.json</div>
-                <div class="mt-2 text-center">
+                <div class="mt-2 d-flex justify-content-center gap-2">
+                  <button type="button" class="btn btn-sm btn-outline-secondary" @click.prevent="openClipAnalytics">
+                    <span class="bi bi-bar-chart-line" aria-hidden="true"></span>
+                    Analytics
+                  </button>
                   <button type="button" class="btn btn-sm btn-outline-secondary" @click.prevent="openSeqDiagnostics">
                     <span class="bi bi-activity" aria-hidden="true"></span>
-                    Camera sync diagnostics
+                    Sync check
                   </button>
                 </div>
               </div>
@@ -305,6 +312,33 @@
             <p v-if="seqDiagnostics.results" class="text-muted small mt-3 mb-0">
               Δ is the difference in first SEI frame sequence number relative to the baseline camera. A value of 0 means the cameras started in lockstep; values > 1 mean that camera began recording a few frames late.
             </p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Clip analytics modal -->
+    <div class="modal fade" id="clipAnalyticsModal" tabindex="-1" aria-labelledby="clipAnalyticsLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-xl">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="clipAnalyticsLabel">Clip analytics</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <clip-analytics
+              :loading="clipAnalytics.loading"
+              :error="clipAnalytics.error"
+              :samples="clipAnalytics.samples"
+              :current-time="currentTime"
+              :event-label="clipAnalyticsEventLabel"
+              :speed-unit="resolvedSpeedUnit"
+              :shown-counter="clipAnalytics.shownCounter"
+              :base-time="clipAnalyticsBaseTime"
+              @seek="seekToSampleTime"></clip-analytics>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
