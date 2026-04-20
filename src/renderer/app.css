@@ -674,10 +674,10 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
-  min-width: min( 100%, 22rem );
+  gap: 1.1rem;
+  min-width: min( 100%, 33rem );
   max-width: 100%;
-  padding: 0.4rem 0.65rem;
+  padding: 0.5rem 1rem;
   background: rgba( 74, 85, 85, 0.88 );
   border-radius: 0.65rem;
   color: rgba( 255, 255, 255, 0.55 );
