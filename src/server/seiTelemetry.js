@@ -290,7 +290,10 @@
 				autopilot: typeof a === "number" && a >= 0 && a <= 3 ? AUTOPILOT_LABELS[ a ] : "NONE",
 				latitudeDeg: typeof msg.latitudeDeg === "number" ? msg.latitudeDeg : null,
 				longitudeDeg: typeof msg.longitudeDeg === "number" ? msg.longitudeDeg : null,
-				headingDeg: typeof msg.headingDeg === "number" ? msg.headingDeg : null
+				headingDeg: typeof msg.headingDeg === "number" ? msg.headingDeg : null,
+				accelX: typeof msg.linearAccelerationMps2X === "number" ? msg.linearAccelerationMps2X : null,
+				accelY: typeof msg.linearAccelerationMps2Y === "number" ? msg.linearAccelerationMps2Y : null,
+				accelZ: typeof msg.linearAccelerationMps2Z === "number" ? msg.linearAccelerationMps2Z : null
 			};
 		}
 		catch ( _e )

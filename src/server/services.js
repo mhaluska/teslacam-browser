@@ -50,7 +50,7 @@
 	var version = "0.0.1"
 	var lastArgs = { version: version, folder: "" }
 	var clipTelemetryCache = new LruCache( 200 )
-	var clipTelemetryCacheKeySuffix = "\0tSecV3"
+	var clipTelemetryCacheKeySuffix = "\0tSecV4"
 	var videosMounted = false
 	var expressInitialized = false
 	var csrfCookieName = "tc_csrf"
