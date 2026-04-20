@@ -113,33 +113,45 @@
 		return "auto"
 	}
 
-	// Countries that use mph on the road (excluding American Samoa, Bahamas etc.
-	// that are rare locales in practice). Explicit list beats Intl guessing.
-	var MPH_REGIONS = [ "US", "GB", "UK", "LR", "MM" ]
+	// IANA zones in countries that post road signs in mph: US (incl. territories),
+	// UK + Crown Dependencies, Liberia, Myanmar. Timezone reflects OS "Region"
+	// setting, which is where the user actually drives — more reliable than
+	// navigator.language (which tracks UI language, e.g. en-US on a Czech Mac).
+	var MPH_TIMEZONES = [
+		// United States
+		"America/New_York", "America/Detroit", "America/Chicago", "America/Denver",
+		"America/Boise", "America/Phoenix", "America/Los_Angeles", "America/Anchorage",
+		"America/Juneau", "America/Sitka", "America/Yakutat", "America/Nome",
+		"America/Adak", "America/Metlakatla", "America/Menominee",
+		"America/Indiana/Indianapolis", "America/Indiana/Vincennes", "America/Indiana/Winamac",
+		"America/Indiana/Marengo", "America/Indiana/Petersburg", "America/Indiana/Vevay",
+		"America/Indiana/Tell_City", "America/Indiana/Knox",
+		"America/Kentucky/Louisville", "America/Kentucky/Monticello",
+		"America/North_Dakota/Center", "America/North_Dakota/New_Salem", "America/North_Dakota/Beulah",
+		"America/Puerto_Rico", "America/St_Thomas",
+		"Pacific/Honolulu", "Pacific/Guam", "Pacific/Pago_Pago", "Pacific/Saipan",
+		// United Kingdom + Crown Dependencies
+		"Europe/London", "Europe/Belfast", "Europe/Jersey", "Europe/Guernsey", "Europe/Isle_of_Man",
+		// Liberia
+		"Africa/Monrovia",
+		// Myanmar
+		"Asia/Yangon", "Asia/Rangoon"
+	]
 
-	function resolveAutoSpeedUnit( locale )
+	function resolveAutoSpeedUnit( timezone )
 	{
-		if ( typeof locale !== "string" || !locale ) return "km"
+		if ( typeof timezone !== "string" || !timezone ) return "km"
 
-		var parts = locale.replace( "_", "-" ).split( "-" )
-
-		for ( var i = 1; i < parts.length; i++ )
-		{
-			var region = parts[ i ].toUpperCase()
-
-			if ( MPH_REGIONS.indexOf( region ) >= 0 ) return "mi"
-		}
-
-		return "km"
+		return MPH_TIMEZONES.indexOf( timezone ) >= 0 ? "mi" : "km"
 	}
 
-	function effectiveSpeedUnit( pref, locale )
+	function effectiveSpeedUnit( pref, timezone )
 	{
 		var p = normalizeSpeedUnit( pref )
 
 		if ( p === "km" || p === "mi" ) return p
 
-		return resolveAutoSpeedUnit( locale )
+		return resolveAutoSpeedUnit( timezone )
 	}
 
 	/** Flag runs where consecutive SEI frameSeqNo values jump further than the

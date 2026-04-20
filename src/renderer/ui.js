@@ -412,14 +412,12 @@
                 },
                 resolvedSpeedUnit: function()
                 {
-                    var locale = ""
+                    var timezone = ""
 
-                    if ( typeof navigator !== "undefined" )
-                    {
-                        locale = navigator.language || ( navigator.languages && navigator.languages[ 0 ] ) || ""
-                    }
+                    try { timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "" }
+                    catch ( _e ) { timezone = "" }
 
-                    return effectiveSpeedUnit( this.speedUnitPreference, locale )
+                    return effectiveSpeedUnit( this.speedUnitPreference, timezone )
                 },
                 speedUnitCycleIconClass: function()
                 {
