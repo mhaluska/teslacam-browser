@@ -14,6 +14,12 @@
 
     var G = 9.80665
 
+    var CHART_SYNC_KEY_PREFIX = "clip-analytics-"
+    var CHART_SYNC_KEY_SEED = 0
+
+    function msToMph( v ) { return v * 2.23694 }
+    function msToKph( v ) { return v * 3.6 }
+
     function hasValidGps( s )
     {
         if ( !s ) return false
@@ -105,6 +111,15 @@
                     trailColorMode: "speed"
                 }
             },
+            created: function()
+            {
+                this._chartSyncKey = CHART_SYNC_KEY_PREFIX + ( ++CHART_SYNC_KEY_SEED )
+                this._chartEls = []
+                this._playheadEls = []
+                this._charts = []
+                this._chartResizeObserver = null
+                this._chartDragState = null
+            },
             computed:
             {
                 hasSamples: function() { return Array.isArray( this.samples ) && this.samples.length > 0 },
@@ -155,7 +170,7 @@
                     if ( this.trailColorMode === "speed" )
                     {
                         var unit = this.speedUnit === "mi" ? "mph" : "km/h"
-                        var mult = this.speedUnit === "mi" ? 2.23694 : 3.6
+                        var mult = this.speedUnit === "mi" ? msToMph( 1 ) : msToKph( 1 )
                         var maxDisplay = ( this.trailMaxSpeed * mult ).toFixed( 0 )
 
                         return "green → red · 0 → " + maxDisplay + " " + unit
@@ -164,6 +179,90 @@
                     var maxG = ( this.trailMaxAbsAccel / G ).toFixed( 2 )
 
                     return "red (brake) → grey → green (accel) · ±" + maxG + " g"
+                },
+                chartXValues: function()
+                {
+                    if ( !this.hasSamples ) return []
+
+                    var out = new Array( this.samples.length )
+
+                    for ( var i = 0; i < this.samples.length; i++ )
+                    {
+                        var t = this.samples[ i ].tSec
+
+                        out[ i ] = ( typeof t === "number" && isFinite( t ) ) ? t : 0
+                    }
+
+                    return out
+                },
+                chartDefs: function()
+                {
+                    if ( !this.hasSamples ) return []
+
+                    var samples = this.samples
+                    var n = samples.length
+                    var speedUnit = this.speedUnit === "mi" ? "mph" : "km/h"
+                    var speedMult = this.speedUnit === "mi" ? msToMph( 1 ) : msToKph( 1 )
+
+                    var speedArr = new Array( n )
+                    var steerArr = new Array( n )
+                    var accArr = new Array( n )
+                    var brakeArr = new Array( n )
+                    var aXArr = new Array( n )
+                    var aYArr = new Array( n )
+
+                    for ( var i = 0; i < n; i++ )
+                    {
+                        var s = samples[ i ]
+
+                        speedArr[ i ] = ( typeof s.speedMps === "number" && isFinite( s.speedMps ) ) ? s.speedMps * speedMult : null
+                        steerArr[ i ] = ( typeof s.steeringWheelAngle === "number" && isFinite( s.steeringWheelAngle ) ) ? s.steeringWheelAngle : null
+                        accArr[ i ]   = ( typeof s.acceleratorPedal === "number" && isFinite( s.acceleratorPedal ) ) ? s.acceleratorPedal : null
+                        brakeArr[ i ] = s.brakeApplied ? 1 : 0
+                        aXArr[ i ]    = ( typeof s.accelX === "number" && isFinite( s.accelX ) ) ? s.accelX / G : null
+                        aYArr[ i ]    = ( typeof s.accelY === "number" && isFinite( s.accelY ) ) ? s.accelY / G : null
+                    }
+
+                    return [
+                        {
+                            id: "speed",
+                            label: "Speed (" + speedUnit + ")",
+                            height: 130,
+                            series:
+                            [
+                                { label: "Speed", stroke: "#0d6efd", fill: "rgba(13,110,253,0.22)", width: 1.5, values: speedArr }
+                            ]
+                        },
+                        {
+                            id: "steering",
+                            label: "Steering (°)",
+                            height: 110,
+                            series:
+                            [
+                                { label: "Angle", stroke: "#6610f2", width: 1.5, values: steerArr }
+                            ]
+                        },
+                        {
+                            id: "pedals",
+                            label: "Pedals",
+                            height: 110,
+                            series:
+                            [
+                                { label: "Accelerator", stroke: "#198754", fill: "rgba(25,135,84,0.28)", width: 1.3, values: accArr },
+                                { label: "Brake",       stroke: "#dc3545", fill: "rgba(220,53,69,0.28)", width: 1.3, values: brakeArr }
+                            ]
+                        },
+                        {
+                            id: "accel",
+                            label: "Acceleration (g)",
+                            height: 130,
+                            series:
+                            [
+                                { label: "Longitudinal", stroke: "#fd7e14", width: 1.4, values: aXArr },
+                                { label: "Lateral",      stroke: "#20c997", width: 1.4, values: aYArr }
+                            ]
+                        }
+                    ]
                 }
             },
             watch:
@@ -171,10 +270,16 @@
                 activeTab: function( tab )
                 {
                     if ( tab === "trail" ) this._scheduleTrailRefresh( true )
+                    if ( tab === "charts" ) this._scheduleChartsRefresh( true )
                 },
                 samples: function()
                 {
                     this._scheduleTrailRefresh( true )
+                    if ( this.activeTab === "charts" ) this._scheduleChartsRefresh( true )
+                },
+                speedUnit: function()
+                {
+                    if ( this.activeTab === "charts" ) this._scheduleChartsRefresh( false )
                 },
                 trailColorMode: function()
                 {
@@ -183,10 +288,12 @@
                 currentTime: function()
                 {
                     this._updateTrailVehicle()
+                    this._updateChartPlayheads()
                 },
                 shownCounter: function()
                 {
                     if ( this.activeTab === "trail" ) this._scheduleTrailRefresh( true )
+                    if ( this.activeTab === "charts" ) this._scheduleChartsRefresh( true )
                 }
             },
             mounted: function()
@@ -200,6 +307,7 @@
             beforeUnmount: function()
             {
                 this._destroyTrailMap()
+                this._destroyCharts()
             },
             methods:
             {
@@ -286,6 +394,214 @@
                         this._trailMap.fitBounds( latLngs, { padding: [ 20, 20 ] } )
                     }
                 },
+                _setChartEl: function( i, el ) { this._chartEls[ i ] = el || null },
+                _setPlayheadEl: function( i, el ) { this._playheadEls[ i ] = el || null },
+                _scheduleChartsRefresh: function( rebuild )
+                {
+                    var self = this
+
+                    self.$nextTick( function()
+                    {
+                        if ( rebuild ) self._rebuildCharts()
+                        else self._resizeCharts()
+
+                        self._updateChartPlayheads()
+                    } )
+                },
+                _rebuildCharts: function()
+                {
+                    this._destroyCharts()
+
+                    if ( !window.uPlot || !this.hasSamples ) return
+
+                    var defs = this.chartDefs
+                    var xs = this.chartXValues
+
+                    if ( !defs.length || !xs.length ) return
+
+                    var xMin = xs[ 0 ]
+                    var xMax = xs[ xs.length - 1 ]
+                    var self = this
+
+                    for ( var i = 0; i < defs.length; i++ )
+                    {
+                        var def = defs[ i ]
+                        var el = this._chartEls[ i ]
+
+                        if ( !el ) continue
+
+                        var width = Math.max( 320, Math.floor( el.clientWidth || el.parentElement.clientWidth || 600 ) )
+                        var data = [ xs ]
+                        var series = [ {} ]
+
+                        for ( var j = 0; j < def.series.length; j++ )
+                        {
+                            var s = def.series[ j ]
+
+                            data.push( s.values )
+                            series.push( {
+                                label: s.label,
+                                stroke: s.stroke,
+                                fill: s.fill || null,
+                                width: s.width || 1.4,
+                                spanGaps: true,
+                                points: { show: false }
+                            } )
+                        }
+
+                        var opts = {
+                            width: width,
+                            height: def.height,
+                            title: def.label,
+                            scales: { x: { time: false, min: xMin, max: xMax } },
+                            legend: { show: def.series.length > 1, live: false },
+                            cursor: { sync: { key: this._chartSyncKey }, drag: { setScale: false } },
+                            axes: [
+                                { label: "", values: function( _u, vals ) { return vals.map( function( v ) { return v.toFixed( 0 ) + "s" } ) } },
+                                {}
+                            ],
+                            series: series,
+                            hooks: {
+                                setCursor: [ function( u )
+                                {
+                                    // Intentionally empty — uPlot handles the live crosshair.
+                                } ]
+                            }
+                        }
+
+                        var u = new window.uPlot( opts, data, el )
+                        var chartInfo = { id: def.id, uplot: u, def: def, el: el, capturedTSec: null }
+
+                        this._charts.push( chartInfo )
+
+                        ;( function( info )
+                        {
+                            function seekFromEvent( evt )
+                            {
+                                var rect = info.el.getBoundingClientRect()
+                                var left = evt.clientX - rect.left - info.uplot.bbox.left / devicePixelRatio
+                                var plotWidth = info.uplot.bbox.width / devicePixelRatio
+
+                                if ( plotWidth <= 0 ) return null
+
+                                var t = info.uplot.posToVal( left, "x" )
+
+                                if ( !isFinite( t ) ) return null
+
+                                return Math.max( xMin, Math.min( xMax, t ) )
+                            }
+
+                            function onDown( evt )
+                            {
+                                if ( evt.button !== 0 ) return
+
+                                var t = seekFromEvent( evt )
+
+                                if ( t == null ) return
+
+                                self._chartDragState = { info: info, seek: seekFromEvent }
+                                self.$emit( "seek", t )
+                                evt.preventDefault()
+                            }
+
+                            info.el.addEventListener( "mousedown", onDown )
+                            info.onDown = onDown
+                        } )( chartInfo )
+                    }
+
+                    if ( !this._chartDragBound )
+                    {
+                        this._chartDragBound = true
+
+                        this._onChartMove = function( evt )
+                        {
+                            if ( !self._chartDragState ) return
+
+                            var t = self._chartDragState.seek( evt )
+
+                            if ( t != null ) self.$emit( "seek", t )
+                        }
+
+                        this._onChartUp = function() { self._chartDragState = null }
+
+                        window.addEventListener( "mousemove", this._onChartMove )
+                        window.addEventListener( "mouseup", this._onChartUp )
+                    }
+
+                    if ( !this._chartResizeObserver && typeof ResizeObserver !== "undefined" )
+                    {
+                        this._chartResizeObserver = new ResizeObserver( function() { self._resizeCharts() } )
+
+                        var host = this._chartEls[ 0 ] && this._chartEls[ 0 ].parentElement && this._chartEls[ 0 ].parentElement.parentElement
+
+                        if ( host ) this._chartResizeObserver.observe( host )
+                    }
+                },
+                _resizeCharts: function()
+                {
+                    for ( var i = 0; i < this._charts.length; i++ )
+                    {
+                        var c = this._charts[ i ]
+
+                        if ( !c.el || !c.uplot ) continue
+
+                        var w = Math.max( 320, Math.floor( c.el.clientWidth || c.el.parentElement.clientWidth || 600 ) )
+
+                        if ( Math.abs( c.uplot.width - w ) > 1 ) c.uplot.setSize( { width: w, height: c.def.height } )
+                    }
+
+                    this._updateChartPlayheads()
+                },
+                _updateChartPlayheads: function()
+                {
+                    if ( !this._charts.length ) return
+
+                    var t = this.currentTime
+
+                    for ( var i = 0; i < this._charts.length; i++ )
+                    {
+                        var c = this._charts[ i ]
+                        var ph = this._playheadEls[ i ]
+
+                        if ( !c.uplot || !ph ) continue
+
+                        var plotLeft = c.uplot.bbox.left / devicePixelRatio
+                        var plotWidth = c.uplot.bbox.width / devicePixelRatio
+                        var x = c.uplot.valToPos( t, "x" )
+
+                        if ( !isFinite( x ) || x < 0 || x > plotWidth ) { ph.style.display = "none"; continue }
+
+                        ph.style.display = "block"
+                        ph.style.left = ( plotLeft + x ) + "px"
+                        ph.style.top = c.uplot.bbox.top / devicePixelRatio + "px"
+                        ph.style.height = c.uplot.bbox.height / devicePixelRatio + "px"
+                    }
+                },
+                _destroyCharts: function()
+                {
+                    for ( var i = 0; i < this._charts.length; i++ )
+                    {
+                        var c = this._charts[ i ]
+
+                        if ( c.onDown && c.el ) c.el.removeEventListener( "mousedown", c.onDown )
+                        if ( c.uplot ) c.uplot.destroy()
+                    }
+
+                    this._charts = []
+
+                    if ( this._chartResizeObserver )
+                    {
+                        this._chartResizeObserver.disconnect()
+                        this._chartResizeObserver = null
+                    }
+
+                    if ( this._chartDragBound )
+                    {
+                        this._chartDragBound = false
+                        window.removeEventListener( "mousemove", this._onChartMove )
+                        window.removeEventListener( "mouseup", this._onChartUp )
+                    }
+                },
                 _updateTrailVehicle: function()
                 {
                     if ( !this._trailMap || !this.gpsSamples.length ) return
@@ -351,7 +667,13 @@
                         </div>
 
                         <div v-show="activeTab === 'charts'" class="clip-analytics-tab">
-                            <div class="clip-analytics-placeholder text-muted">Charts coming soon.</div>
+                            <div class="clip-analytics-charts">
+                                <div v-for="(c, i) in chartDefs" :key="c.id" class="clip-analytics-chart-wrap">
+                                    <div :ref="el => _setChartEl( i, el )" class="clip-analytics-chart"></div>
+                                    <div :ref="el => _setPlayheadEl( i, el )" class="clip-analytics-playhead"></div>
+                                </div>
+                                <div class="small text-muted mt-1 text-center">Click or drag on a chart to scrub the video.</div>
+                            </div>
                         </div>
 
                         <div v-show="activeTab === 'stats'" class="clip-analytics-tab">

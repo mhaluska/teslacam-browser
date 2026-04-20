@@ -938,3 +938,33 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
   border: 1px solid var( --tc-panel-border );
 }
 
+.clip-analytics-charts
+{
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.clip-analytics-chart-wrap
+{
+  position: relative;
+  width: 100%;
+}
+
+.clip-analytics-chart
+{
+  width: 100%;
+  user-select: none;
+  cursor: col-resize;
+}
+
+.clip-analytics-playhead
+{
+  position: absolute;
+  width: 2px;
+  background: rgba( 220, 53, 69, 0.85 );
+  pointer-events: none;
+  display: none;
+  z-index: 2;
+}
+
