@@ -968,3 +968,36 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
   z-index: 2;
 }
 
+.clip-analytics-stats-grid
+{
+  display: grid;
+  grid-template-columns: repeat( auto-fit, minmax( 150px, 1fr ) );
+  gap: 0.75rem;
+  padding: 1rem 0.5rem;
+}
+
+.clip-analytics-stat
+{
+  border: 1px solid var( --tc-panel-border );
+  border-radius: 0.35rem;
+  padding: 0.6rem 0.8rem;
+  background: var( --tc-panel-bg );
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.clip-analytics-stat-label
+{
+  font-size: 0.8rem;
+  color: var( --tc-muted-color );
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.clip-analytics-stat-value
+{
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+

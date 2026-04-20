@@ -213,6 +213,128 @@
 		return gaps
 	}
 
+	var G = 9.80665
+	var EARTH_RADIUS_M = 6371008.8
+
+	function haversineMeters( lat1, lon1, lat2, lon2 )
+	{
+		var toRad = Math.PI / 180
+		var dLat = ( lat2 - lat1 ) * toRad
+		var dLon = ( lon2 - lon1 ) * toRad
+		var a = Math.sin( dLat / 2 ) * Math.sin( dLat / 2 )
+			+ Math.cos( lat1 * toRad ) * Math.cos( lat2 * toRad )
+			* Math.sin( dLon / 2 ) * Math.sin( dLon / 2 )
+		var c = 2 * Math.atan2( Math.sqrt( a ), Math.sqrt( 1 - a ) )
+
+		return EARTH_RADIUS_M * c
+	}
+
+	/** Summary trip statistics derived from stitched SEI samples.
+	 *  Expects samples with `tSec`, optional `latitudeDeg`/`longitudeDeg`,
+	 *  `speedMps`, `accelY`, and `autopilot`. Missing fields are skipped
+	 *  silently — callers render "—" when a metric is null. */
+	function computeTripStats( samples )
+	{
+		var result = {
+			count: 0,
+			firstTSec: null,
+			lastTSec: null,
+			durationSec: null,
+			minSpeedMps: null,
+			maxSpeedMps: null,
+			avgSpeedMps: null,
+			distanceMeters: null,
+			maxLateralG: null,
+			autopilotPct: null
+		}
+
+		if ( !Array.isArray( samples ) || !samples.length ) return result
+
+		result.count = samples.length
+
+		var firstT = null
+		var lastT = null
+		var minSpeed = null
+		var maxSpeed = null
+		var speedSum = 0
+		var speedWeight = 0
+		var distance = 0
+		var prevGps = null
+		var prevT = null
+		var maxLatAbs = 0
+		var hasLat = false
+		var apOn = 0
+		var apTotal = 0
+
+		for ( var i = 0; i < samples.length; i++ )
+		{
+			var s = samples[ i ]
+			var t = ( typeof s.tSec === "number" && isFinite( s.tSec ) ) ? s.tSec : null
+
+			if ( t != null )
+			{
+				if ( firstT == null || t < firstT ) firstT = t
+				if ( lastT == null || t > lastT ) lastT = t
+			}
+
+			if ( typeof s.speedMps === "number" && isFinite( s.speedMps ) )
+			{
+				if ( minSpeed == null || s.speedMps < minSpeed ) minSpeed = s.speedMps
+				if ( maxSpeed == null || s.speedMps > maxSpeed ) maxSpeed = s.speedMps
+
+				var dt = ( prevT != null && t != null ) ? ( t - prevT ) : 0
+
+				if ( dt > 0 && dt < 5 )
+				{
+					speedSum += s.speedMps * dt
+					speedWeight += dt
+				}
+			}
+
+			if ( typeof s.accelY === "number" && isFinite( s.accelY ) )
+			{
+				hasLat = true
+
+				var absLat = Math.abs( s.accelY )
+
+				if ( absLat > maxLatAbs ) maxLatAbs = absLat
+			}
+
+			if ( typeof s.autopilot === "string" )
+			{
+				apTotal += 1
+				if ( s.autopilot !== "NONE" && s.autopilot !== "" ) apOn += 1
+			}
+
+			var lat = s.latitudeDeg
+			var lon = s.longitudeDeg
+			var gpsValid = typeof lat === "number" && typeof lon === "number"
+				&& isFinite( lat ) && isFinite( lon )
+				&& !( lat === 0 && lon === 0 )
+
+			if ( gpsValid )
+			{
+				if ( prevGps ) distance += haversineMeters( prevGps.lat, prevGps.lon, lat, lon )
+
+				prevGps = { lat: lat, lon: lon }
+			}
+
+			prevT = t
+		}
+
+		result.firstTSec = firstT
+		result.lastTSec = lastT
+		result.durationSec = ( firstT != null && lastT != null ) ? Math.max( 0, lastT - firstT ) : null
+		result.minSpeedMps = minSpeed
+		result.maxSpeedMps = maxSpeed
+		result.avgSpeedMps = speedWeight > 0 ? ( speedSum / speedWeight ) : null
+		result.distanceMeters = prevGps ? distance : null
+		result.maxLateralG = hasLat ? ( maxLatAbs / G ) : null
+		result.autopilotPct = apTotal > 0 ? ( apOn / apTotal ) : null
+
+		return result
+	}
+
 	return {
 		pickSeiInterpolationBracket: pickSeiInterpolationBracket,
 		blendDashSamples: blendDashSamples,
@@ -221,6 +343,8 @@
 		normalizeThemePreference: normalizeThemePreference,
 		normalizeSpeedUnit: normalizeSpeedUnit,
 		resolveAutoSpeedUnit: resolveAutoSpeedUnit,
-		effectiveSpeedUnit: effectiveSpeedUnit
+		effectiveSpeedUnit: effectiveSpeedUnit,
+		haversineMeters: haversineMeters,
+		computeTripStats: computeTripStats
 	}
 } ) );

@@ -5,6 +5,12 @@
 	else root.uiAnalytics = factory();
 }( typeof self !== 'undefined' ? self : this, function ()
 {
+    var uiUtils = ( typeof window !== "undefined" && window.uiUtils )
+        ? window.uiUtils
+        : require( "./ui-utils" )
+
+    var computeTripStats = uiUtils.computeTripStats
+
     var TABS = [
         { id: "trail",   label: "Trail"   },
         { id: "charts",  label: "Charts"  },
@@ -194,6 +200,73 @@
                     }
 
                     return out
+                },
+                tripStats: function()
+                {
+                    return computeTripStats( this.samples )
+                },
+                statCells: function()
+                {
+                    var s = this.tripStats
+                    var unit = this.speedUnit === "mi" ? "mph" : "km/h"
+                    var mult = this.speedUnit === "mi" ? msToMph( 1 ) : msToKph( 1 )
+                    var useMi = this.speedUnit === "mi"
+
+                    function fmtSpeed( mps )
+                    {
+                        if ( mps == null || !isFinite( mps ) ) return "—"
+
+                        return ( mps * mult ).toFixed( 1 ) + " " + unit
+                    }
+
+                    function fmtDistance( meters )
+                    {
+                        if ( meters == null || !isFinite( meters ) ) return "—"
+
+                        if ( useMi )
+                        {
+                            var miles = meters / 1609.344
+
+                            return miles >= 0.1 ? miles.toFixed( 2 ) + " mi" : ( meters * 3.28084 ).toFixed( 0 ) + " ft"
+                        }
+
+                        return meters >= 1000 ? ( meters / 1000 ).toFixed( 2 ) + " km" : meters.toFixed( 0 ) + " m"
+                    }
+
+                    function fmtDuration( sec )
+                    {
+                        if ( sec == null || !isFinite( sec ) ) return "—"
+
+                        var m = Math.floor( sec / 60 )
+                        var r = sec - m * 60
+
+                        return m > 0 ? ( m + "m " + r.toFixed( 1 ) + "s" ) : ( r.toFixed( 1 ) + "s" )
+                    }
+
+                    function fmtG( g )
+                    {
+                        if ( g == null || !isFinite( g ) ) return "—"
+
+                        return g.toFixed( 2 ) + " g"
+                    }
+
+                    function fmtPct( p )
+                    {
+                        if ( p == null || !isFinite( p ) ) return "—"
+
+                        return ( p * 100 ).toFixed( 0 ) + "%"
+                    }
+
+                    return [
+                        { label: "Min speed",      value: fmtSpeed( s.minSpeedMps ) },
+                        { label: "Avg speed",      value: fmtSpeed( s.avgSpeedMps ) },
+                        { label: "Max speed",      value: fmtSpeed( s.maxSpeedMps ) },
+                        { label: "Distance",       value: fmtDistance( s.distanceMeters ) },
+                        { label: "Duration",       value: fmtDuration( s.durationSec ) },
+                        { label: "Max lateral G",  value: fmtG( s.maxLateralG ) },
+                        { label: "Autopilot",      value: fmtPct( s.autopilotPct ) },
+                        { label: "Samples",        value: String( s.count ) }
+                    ]
                 },
                 chartDefs: function()
                 {
@@ -677,7 +750,15 @@
                         </div>
 
                         <div v-show="activeTab === 'stats'" class="clip-analytics-tab">
-                            <div class="clip-analytics-placeholder text-muted">Stats coming soon.</div>
+                            <div class="clip-analytics-stats-grid">
+                                <div class="clip-analytics-stat" v-for="cell in statCells" :key="cell.label">
+                                    <div class="clip-analytics-stat-label">{{ cell.label }}</div>
+                                    <div class="clip-analytics-stat-value">{{ cell.value }}</div>
+                                </div>
+                            </div>
+                            <div class="small text-muted mt-3 text-center" v-if="tripStats.firstTSec != null && tripStats.lastTSec != null">
+                                Span {{ tripStats.firstTSec.toFixed( 1 ) }}s → {{ tripStats.lastTSec.toFixed( 1 ) }}s · {{ tripStats.count }} samples
+                            </div>
                         </div>
 
                         <div v-show="activeTab === 'export'" class="clip-analytics-tab">
