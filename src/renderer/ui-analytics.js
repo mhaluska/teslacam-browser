@@ -799,12 +799,10 @@
                         </li>
                     </ul>
 
-                    <div class="clip-analytics-status small">
-                        <span v-if="loading" class="badge bg-primary">loading…</span>
-                        <span v-else class="badge bg-secondary">{{ samples.length }} sample{{ samples.length === 1 ? "" : "s" }}</span>
-                        <span v-if="error" class="badge bg-danger ms-1">{{ error }}</span>
-                        <span v-if="!loading && hasSamples" class="text-muted ms-2">
-                            GPS: {{ hasGps ? "yes" : "no" }} · clips spanning {{ tripStats.durationSec != null ? tripStats.durationSec.toFixed( 1 ) + "s" : "—" }}
+                    <div v-if="!loading && !error && hasSamples" class="clip-analytics-status small">
+                        <span class="badge bg-secondary">{{ samples.length }} sample{{ samples.length === 1 ? "" : "s" }}</span>
+                        <span class="text-muted ms-2">
+                            GPS: {{ hasGps ? "yes" : "no" }} · spanning {{ tripStats.durationSec != null ? tripStats.durationSec.toFixed( 1 ) + "s" : "—" }}
                         </span>
                     </div>
 
