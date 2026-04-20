@@ -546,8 +546,6 @@
 
                     downloadBlob( this.exportBasename() + ".gpx", "application/gpx+xml", text )
                 },
-                _setChartEl: function( i, el ) { this._chartEls[ i ] = el || null },
-                _setPlayheadEl: function( i, el ) { this._playheadEls[ i ] = el || null },
                 _scheduleChartsRefresh: function( rebuild )
                 {
                     var self = this
@@ -571,6 +569,12 @@
 
                     if ( !defs.length || !xs.length ) return
 
+                    var chartEls = this.$refs.chartEls ? [].concat( this.$refs.chartEls ) : []
+                    var playheadEls = this.$refs.playheadEls ? [].concat( this.$refs.playheadEls ) : []
+
+                    this._chartEls = chartEls
+                    this._playheadEls = playheadEls
+
                     var xMin = xs[ 0 ]
                     var xMax = xs[ xs.length - 1 ]
                     var self = this
@@ -578,7 +582,7 @@
                     for ( var i = 0; i < defs.length; i++ )
                     {
                         var def = defs[ i ]
-                        var el = this._chartEls[ i ]
+                        var el = chartEls[ i ]
 
                         if ( !el ) continue
 
@@ -684,7 +688,7 @@
                     {
                         this._chartResizeObserver = new ResizeObserver( function() { self._resizeCharts() } )
 
-                        var host = this._chartEls[ 0 ] && this._chartEls[ 0 ].parentElement && this._chartEls[ 0 ].parentElement.parentElement
+                        var host = this.$refs.chartsHost
 
                         if ( host ) this._chartResizeObserver.observe( host )
                     }
@@ -811,27 +815,25 @@
 
                         <div v-show="activeTab === 'trail'" class="clip-analytics-tab">
                             <div v-if="!hasGps" class="clip-analytics-msg text-muted">No GPS in these clips.</div>
-                            <template v-else>
-                                <div class="clip-trail-controls mb-2 d-flex flex-wrap align-items-center justify-content-center gap-3 small">
-                                    <div class="form-check form-check-inline m-0">
-                                        <input class="form-check-input" type="radio" id="trailColorSpeed" value="speed" v-model="trailColorMode">
-                                        <label class="form-check-label" for="trailColorSpeed">Color by speed</label>
-                                    </div>
-                                    <div class="form-check form-check-inline m-0">
-                                        <input class="form-check-input" type="radio" id="trailColorAccel" value="accel" v-model="trailColorMode">
-                                        <label class="form-check-label" for="trailColorAccel">Color by longitudinal G</label>
-                                    </div>
-                                    <span class="text-muted">{{ trailLegend }}</span>
+                            <div v-if="hasGps" class="clip-trail-controls mb-2 d-flex flex-wrap align-items-center justify-content-center gap-3 small">
+                                <div class="form-check form-check-inline m-0">
+                                    <input class="form-check-input" type="radio" id="trailColorSpeed" value="speed" v-model="trailColorMode">
+                                    <label class="form-check-label" for="trailColorSpeed">Color by speed</label>
                                 </div>
-                                <div ref="trailMapEl" class="clip-trail-map"></div>
-                            </template>
+                                <div class="form-check form-check-inline m-0">
+                                    <input class="form-check-input" type="radio" id="trailColorAccel" value="accel" v-model="trailColorMode">
+                                    <label class="form-check-label" for="trailColorAccel">Color by longitudinal G</label>
+                                </div>
+                                <span class="text-muted">{{ trailLegend }}</span>
+                            </div>
+                            <div v-if="hasGps" ref="trailMapEl" class="clip-trail-map"></div>
                         </div>
 
                         <div v-show="activeTab === 'charts'" class="clip-analytics-tab">
-                            <div class="clip-analytics-charts">
+                            <div class="clip-analytics-charts" ref="chartsHost">
                                 <div v-for="(c, i) in chartDefs" :key="c.id" class="clip-analytics-chart-wrap">
-                                    <div :ref="el => _setChartEl( i, el )" class="clip-analytics-chart"></div>
-                                    <div :ref="el => _setPlayheadEl( i, el )" class="clip-analytics-playhead"></div>
+                                    <div ref="chartEls" class="clip-analytics-chart"></div>
+                                    <div ref="playheadEls" class="clip-analytics-playhead"></div>
                                 </div>
                                 <div class="small text-muted mt-1 text-center">Click or drag on a chart to scrub the video.</div>
                             </div>
