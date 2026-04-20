@@ -72,6 +72,7 @@
     "helmet": "^8.1.0",
     "leaflet": "^1.9.4",
     "protobufjs": "^8.0.1",
+    "uplot": "^1.6.32",
     "vue": "^3.5.32"
   },
   "postinstall": "electron-builder install-app-deps"
