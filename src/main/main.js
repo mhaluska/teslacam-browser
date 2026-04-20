@@ -172,6 +172,7 @@ function initialize()
 		ipcMain.handle( "readEventJson", async ( _event, p ) => await services.readEventJson( p ) )
 
 		ipcMain.handle( "getClipTelemetry", async ( _event, p ) => await services.readClipTelemetry( p ) )
+		ipcMain.handle( "getClipSeqSummary", async ( _event, p ) => await services.readClipSeqSummary( p ) )
 
 		ipcMain.handle( "getThemePreference", () => normalizeThemePreference( settings.getSync( "themePreference" ) ) )
 		ipcMain.handle( "setThemePreference", ( _event, mode ) =>

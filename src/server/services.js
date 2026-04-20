@@ -446,6 +446,37 @@
 		}
 	}
 
+	async function readClipSeqSummary( relativeFilePath )
+	{
+		var res = await readClipTelemetry( relativeFilePath )
+
+		if ( !res || res.error ) return res
+
+		var samples = Array.isArray( res.samples ) ? res.samples : []
+
+		if ( !samples.length ) return { sampleCount: 0, firstSeq: null, lastSeq: null, firstTSec: null, lastTSec: null }
+
+		var first = samples[ 0 ]
+		var last = samples[ samples.length - 1 ]
+
+		function toNum( v )
+		{
+			if ( v == null ) return null
+
+			var n = typeof v === "number" ? v : parseInt( v, 10 )
+
+			return ( typeof n === "number" && isFinite( n ) ) ? n : null
+		}
+
+		return {
+			sampleCount: samples.length,
+			firstSeq: toNum( first.frameSeqNo ),
+			lastSeq: toNum( last.frameSeqNo ),
+			firstTSec: typeof first.tSec === "number" ? first.tSec : null,
+			lastTSec: typeof last.tSec === "number" ? last.tSec : null
+		}
+	}
+
 
 	async function deleteFiles( files )
 	{
@@ -795,6 +826,19 @@
 			}
 		} )
 
+		expressApp.get( /^\/clipSeqSummary(?:\/.*)?$/, apiLimiter, async ( request, response ) =>
+		{
+			try
+			{
+				var rel = getRequestRelativePath( request, "/clipSeqSummary" )
+				response.json( await readClipSeqSummary( rel ) )
+			}
+			catch ( _e )
+			{
+				response.status( 400 ).json( { error: "invalid_path" } )
+			}
+		} )
+
         expressApp.post( "/deleteFiles", requireDeletesEnabled, deleteLimiter, requireCsrf, async ( request, response ) =>
         {
             var paths = request.body && request.body.paths
@@ -887,6 +931,7 @@
 		getFiles: getFiles,
 		readEventJson: readEventJson,
 		readClipTelemetry: readClipTelemetry,
+		readClipSeqSummary: readClipSeqSummary,
         deleteFiles: deleteFiles,
         copyFilePaths: copyFilePaths,
         deleteFolder: deleteFolder,
