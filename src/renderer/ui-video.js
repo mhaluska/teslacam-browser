@@ -21,6 +21,7 @@
     var pickSeiInterpolationBracket = uiUtils.pickSeiInterpolationBracket
     var blendDashSamples = uiUtils.blendDashSamples
     var lerpAngleDeg = uiUtils.lerpAngleDeg
+    var detectSeqGaps = uiUtils.detectSeqGaps
 
     var METADATA_PROBE_CONCURRENCY = 3
     var METADATA_PROBE_SAFETY_TIMEOUT_MS = 15000
@@ -346,6 +347,8 @@
                     telemetryError: null,
                     telemetryReqId: 0,
                     telemetryDebounceTimer: null,
+                    telemetryGaps: [],
+                    telemetryGapsExpanded: false,
                     overlayVideoTime: 0,
                     overlayVideoDuration: 0,
                     overlayRafHandle: null
@@ -353,6 +356,10 @@
             },
             template:
                 `<div :class="[ 'tc-cam-stack', view.camera === 'front' ? 'tc-cam-front' : '' ]">
+                    <div v-if="view.camera === 'front' && telemetryGaps.length" class="tc-telemetry-gap-chip" :title="telemetryGapSummary">
+                        <span class="bi bi-exclamation-triangle-fill" aria-hidden="true"></span>
+                        {{ telemetryGaps.length }} telemetry gap{{ telemetryGaps.length === 1 ? "" : "s" }}
+                    </div>
                     <div v-if="view.camera === 'front'" class="tc-dash-overlay" aria-hidden="true">
                         <div v-if="telemetryStatus === 'loading'" class="tc-dash-msg">Loading telemetry…</div>
                         <div v-else-if="telemetryStatus === 'error'" class="tc-dash-msg tc-dash-err">{{ telemetryError }}</div>
@@ -428,6 +435,25 @@
                     if ( !d || d.acceleratorPedal == null ) return 0
 
                     return Math.round( Math.max( 0, Math.min( 1, d.acceleratorPedal ) ) * 100 )
+                },
+                telemetryGapSummary: function()
+                {
+                    if ( !this.telemetryGaps.length ) return ""
+
+                    var parts = []
+                    var max = Math.min( this.telemetryGaps.length, 5 )
+
+                    for ( var i = 0; i < max; i++ )
+                    {
+                        var g = this.telemetryGaps[ i ]
+                        var secs = g.approxSec != null ? ( " (" + g.approxSec.toFixed( 2 ) + "s)" ) : ""
+
+                        parts.push( "~" + g.missing + " frames missing at seq " + g.fromSeq + "→" + g.toSeq + secs )
+                    }
+
+                    if ( this.telemetryGaps.length > max ) parts.push( "…and " + ( this.telemetryGaps.length - max ) + " more" )
+
+                    return parts.join( "\n" )
                 },
                 gMeter: function()
                 {
@@ -580,6 +606,8 @@
                     this.telemetryStatus = "loading"
                     this.telemetrySamples = []
                     this.telemetryError = null
+                    this.telemetryGaps = []
+                    this.telemetryGapsExpanded = false
 
                     var primed = consumeClipTelemetry( filePath )
                     var promise = primed || new Promise( function( resolve )
@@ -607,6 +635,8 @@
                         }
 
                         self.telemetrySamples = res.samples
+                        self.telemetryGaps = detectSeqGaps( res.samples )
+                        self.telemetryGapsExpanded = false
                         self.telemetryStatus = "ready"
                     } )
                 },

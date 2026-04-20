@@ -810,6 +810,25 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
   color: rgba( 255, 255, 255, 0.85 );
 }
 
+.tc-telemetry-gap-chip
+{
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  z-index: 3;
+  background: rgba( 180, 83, 9, 0.88 );
+  color: #fff;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.5rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  white-space: pre-line;
+  pointer-events: auto;
+}
+
 .time-thumb
 {
   width: 48px;

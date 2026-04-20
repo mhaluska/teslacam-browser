@@ -142,10 +142,70 @@
 		return resolveAutoSpeedUnit( locale )
 	}
 
+	/** Flag runs where consecutive SEI frameSeqNo values jump further than the
+	 *  typical SEI cadence for the clip. Tesla firmware emits SEI on every
+	 *  frame on some builds and every N frames on others — we learn the median
+	 *  cadence from the clip itself and only flag real outliers. */
+	function detectSeqGaps( samples )
+	{
+		if ( !samples || samples.length < 3 ) return []
+
+		var seqs = []
+
+		for ( var i = 0; i < samples.length; i++ )
+		{
+			var s = samples[ i ]
+			var raw = s && s.frameSeqNo != null ? s.frameSeqNo : null
+			var n = raw != null ? parseInt( raw, 10 ) : null
+
+			seqs.push( ( typeof n === "number" && isFinite( n ) ) ? { seq: n, tSec: s.tSec } : null )
+		}
+
+		var deltas = []
+
+		for ( i = 1; i < seqs.length; i++ )
+		{
+			if ( !seqs[ i ] || !seqs[ i - 1 ] ) continue
+
+			var d = seqs[ i ].seq - seqs[ i - 1 ].seq
+
+			if ( d > 0 ) deltas.push( d )
+		}
+
+		if ( !deltas.length ) return []
+
+		var sorted = deltas.slice().sort( function( a, b ) { return a - b } )
+		var median = sorted[ Math.floor( sorted.length / 2 ) ] || 1
+		var threshold = Math.max( median * 2.5, median + 2 )
+		var gaps = []
+
+		for ( i = 1; i < seqs.length; i++ )
+		{
+			if ( !seqs[ i ] || !seqs[ i - 1 ] ) continue
+
+			var gap = seqs[ i ].seq - seqs[ i - 1 ].seq
+
+			if ( gap > threshold )
+			{
+				gaps.push( {
+					fromSeq: seqs[ i - 1 ].seq,
+					toSeq: seqs[ i ].seq,
+					missing: Math.max( 0, gap - median ),
+					approxSec: ( seqs[ i - 1 ].tSec != null && seqs[ i ].tSec != null )
+						? ( seqs[ i ].tSec - seqs[ i - 1 ].tSec )
+						: null
+				} )
+			}
+		}
+
+		return gaps
+	}
+
 	return {
 		pickSeiInterpolationBracket: pickSeiInterpolationBracket,
 		blendDashSamples: blendDashSamples,
 		lerpAngleDeg: lerpAngleDeg,
+		detectSeqGaps: detectSeqGaps,
 		normalizeThemePreference: normalizeThemePreference,
 		normalizeSpeedUnit: normalizeSpeedUnit,
 		resolveAutoSpeedUnit: resolveAutoSpeedUnit,
