@@ -43,7 +43,7 @@
                 if ( lat == null || lon == null ) return
 
                 this._map = L.map( this.$refs.mapEl, { zoomControl: true, attributionControl: true } )
-                    .setView( [ lat, lon ], 14 )
+                    .setView( [ lat, lon ], 17 )
 
                 L.tileLayer( "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
                     maxZoom: 19,
