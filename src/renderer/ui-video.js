@@ -367,8 +367,8 @@
                             </div>
                             <svg class="tc-arrow" :class="{ on: dashDisplay.blinkerLeft }" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M10 3L2 12l8 9v-6h12V9H10V3z"/></svg>
                             <div class="tc-speed-block">
-                                <div class="tc-speed-val">{{ dashDisplay.speedKmh != null ? dashDisplay.speedKmh : "—" }}</div>
-                                <div class="tc-speed-unit">km/h</div>
+                                <div class="tc-speed-val">{{ speedDisplay.value }}</div>
+                                <div class="tc-speed-unit">{{ speedDisplay.unit }}</div>
                             </div>
                             <svg class="tc-arrow" :class="{ on: dashDisplay.blinkerRight }" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M14 3l8 9-8 9v-6H2V9h12V3z"/></svg>
                             <div class="tc-dash-col tc-dash-col-right">
@@ -409,6 +409,14 @@
                     if ( !d || d.acceleratorPedal == null ) return 0
 
                     return Math.round( Math.max( 0, Math.min( 1, d.acceleratorPedal ) ) * 100 )
+                },
+                speedDisplay: function()
+                {
+                    var d = this.dashDisplay
+
+                    if ( !d || d.speedMps == null ) return { value: "—", unit: "km/h" }
+
+                    return { value: Math.round( d.speedMps * 3.6 ), unit: "km/h" }
                 }
             },
             mounted: function()

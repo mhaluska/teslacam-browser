@@ -281,7 +281,7 @@
 			return {
 				gear: typeof g === "number" && g >= 0 && g <= 3 ? GEAR_LABELS[ g ] : null,
 				frameSeqNo: fsq != null ? fsq.toString() : null,
-				speedKmh: typeof msg.vehicleSpeedMps === "number" ? Math.round( msg.vehicleSpeedMps * 3.6 ) : null,
+				speedMps: typeof msg.vehicleSpeedMps === "number" ? msg.vehicleSpeedMps : null,
 				acceleratorPedal: normalizeAcceleratorPedal( msg.acceleratorPedalPosition ),
 				steeringWheelAngle: typeof msg.steeringWheelAngle === "number" ? msg.steeringWheelAngle : null,
 				blinkerLeft: !!msg.blinkerOnLeft,

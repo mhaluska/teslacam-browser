@@ -65,14 +65,13 @@
 			return a * ( 1 - al ) + b * al
 		}
 
-		var speedBlended = lerpNum( cur.speedKmh, next.speedKmh, alpha )
+		var speedBlended = lerpNum( cur.speedMps, next.speedMps, alpha )
 		var pedalBlended = lerpNum( cur.acceleratorPedal, next.acceleratorPedal, alpha )
-		var spd = speedBlended != null ? Math.round( speedBlended ) : null
 		var pedal = pedalBlended != null ? Math.max( 0, Math.min( 1, pedalBlended ) ) : null
 
 		return {
 			gear: cur.gear,
-			speedKmh: spd,
+			speedMps: speedBlended,
 			acceleratorPedal: pedal,
 			blinkerLeft: cur.blinkerLeft,
 			blinkerRight: cur.blinkerRight,
