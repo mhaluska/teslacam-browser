@@ -54,6 +54,7 @@
   }
 
   var THEME_STORAGE_KEY = "themePreference"
+  var SPEED_UNIT_STORAGE_KEY = "speedUnit"
 
   ui.initialize(
     {
@@ -81,6 +82,20 @@
       setThemePreference: function( mode, success )
       {
         localStorage.setItem( THEME_STORAGE_KEY, mode )
+
+        if ( success ) success()
+      },
+      getSpeedUnit: function( success )
+      {
+        var v = localStorage.getItem( SPEED_UNIT_STORAGE_KEY )
+
+        if ( v !== "km" && v !== "mi" && v !== "auto" ) v = "auto"
+
+        success( v )
+      },
+      setSpeedUnit: function( mode, success )
+      {
+        localStorage.setItem( SPEED_UNIT_STORAGE_KEY, mode )
 
         if ( success ) success()
       }

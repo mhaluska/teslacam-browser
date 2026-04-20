@@ -88,9 +88,48 @@
 		return "system"
 	}
 
+	function normalizeSpeedUnit( u )
+	{
+		if ( u === "km" || u === "mi" || u === "auto" ) return u
+
+		return "auto"
+	}
+
+	// Countries that use mph on the road (excluding American Samoa, Bahamas etc.
+	// that are rare locales in practice). Explicit list beats Intl guessing.
+	var MPH_REGIONS = [ "US", "GB", "UK", "LR", "MM" ]
+
+	function resolveAutoSpeedUnit( locale )
+	{
+		if ( typeof locale !== "string" || !locale ) return "km"
+
+		var parts = locale.replace( "_", "-" ).split( "-" )
+
+		for ( var i = 1; i < parts.length; i++ )
+		{
+			var region = parts[ i ].toUpperCase()
+
+			if ( MPH_REGIONS.indexOf( region ) >= 0 ) return "mi"
+		}
+
+		return "km"
+	}
+
+	function effectiveSpeedUnit( pref, locale )
+	{
+		var p = normalizeSpeedUnit( pref )
+
+		if ( p === "km" || p === "mi" ) return p
+
+		return resolveAutoSpeedUnit( locale )
+	}
+
 	return {
 		pickSeiInterpolationBracket: pickSeiInterpolationBracket,
 		blendDashSamples: blendDashSamples,
-		normalizeThemePreference: normalizeThemePreference
+		normalizeThemePreference: normalizeThemePreference,
+		normalizeSpeedUnit: normalizeSpeedUnit,
+		resolveAutoSpeedUnit: resolveAutoSpeedUnit,
+		effectiveSpeedUnit: effectiveSpeedUnit
 	}
 } ) );

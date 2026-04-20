@@ -56,6 +56,11 @@
                 <label class="form-check-label" for="combineClips">Combine clips</label>
               </div>
               <button type="button" class="btn btn-outline-secondary theme-cycle-btn flex-shrink-0"
+                @click.prevent="cycleSpeedUnitPreference" :title="speedUnitCycleTitle">
+                <span :class="speedUnitCycleIconClass" aria-hidden="true"></span>
+                <span class="visually-hidden">{{ speedUnitCycleTitle }}</span>
+              </button>
+              <button type="button" class="btn btn-outline-secondary theme-cycle-btn flex-shrink-0 ms-2"
                 @click.prevent="cycleThemePreference" :title="themeCycleTitle">
                 <span :class="themeCycleIconClass" aria-hidden="true"></span>
                 <span class="visually-hidden">{{ themeCycleTitle }}</span>

@@ -331,7 +331,8 @@
         return {
             props: [ "timespan", "view", "playbackRate" ],
             inject: {
-                publishGps: { default: null }
+                publishGps: { default: null },
+                getSpeedUnit: { default: null }
             },
             data: function()
             {
@@ -412,11 +413,23 @@
                 },
                 speedDisplay: function()
                 {
+                    var unit = "km"
+
+                    if ( this.getSpeedUnit )
+                    {
+                        var resolved = this.getSpeedUnit()
+
+                        if ( resolved === "mi" ) unit = "mi"
+                    }
+
+                    var unitLabel = unit === "mi" ? "mph" : "km/h"
                     var d = this.dashDisplay
 
-                    if ( !d || d.speedMps == null ) return { value: "—", unit: "km/h" }
+                    if ( !d || d.speedMps == null ) return { value: "—", unit: unitLabel }
 
-                    return { value: Math.round( d.speedMps * 3.6 ), unit: "km/h" }
+                    var factor = unit === "mi" ? 2.2369362920544 : 3.6
+
+                    return { value: Math.round( d.speedMps * factor ), unit: unitLabel }
                 }
             },
             mounted: function()

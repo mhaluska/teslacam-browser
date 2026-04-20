@@ -56,6 +56,11 @@
                 <label class="form-check-label" for="combineClips">Combine clips</label>
               </div>
               <button type="button" class="btn btn-outline-secondary theme-cycle-btn flex-shrink-0"
+                @click.prevent="cycleSpeedUnitPreference" :title="speedUnitCycleTitle">
+                <span :class="speedUnitCycleIconClass" aria-hidden="true"></span>
+                <span class="visually-hidden">{{ speedUnitCycleTitle }}</span>
+              </button>
+              <button type="button" class="btn btn-outline-secondary theme-cycle-btn flex-shrink-0 ms-2"
                 @click.prevent="cycleThemePreference" :title="themeCycleTitle">
                 <span :class="themeCycleIconClass" aria-hidden="true"></span>
                 <span class="visually-hidden">{{ themeCycleTitle }}</span>
@@ -314,7 +319,9 @@
           copyPath: path => electronAPI.send("copyPath", path),
           openExternal: path => electronAPI.send("openExternal", path),
           getThemePreference: success => electronAPI.invoke("getThemePreference").then(success),
-          setThemePreference: (mode, success) => electronAPI.invoke("setThemePreference", mode).then(() => { if (success) success() })
+          setThemePreference: (mode, success) => electronAPI.invoke("setThemePreference", mode).then(() => { if (success) success() }),
+          getSpeedUnit: success => electronAPI.invoke("getSpeedUnit").then(success),
+          setSpeedUnit: (mode, success) => electronAPI.invoke("setSpeedUnit", mode).then(() => { if (success) success() })
         } )
     })();
 

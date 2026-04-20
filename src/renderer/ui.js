@@ -27,6 +27,8 @@
 
     var CAM_GRID_ALL = uiConstants.CAM_GRID_ALL
     var normalizeThemePreference = uiUtils.normalizeThemePreference
+    var normalizeSpeedUnit = uiUtils.normalizeSpeedUnit
+    var effectiveSpeedUnit = uiUtils.effectiveSpeedUnit
     var humanizeReason = helpers.humanizeReason
     var shortenReason = helpers.shortenReason
     var isTriggerReason = helpers.isTriggerReason
@@ -64,6 +66,7 @@
                 playing: null,
                 loading: null,
                 themePreference: "system",
+                speedUnitPreference: "auto",
                 confirmMessage: "",
                 confirmCallback: null,
                 currentGps: null
@@ -87,6 +90,10 @@
                         if ( prev && prev.lat === gps.lat && prev.lon === gps.lon ) return
 
                         self.currentGps = { lat: gps.lat, lon: gps.lon }
+                    },
+                    getSpeedUnit: function()
+                    {
+                        return self.resolvedSpeedUnit
                     }
                 }
             },
@@ -396,6 +403,30 @@
                     if ( this.themePreference === "light" ) return "Theme: Light — click for Dark"
 
                     return "Theme: Dark — click for System"
+                },
+                resolvedSpeedUnit: function()
+                {
+                    var locale = ""
+
+                    if ( typeof navigator !== "undefined" )
+                    {
+                        locale = navigator.language || ( navigator.languages && navigator.languages[ 0 ] ) || ""
+                    }
+
+                    return effectiveSpeedUnit( this.speedUnitPreference, locale )
+                },
+                speedUnitCycleIconClass: function()
+                {
+                    return "bi bi-speedometer2"
+                },
+                speedUnitCycleTitle: function()
+                {
+                    var resolved = this.resolvedSpeedUnit === "mi" ? "mph" : "km/h"
+
+                    if ( this.speedUnitPreference === "auto" ) return "Speed: Auto (" + resolved + ") — click for km/h"
+                    if ( this.speedUnitPreference === "km" ) return "Speed: km/h — click for mph"
+
+                    return "Speed: mph — click for Auto"
                 }
             },
             mounted: function()
@@ -419,6 +450,14 @@
 
                 if ( handlers.getThemePreference ) handlers.getThemePreference( applyLoaded )
                 else applyLoaded( "system" )
+
+                function applySpeedUnit( pref )
+                {
+                    self.speedUnitPreference = normalizeSpeedUnit( pref )
+                }
+
+                if ( handlers.getSpeedUnit ) handlers.getSpeedUnit( applySpeedUnit )
+                else applySpeedUnit( "auto" )
             },
             beforeUnmount: function()
             {
@@ -465,6 +504,28 @@
                     if ( i < 0 ) i = 0
 
                     this.setThemePreference( order[ ( i + 1 ) % order.length ] )
+                },
+                setSpeedUnitPreference: function( mode )
+                {
+                    var self = this
+                    var m = normalizeSpeedUnit( mode )
+
+                    function done()
+                    {
+                        self.speedUnitPreference = m
+                    }
+
+                    if ( handlers.setSpeedUnit ) handlers.setSpeedUnit( m, done )
+                    else done()
+                },
+                cycleSpeedUnitPreference: function()
+                {
+                    var order = [ "auto", "km", "mi" ]
+                    var i = order.indexOf( this.speedUnitPreference )
+
+                    if ( i < 0 ) i = 0
+
+                    this.setSpeedUnitPreference( order[ ( i + 1 ) % order.length ] )
                 },
                 formatEventReason: function( reason )
                 {
