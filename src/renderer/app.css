@@ -791,10 +791,10 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
 
 .tc-g-meter
 {
-  width: 2.25rem;
-  height: 2.25rem;
-  margin-top: 0.25rem;
-  color: rgba( 255, 255, 255, 0.85 );
+  width: 3.75rem;
+  height: 3.75rem;
+  flex-shrink: 0;
+  color: rgba( 255, 255, 255, 0.9 );
 }
 
 .tc-g-meter.clipped
@@ -804,10 +804,10 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
 
 .tc-compass
 {
-  width: 2rem;
-  height: 2rem;
-  margin-top: 0.25rem;
-  color: rgba( 255, 255, 255, 0.85 );
+  width: 3.75rem;
+  height: 3.75rem;
+  flex-shrink: 0;
+  color: rgba( 255, 255, 255, 0.9 );
 }
 
 .tc-telemetry-gap-chip

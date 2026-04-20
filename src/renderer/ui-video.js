@@ -365,6 +365,16 @@
                         <div v-else-if="telemetryStatus === 'error'" class="tc-dash-msg tc-dash-err">{{ telemetryError }}</div>
                         <div v-else-if="telemetryStatus === 'empty'" class="tc-dash-msg">No telemetry in this clip</div>
                         <div v-else-if="telemetryStatus === 'ready' && dashDisplay" class="tc-dash-cluster">
+                            <svg v-if="dashDisplay.headingDeg != null" class="tc-compass" viewBox="-1.4 -1.4 2.8 2.8" aria-hidden="true" :title="'Heading: ' + Math.round( dashDisplay.headingDeg ) + '\u00b0'">
+                                <circle cx="0" cy="0" r="1.15" fill="none" stroke="currentColor" stroke-width="0.08" opacity="0.55"/>
+                                <g :style="{ transform: 'rotate(' + ( -dashDisplay.headingDeg ) + 'deg)', transformOrigin: '0 0', transition: 'transform 0.08s linear' }">
+                                    <text x="0" y="-0.75" text-anchor="middle" font-size="0.55" fill="#f87171" font-weight="700">N</text>
+                                    <text x="0.85" y="0.2" text-anchor="middle" font-size="0.4" fill="currentColor" opacity="0.7">E</text>
+                                    <text x="0" y="1.05" text-anchor="middle" font-size="0.4" fill="currentColor" opacity="0.7">S</text>
+                                    <text x="-0.85" y="0.2" text-anchor="middle" font-size="0.4" fill="currentColor" opacity="0.7">W</text>
+                                </g>
+                                <polygon points="0,-0.55 0.2,0.15 -0.2,0.15" fill="currentColor"/>
+                            </svg>
                             <div class="tc-dash-col tc-dash-col-left">
                                 <div class="tc-dash-gear">{{ dashDisplay.gear || "—" }}</div>
                                 <svg class="tc-ico-pedal tc-ico-brake" :class="{ on: dashDisplay.brakeApplied }" viewBox="4 2 24 36" aria-hidden="true">
@@ -372,16 +382,6 @@
                                     <line x1="9" y1="12" x2="23" y2="12" stroke="currentColor" stroke-width="2"/>
                                     <line x1="9" y1="18" x2="23" y2="18" stroke="currentColor" stroke-width="2"/>
                                     <line x1="9" y1="24" x2="23" y2="24" stroke="currentColor" stroke-width="2"/>
-                                </svg>
-                                <svg v-if="dashDisplay.headingDeg != null" class="tc-compass" viewBox="-1.4 -1.4 2.8 2.8" aria-hidden="true" :title="'Heading: ' + Math.round( dashDisplay.headingDeg ) + '\u00b0'">
-                                    <circle cx="0" cy="0" r="1.15" fill="none" stroke="currentColor" stroke-width="0.08" opacity="0.45"/>
-                                    <g :style="{ transform: 'rotate(' + ( -dashDisplay.headingDeg ) + 'deg)', transformOrigin: '0 0', transition: 'transform 0.08s linear' }">
-                                        <text x="0" y="-0.75" text-anchor="middle" font-size="0.55" fill="#f87171" font-weight="700">N</text>
-                                        <text x="0.85" y="0.2" text-anchor="middle" font-size="0.4" fill="currentColor" opacity="0.65">E</text>
-                                        <text x="0" y="1.05" text-anchor="middle" font-size="0.4" fill="currentColor" opacity="0.65">S</text>
-                                        <text x="-0.85" y="0.2" text-anchor="middle" font-size="0.4" fill="currentColor" opacity="0.65">W</text>
-                                    </g>
-                                    <polygon points="0,-0.5 0.18,0.15 -0.18,0.15" fill="currentColor"/>
                                 </svg>
                             </div>
                             <svg class="tc-arrow" :class="{ on: dashDisplay.blinkerLeft }" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M10 3L2 12l8 9v-6h12V9H10V3z"/></svg>
@@ -398,17 +398,17 @@
                                     <line x1="24" y1="20" x2="35" y2="20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                                     <line x1="20" y1="24" x2="20" y2="35" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                                 </svg>
-                                <svg v-if="gMeter.visible" class="tc-g-meter" :class="{ clipped: gMeter.clipped }" viewBox="-1.4 -1.4 2.8 2.8" aria-hidden="true" :title="gMeter.title">
-                                    <circle cx="0" cy="0" r="1.2" fill="none" stroke="currentColor" stroke-width="0.08" opacity="0.45"/>
-                                    <circle cx="0" cy="0" r="0.6" fill="none" stroke="currentColor" stroke-width="0.05" opacity="0.3"/>
-                                    <line x1="-1.2" y1="0" x2="1.2" y2="0" stroke="currentColor" stroke-width="0.04" opacity="0.3"/>
-                                    <line x1="0" y1="-1.2" x2="0" y2="1.2" stroke="currentColor" stroke-width="0.04" opacity="0.3"/>
-                                    <circle :cx="gMeter.x" :cy="gMeter.y" r="0.22" fill="currentColor"/>
-                                </svg>
                                 <div class="tc-throttle" title="Accelerator">
                                     <div class="tc-throttle-fill" :style="{ height: throttleFillPct + '%' }"></div>
                                 </div>
                             </div>
+                            <svg v-if="gMeter.visible" class="tc-g-meter" :class="{ clipped: gMeter.clipped }" viewBox="-1.4 -1.4 2.8 2.8" aria-hidden="true" :title="gMeter.title">
+                                <circle cx="0" cy="0" r="1.2" fill="none" stroke="currentColor" stroke-width="0.08" opacity="0.55"/>
+                                <circle cx="0" cy="0" r="0.6" fill="none" stroke="currentColor" stroke-width="0.05" opacity="0.35"/>
+                                <line x1="-1.2" y1="0" x2="1.2" y2="0" stroke="currentColor" stroke-width="0.04" opacity="0.35"/>
+                                <line x1="0" y1="-1.2" x2="0" y2="1.2" stroke="currentColor" stroke-width="0.04" opacity="0.35"/>
+                                <circle :cx="gMeter.x" :cy="gMeter.y" r="0.22" fill="currentColor"/>
+                            </svg>
                         </div>
                     </div>
                     <video ref="video" class="video" :class="view.camera" :src="view.file" :playbackRate="playbackRate" crossorigin="anonymous" preload="auto" @durationchange="durationChanged" @timeupdate="timeChanged" @ended="ended" title="Open in file explorer" @click="openExternal" playsinline></video>
