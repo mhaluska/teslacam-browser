@@ -69,7 +69,8 @@
                 speedUnitPreference: "auto",
                 confirmMessage: "",
                 confirmCallback: null,
-                currentGps: null
+                currentGps: null,
+                currentHeading: null
                 }
             },
             provide: function()
@@ -84,6 +85,10 @@
                         // Keep the map on the trigger location until the user presses play
                         // for this event. Once unlocked, keep tracking even when paused or scrubbing.
                         if ( !self.controls.playing && !self.currentGps ) return
+
+                        var heading = ( typeof gps.heading === "number" && isFinite( gps.heading ) ) ? gps.heading : null
+
+                        if ( self.currentHeading !== heading ) self.currentHeading = heading
 
                         var prev = self.currentGps
 

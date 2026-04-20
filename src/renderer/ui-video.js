@@ -20,6 +20,7 @@
 
     var pickSeiInterpolationBracket = uiUtils.pickSeiInterpolationBracket
     var blendDashSamples = uiUtils.blendDashSamples
+    var lerpAngleDeg = uiUtils.lerpAngleDeg
 
     var METADATA_PROBE_CONCURRENCY = 3
     var METADATA_PROBE_SAFETY_TIMEOUT_MS = 15000
@@ -639,7 +640,11 @@
 
                     if ( lat == null || lon == null || !isFinite( lat ) || !isFinite( lon ) ) return
 
-                    this.publishGps( { lat: lat, lon: lon } )
+                    var curHeading = ( cur && typeof cur.headingDeg === "number" ) ? cur.headingDeg : null
+                    var nextHeading = ( next && typeof next.headingDeg === "number" ) ? next.headingDeg : null
+                    var heading = lerpAngleDeg( curHeading, nextHeading, alpha )
+
+                    this.publishGps( { lat: lat, lon: lon, heading: typeof heading === "number" ? heading : null } )
                 },
                 startPlayback: function()
                 {

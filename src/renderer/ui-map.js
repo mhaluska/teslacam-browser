@@ -27,7 +27,8 @@
                 eventLat: { type: [ Number, String ], default: null },
                 eventLon: { type: [ Number, String ], default: null },
                 currentLat: { type: [ Number, String ], default: null },
-                currentLon: { type: [ Number, String ], default: null }
+                currentLon: { type: [ Number, String ], default: null },
+                currentHeading: { type: [ Number, String ], default: null }
             },
             template: `<div ref="mapEl" class="event-json-map"></div>`,
             mounted: function()
@@ -75,7 +76,8 @@
                 eventLat: function() { this.updateTrigger() },
                 eventLon: function() { this.updateTrigger() },
                 currentLat: function( v ) { this.updateVehicle( toFiniteNumber( v ), toFiniteNumber( this.currentLon ) ) },
-                currentLon: function( v ) { this.updateVehicle( toFiniteNumber( this.currentLat ), toFiniteNumber( v ) ) }
+                currentLon: function( v ) { this.updateVehicle( toFiniteNumber( this.currentLat ), toFiniteNumber( v ) ) },
+                currentHeading: function() { this.updateVehicleHeading() }
             },
             methods:
             {
@@ -105,6 +107,22 @@
 
                     if ( !this._vehicleMarker ) this._map.setView( [ lat, lon ], this._map.getZoom() )
                 },
+                buildVehicleArrowIcon: function( heading )
+                {
+                    var L = window.L
+                    var rot = ( typeof heading === "number" && isFinite( heading ) ) ? heading : null
+                    var hasHeading = rot != null
+                    var html = hasHeading
+                        ? '<div class="event-vehicle-arrow" style="transform: rotate(' + rot + 'deg)"><svg viewBox="-12 -12 24 24" width="22" height="22"><polygon points="0,-9 6,6 0,3 -6,6" fill="#0d6efd" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"/></svg></div>'
+                        : '<div class="event-vehicle-dot"></div>'
+
+                    return L.divIcon( {
+                        className: "event-vehicle-marker",
+                        html: html,
+                        iconSize: [ 22, 22 ],
+                        iconAnchor: [ 11, 11 ]
+                    } )
+                },
                 updateVehicle: function( lat, lon )
                 {
                     if ( !this._map || lat == null || lon == null ) return
@@ -116,15 +134,14 @@
                     this._vehicleCoords = next
 
                     var L = window.L
+                    var heading = toFiniteNumber( this.currentHeading )
 
                     if ( !this._vehicleMarker )
                     {
-                        this._vehicleMarker = L.circleMarker( [ lat, lon ], {
-                            radius: 7,
-                            color: "#0d6efd",
-                            weight: 2,
-                            fillColor: "#0d6efd",
-                            fillOpacity: 0.85
+                        this._vehicleMarker = L.marker( [ lat, lon ], {
+                            icon: this.buildVehicleArrowIcon( heading ),
+                            keyboard: false,
+                            interactive: false
                         } ).addTo( this._map )
                     }
                     else
@@ -133,6 +150,12 @@
                     }
 
                     this._map.panTo( [ lat, lon ], { animate: true, duration: 0.25 } )
+                },
+                updateVehicleHeading: function()
+                {
+                    if ( !this._vehicleMarker ) return
+
+                    this._vehicleMarker.setIcon( this.buildVehicleArrowIcon( toFiniteNumber( this.currentHeading ) ) )
                 }
             }
         }

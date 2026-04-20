@@ -179,6 +179,29 @@ body
     border-radius: 0.2rem;
 }
 
+.event-vehicle-marker
+{
+    background: transparent;
+    border: 0;
+}
+
+.event-vehicle-arrow
+{
+    width: 22px;
+    height: 22px;
+    transition: transform 0.08s linear;
+}
+
+.event-vehicle-dot
+{
+    width: 14px;
+    height: 14px;
+    margin: 4px;
+    background: #0d6efd;
+    border: 2px solid #fff;
+    border-radius: 50%;
+}
+
 #times
 {
   overflow-y: auto;
