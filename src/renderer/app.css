@@ -1001,3 +1001,10 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
   font-weight: 600;
 }
 
+.clip-analytics-export
+{
+  padding: 1.5rem 1rem;
+  max-width: 36rem;
+  margin: 0 auto;
+}
+

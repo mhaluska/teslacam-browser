@@ -335,6 +335,160 @@
 		return result
 	}
 
+	var CSV_COLUMNS = [
+		"tSec", "isoTime",
+		"latitudeDeg", "longitudeDeg",
+		"speedMps", "speedKph",
+		"headingDeg", "steeringDeg",
+		"accelerator", "brakeApplied",
+		"accelX", "accelY", "accelZ",
+		"gear", "autopilot",
+		"blinkerLeft", "blinkerRight",
+		"frameSeqNo"
+	]
+
+	function escapeCsvCell( v )
+	{
+		if ( v == null ) return ""
+
+		var s = String( v )
+
+		if ( s.indexOf( "\"" ) >= 0 || s.indexOf( "," ) >= 0 || s.indexOf( "\n" ) >= 0 || s.indexOf( "\r" ) >= 0 )
+		{
+			return "\"" + s.replace( /"/g, "\"\"" ) + "\""
+		}
+
+		return s
+	}
+
+	function escapeXml( v )
+	{
+		if ( v == null ) return ""
+
+		return String( v )
+			.replace( /&/g, "&amp;" )
+			.replace( /</g, "&lt;" )
+			.replace( />/g, "&gt;" )
+			.replace( /"/g, "&quot;" )
+			.replace( /'/g, "&apos;" )
+	}
+
+	function sampleIsoTime( sample, baseTime )
+	{
+		if ( !baseTime || !( baseTime instanceof Date ) || isNaN( baseTime.getTime() ) ) return ""
+
+		var t = ( typeof sample.tSec === "number" && isFinite( sample.tSec ) ) ? sample.tSec : 0
+
+		return new Date( baseTime.getTime() + t * 1000 ).toISOString()
+	}
+
+	function fmtNum( v, digits )
+	{
+		if ( v == null || typeof v !== "number" || !isFinite( v ) ) return ""
+
+		return digits != null ? v.toFixed( digits ) : String( v )
+	}
+
+	function buildTelemetryCsv( samples, baseTime )
+	{
+		var lines = [ CSV_COLUMNS.join( "," ) ]
+
+		if ( !Array.isArray( samples ) ) return lines.join( "\n" ) + "\n"
+
+		for ( var i = 0; i < samples.length; i++ )
+		{
+			var s = samples[ i ]
+			var speedMps = ( typeof s.speedMps === "number" && isFinite( s.speedMps ) ) ? s.speedMps : null
+			var speedKph = speedMps != null ? speedMps * 3.6 : null
+
+			var row = [
+				fmtNum( s.tSec, 3 ),
+				escapeCsvCell( sampleIsoTime( s, baseTime ) ),
+				fmtNum( s.latitudeDeg, 7 ),
+				fmtNum( s.longitudeDeg, 7 ),
+				fmtNum( speedMps, 3 ),
+				fmtNum( speedKph, 2 ),
+				fmtNum( s.headingDeg, 2 ),
+				fmtNum( s.steeringWheelAngle, 2 ),
+				fmtNum( s.acceleratorPedal, 3 ),
+				s.brakeApplied ? "1" : "0",
+				fmtNum( s.accelX, 3 ),
+				fmtNum( s.accelY, 3 ),
+				fmtNum( s.accelZ, 3 ),
+				escapeCsvCell( s.gear ),
+				escapeCsvCell( s.autopilot ),
+				s.blinkerLeft ? "1" : "0",
+				s.blinkerRight ? "1" : "0",
+				escapeCsvCell( s.frameSeqNo )
+			]
+
+			lines.push( row.join( "," ) )
+		}
+
+		return lines.join( "\n" ) + "\n"
+	}
+
+	function buildTelemetryGpx( samples, baseTime, opts )
+	{
+		opts = opts || {}
+
+		var trackName = opts.name ? opts.name : "TeslaCam clip"
+		var creator = opts.creator ? opts.creator : "TeslaCam Browser"
+		var metaTime = ( baseTime instanceof Date && !isNaN( baseTime.getTime() ) ) ? baseTime.toISOString() : new Date().toISOString()
+		var head = ""
+			+ "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+			+ "<gpx version=\"1.1\" creator=\"" + escapeXml( creator ) + "\""
+			+ " xmlns=\"http://www.topografix.com/GPX/1/1\""
+			+ " xmlns:gpxtpx=\"http://www.garmin.com/xmlschemas/TrackPointExtension/v1\""
+			+ " xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\""
+			+ " xsi:schemaLocation=\"http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd\">\n"
+			+ "  <metadata>\n"
+			+ "    <name>" + escapeXml( trackName ) + "</name>\n"
+			+ "    <time>" + escapeXml( metaTime ) + "</time>\n"
+			+ "  </metadata>\n"
+			+ "  <trk>\n"
+			+ "    <name>" + escapeXml( trackName ) + "</name>\n"
+			+ "    <trkseg>\n"
+		var tail = "    </trkseg>\n  </trk>\n</gpx>\n"
+		var body = ""
+
+		if ( Array.isArray( samples ) )
+		{
+			for ( var i = 0; i < samples.length; i++ )
+			{
+				var s = samples[ i ]
+				var lat = s.latitudeDeg
+				var lon = s.longitudeDeg
+
+				if ( typeof lat !== "number" || typeof lon !== "number"
+					|| !isFinite( lat ) || !isFinite( lon )
+					|| ( lat === 0 && lon === 0 ) ) continue
+
+				var speedMps = ( typeof s.speedMps === "number" && isFinite( s.speedMps ) ) ? s.speedMps : null
+				var courseDeg = ( typeof s.headingDeg === "number" && isFinite( s.headingDeg ) ) ? s.headingDeg : null
+				var iso = sampleIsoTime( s, baseTime )
+
+				body += "      <trkpt lat=\"" + lat.toFixed( 7 ) + "\" lon=\"" + lon.toFixed( 7 ) + "\">\n"
+
+				if ( iso ) body += "        <time>" + iso + "</time>\n"
+
+				if ( speedMps != null || courseDeg != null )
+				{
+					body += "        <extensions>\n"
+					body += "          <gpxtpx:TrackPointExtension>\n"
+					if ( speedMps != null ) body += "            <gpxtpx:speed>" + speedMps.toFixed( 3 ) + "</gpxtpx:speed>\n"
+					if ( courseDeg != null ) body += "            <gpxtpx:course>" + courseDeg.toFixed( 2 ) + "</gpxtpx:course>\n"
+					body += "          </gpxtpx:TrackPointExtension>\n"
+					body += "        </extensions>\n"
+				}
+
+				body += "      </trkpt>\n"
+			}
+		}
+
+		return head + body + tail
+	}
+
 	return {
 		pickSeiInterpolationBracket: pickSeiInterpolationBracket,
 		blendDashSamples: blendDashSamples,
@@ -345,6 +499,9 @@
 		resolveAutoSpeedUnit: resolveAutoSpeedUnit,
 		effectiveSpeedUnit: effectiveSpeedUnit,
 		haversineMeters: haversineMeters,
-		computeTripStats: computeTripStats
+		computeTripStats: computeTripStats,
+		buildTelemetryCsv: buildTelemetryCsv,
+		buildTelemetryGpx: buildTelemetryGpx,
+		CSV_COLUMNS: CSV_COLUMNS
 	}
 } ) );

@@ -402,6 +402,24 @@
 
                     return parts.join( " — " )
                 },
+                clipAnalyticsBaseTime: function()
+                {
+                    if ( !this.timespans || !this.timespans.length ) return null
+
+                    var first = this.timespans[ 0 ]
+                    var t = first && first.time
+
+                    if ( t instanceof Date && !isNaN( t.getTime() ) )
+                    {
+                        var dur = ( first && typeof first.duration === "number" && isFinite( first.duration ) ) ? first.duration : 0
+
+                        // `timespan.time` is the END of the first clip; subtract its duration
+                        // so baseTime lines up with tSec = 0 at the start of the first clip.
+                        return new Date( t.getTime() - dur * 1000 )
+                    }
+
+                    return null
+                },
                 openStreetMapUrl: function()
                 {
                     if ( !this.clipEvent ) return ""

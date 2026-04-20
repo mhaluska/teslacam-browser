@@ -10,6 +10,40 @@
         : require( "./ui-utils" )
 
     var computeTripStats = uiUtils.computeTripStats
+    var buildTelemetryCsv = uiUtils.buildTelemetryCsv
+    var buildTelemetryGpx = uiUtils.buildTelemetryGpx
+
+    function downloadBlob( filename, mime, text )
+    {
+        try
+        {
+            var blob = new Blob( [ text ], { type: mime + ";charset=utf-8" } )
+            var url = URL.createObjectURL( blob )
+            var a = document.createElement( "a" )
+
+            a.href = url
+            a.download = filename
+            a.style.display = "none"
+
+            document.body.appendChild( a )
+            a.click()
+            document.body.removeChild( a )
+
+            setTimeout( function() { URL.revokeObjectURL( url ) }, 0 )
+        }
+        catch ( e )
+        {
+            /* best-effort — browser may block downloads in some contexts */
+            console.error( "download failed", e )
+        }
+    }
+
+    function sanitizeFilenamePart( s )
+    {
+        if ( s == null ) return ""
+
+        return String( s ).replace( /[^A-Za-z0-9._-]+/g, "_" ).replace( /^_+|_+$/g, "" )
+    }
 
     var TABS = [
         { id: "trail",   label: "Trail"   },
@@ -106,7 +140,8 @@
                 currentTime: { type: Number, default: 0 },
                 eventLabel: { type: String, default: "" },
                 speedUnit:  { type: String, default: "km" },
-                shownCounter: { type: Number, default: 0 }
+                shownCounter: { type: Number, default: 0 },
+                baseTime:   { type: Date, default: null }
             },
             emits: [ "seek" ],
             data: function()
@@ -467,6 +502,50 @@
                         this._trailMap.fitBounds( latLngs, { padding: [ 20, 20 ] } )
                     }
                 },
+                exportBasename: function()
+                {
+                    var parts = []
+
+                    if ( this.baseTime instanceof Date && !isNaN( this.baseTime.getTime() ) )
+                    {
+                        parts.push( this.baseTime.toISOString().replace( /[:.]/g, "-" ).replace( /T/, "_" ).replace( /Z$/, "" ) )
+                    }
+                    else
+                    {
+                        parts.push( "teslacam-clip" )
+                    }
+
+                    for ( var i = 0; i < this.samples.length; i++ )
+                    {
+                        var s = this.samples[ i ]
+                        var lat = s.latitudeDeg
+                        var lon = s.longitudeDeg
+
+                        if ( typeof lat === "number" && typeof lon === "number" && isFinite( lat ) && isFinite( lon ) && !( lat === 0 && lon === 0 ) )
+                        {
+                            parts.push( lat.toFixed( 5 ) + "_" + lon.toFixed( 5 ) )
+                            break
+                        }
+                    }
+
+                    return sanitizeFilenamePart( parts.join( "-" ) ) || "teslacam-clip"
+                },
+                downloadCsv: function()
+                {
+                    if ( !this.hasSamples ) return
+
+                    var text = buildTelemetryCsv( this.samples, this.baseTime )
+
+                    downloadBlob( this.exportBasename() + ".csv", "text/csv", text )
+                },
+                downloadGpx: function()
+                {
+                    if ( !this.hasSamples ) return
+
+                    var text = buildTelemetryGpx( this.samples, this.baseTime, { name: this.eventLabel || "TeslaCam clip" } )
+
+                    downloadBlob( this.exportBasename() + ".gpx", "application/gpx+xml", text )
+                },
                 _setChartEl: function( i, el ) { this._chartEls[ i ] = el || null },
                 _setPlayheadEl: function( i, el ) { this._playheadEls[ i ] = el || null },
                 _scheduleChartsRefresh: function( rebuild )
@@ -762,7 +841,23 @@
                         </div>
 
                         <div v-show="activeTab === 'export'" class="clip-analytics-tab">
-                            <div class="clip-analytics-placeholder text-muted">Export coming soon.</div>
+                            <div class="clip-analytics-export">
+                                <p class="small text-muted mb-3">
+                                    Download this clip's telemetry. CSV suits Excel / Python / general analysis; GPX opens in
+                                    RaceChrono, Google Earth, Strava, gpx.studio and most GPS tools.
+                                </p>
+                                <div class="d-flex flex-wrap gap-2 justify-content-center">
+                                    <button type="button" class="btn btn-primary" @click.prevent="downloadCsv" :disabled="!hasSamples">
+                                        <span class="bi bi-filetype-csv" aria-hidden="true"></span>
+                                        Download CSV
+                                    </button>
+                                    <button type="button" class="btn btn-primary" @click.prevent="downloadGpx" :disabled="!hasSamples || !hasGps">
+                                        <span class="bi bi-geo-alt" aria-hidden="true"></span>
+                                        Download GPX
+                                    </button>
+                                </div>
+                                <div class="small text-muted mt-3 text-center" v-if="!hasGps">GPX export disabled: no GPS points in this clip.</div>
+                            </div>
                         </div>
 
                     </div>
