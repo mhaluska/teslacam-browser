@@ -71,7 +71,7 @@
                 confirmCallback: null,
                 currentGps: null,
                 currentHeading: null,
-                seqDiagnostics: { open: false, loading: false, results: null, error: null }
+                seqDiagnostics: { loading: false, results: null, error: null }
                 }
             },
             provide: function()
@@ -679,34 +679,35 @@
 
                     alert( "Copied file paths to clipboard" )
                 },
-                toggleSeqDiagnostics: function()
+                openSeqDiagnostics: function()
                 {
-                    if ( this.seqDiagnostics.open )
+                    var self = this
+
+                    self.seqDiagnostics = { loading: true, results: null, error: null }
+
+                    self.$nextTick( function()
                     {
-                        this.seqDiagnostics.open = false
+                        var el = document.getElementById( "seqDiagnosticsModal" )
 
-                        return
-                    }
-
-                    this.seqDiagnostics = { open: true, loading: true, results: null, error: null }
+                        if ( el && window.bootstrap ) window.bootstrap.Modal.getOrCreateInstance( el ).show()
+                    } )
 
                     if ( !handlers.getClipSeqSummary )
                     {
-                        this.seqDiagnostics = { open: true, loading: false, results: null, error: "Unsupported in this build" }
+                        self.seqDiagnostics = { loading: false, results: null, error: "Unsupported in this build" }
 
                         return
                     }
 
-                    var timespan = this.controls.timespan || ( this.timespans.length ? this.timespans[ 0 ] : null )
+                    var timespan = self.controls.timespan || ( self.timespans.length ? self.timespans[ 0 ] : null )
 
                     if ( !timespan || !timespan.views || !timespan.views.length )
                     {
-                        this.seqDiagnostics = { open: true, loading: false, results: null, error: "No clip loaded" }
+                        self.seqDiagnostics = { loading: false, results: null, error: "No clip loaded" }
 
                         return
                     }
 
-                    var self = this
                     var views = timespan.views.slice()
                     var pending = views.length
                     var results = []
@@ -735,7 +736,7 @@
                                         r.delta = null
                                 } )
 
-                                self.seqDiagnostics = { open: true, loading: false, results: results, error: null }
+                                self.seqDiagnostics = { loading: false, results: results, error: null }
                             }
                         } )
                     } )

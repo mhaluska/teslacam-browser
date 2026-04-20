@@ -829,24 +829,14 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
   pointer-events: auto;
 }
 
-.tc-seq-diagnostics
-{
-  font-size: 0.75rem;
-  background: var( --tc-panel-bg );
-  border: 1px solid var( --tc-panel-border );
-  border-radius: 0.25rem;
-  padding: 0.35rem 0.5rem;
-  max-height: 14rem;
-  overflow-y: auto;
-}
-
 .tc-seq-diagnostics-grid
 {
   display: grid;
   grid-template-columns: auto 1fr auto auto;
-  column-gap: 0.6rem;
-  row-gap: 0.15rem;
+  column-gap: 0.9rem;
+  row-gap: 0.2rem;
   align-items: baseline;
+  font-size: 0.85rem;
 }
 
 .tc-seq-diagnostics-grid > div
