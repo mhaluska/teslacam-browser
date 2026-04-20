@@ -888,3 +888,39 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
   pointer-events: auto;
 }
 
+.clip-analytics
+{
+  display: flex;
+  flex-direction: column;
+  min-height: 420px;
+}
+
+.clip-analytics-tabs
+{
+  margin-bottom: 0.75rem;
+}
+
+.clip-analytics-msg
+{
+  padding: 2rem 1rem;
+  text-align: center;
+}
+
+.clip-analytics-body
+{
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.clip-analytics-tab
+{
+  min-height: 360px;
+}
+
+.clip-analytics-placeholder
+{
+  padding: 2.5rem 1rem;
+  text-align: center;
+  font-style: italic;
+}
+

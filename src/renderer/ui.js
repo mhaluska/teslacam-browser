@@ -21,6 +21,10 @@
         ? window.uiMap
         : require( "./ui-map" )
 
+    var uiAnalytics = ( typeof window !== "undefined" && window.uiAnalytics )
+        ? window.uiAnalytics
+        : require( "./ui-analytics" )
+
     var helpers = ( typeof window !== "undefined" && window.helpers )
         ? window.helpers
         : require( "./helpers" )
@@ -71,7 +75,8 @@
                 confirmCallback: null,
                 currentGps: null,
                 currentHeading: null,
-                seqDiagnostics: { loading: false, results: null, error: null }
+                seqDiagnostics: { loading: false, results: null, error: null },
+                clipAnalytics: { loading: false, error: null, samples: [], loadId: 0 }
                 }
             },
             provide: function()
@@ -166,6 +171,7 @@
                     }
 
                     this.currentGps = null
+                    this.clipAnalytics = { loading: false, error: null, samples: [], loadId: this.clipAnalytics.loadId + 1 }
 
                     if ( newPath )
                     {
@@ -384,6 +390,17 @@
                     var lon = parseFloat( this.clipEvent.est_lon )
 
                     return isFinite( lon ) ? lon : null
+                },
+                clipAnalyticsEventLabel: function()
+                {
+                    if ( !this.clipEvent ) return ""
+
+                    var parts = []
+
+                    if ( this.clipEvent.timestamp ) parts.push( this.clipEvent.timestamp )
+                    if ( this.clipEvent.city ) parts.push( this.clipEvent.city )
+
+                    return parts.join( " — " )
                 },
                 openStreetMapUrl: function()
                 {
@@ -677,6 +694,113 @@
 
                     alert( "Copied file paths to clipboard" )
                 },
+                openClipAnalytics: function()
+                {
+                    var self = this
+
+                    self.$nextTick( function()
+                    {
+                        var el = document.getElementById( "clipAnalyticsModal" )
+
+                        if ( el && window.bootstrap ) window.bootstrap.Modal.getOrCreateInstance( el ).show()
+                    } )
+
+                    if ( !handlers.getClipTelemetry )
+                    {
+                        self.clipAnalytics = { loading: false, error: "Unsupported in this build", samples: [], loadId: self.clipAnalytics.loadId + 1 }
+
+                        return
+                    }
+
+                    if ( !self.timespans || !self.timespans.length )
+                    {
+                        self.clipAnalytics = { loading: false, error: "No clip loaded", samples: [], loadId: self.clipAnalytics.loadId + 1 }
+
+                        return
+                    }
+
+                    var fetches = []
+
+                    self.timespans.forEach( function( ts )
+                    {
+                        var front = ts.viewMap ? ts.viewMap.get( "front" ) : null
+
+                        if ( front ) fetches.push( { timespan: ts, view: front } )
+                    } )
+
+                    if ( !fetches.length )
+                    {
+                        self.clipAnalytics = { loading: false, error: "No front-camera clips available", samples: [], loadId: self.clipAnalytics.loadId + 1 }
+
+                        return
+                    }
+
+                    var token = ++self.clipAnalytics.loadId
+
+                    self.clipAnalytics = { loading: true, error: null, samples: [], loadId: token }
+
+                    var pending = fetches.length
+                    var perClip = new Array( fetches.length )
+
+                    fetches.forEach( function( f, idx )
+                    {
+                        handlers.getClipTelemetry( f.view.filePath, function( res )
+                        {
+                            if ( token !== self.clipAnalytics.loadId ) return
+
+                            perClip[ idx ] = {
+                                timespan: f.timespan,
+                                samples: ( res && Array.isArray( res.samples ) ) ? res.samples : [],
+                                error: ( res && res.error ) ? res.error : null
+                            }
+
+                            if ( --pending === 0 )
+                            {
+                                var offset = 0
+                                var stitched = []
+                                var firstError = null
+
+                                for ( var i = 0; i < perClip.length; i++ )
+                                {
+                                    var entry = perClip[ i ]
+
+                                    if ( entry.error && !firstError ) firstError = entry.error
+
+                                    for ( var j = 0; j < entry.samples.length; j++ )
+                                    {
+                                        var s = entry.samples[ j ]
+                                        var t = ( typeof s.tSec === "number" && isFinite( s.tSec ) ) ? s.tSec : 0
+                                        var copy = Object.assign( {}, s, { tSec: t + offset, timespanIndex: i, localTSec: t } )
+
+                                        stitched.push( copy )
+                                    }
+
+                                    var dur = ( entry.timespan && isFinite( entry.timespan.duration ) ) ? Number( entry.timespan.duration ) : 0
+
+                                    offset += dur
+                                }
+
+                                self.clipAnalytics = {
+                                    loading: false,
+                                    error: ( !stitched.length && firstError ) ? firstError : null,
+                                    samples: stitched,
+                                    loadId: token
+                                }
+                            }
+                        } )
+                    } )
+                },
+                seekToSampleTime: function( tSec )
+                {
+                    if ( typeof tSec !== "number" || !isFinite( tSec ) ) return
+
+                    var total = this.duration
+
+                    if ( !( total > 0 ) ) return
+
+                    this.controls.playing = false
+                    this.currentTime = Math.max( 0, Math.min( total, tSec ) )
+                },
                 openSeqDiagnostics: function()
                 {
                     var self = this
@@ -803,6 +927,7 @@
         app.component( "SynchronizedVideo", uiVideo.createVideoComponent( handlers ) )
         app.component( "MetadataProbe", uiVideo.createMetadataProbeComponent( handlers ) )
         app.component( "EventMap", uiMap.createEventMapComponent() )
+        app.component( "ClipAnalytics", uiAnalytics.createClipAnalyticsComponent() )
 
         var vueApp = app.mount( '#root' )
 
