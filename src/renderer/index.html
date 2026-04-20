@@ -138,6 +138,27 @@
                   </div>
                 </template>
                 <div v-else class="text-muted">No event.json</div>
+                <div class="mt-2">
+                  <button type="button" class="btn btn-sm btn-outline-secondary" @click.prevent="toggleSeqDiagnostics">
+                    <span class="bi bi-activity" aria-hidden="true"></span>
+                    Camera sync diagnostics
+                  </button>
+                  <div v-if="seqDiagnostics.open" class="tc-seq-diagnostics mt-2">
+                    <div v-if="seqDiagnostics.loading" class="text-muted">Checking cameras…</div>
+                    <div v-else-if="seqDiagnostics.error" class="text-danger">{{ seqDiagnostics.error }}</div>
+                    <table v-else-if="seqDiagnostics.results" class="table table-sm table-borderless mb-0">
+                      <thead><tr><th>Camera</th><th>First seq</th><th>Samples</th><th>Δ</th></tr></thead>
+                      <tbody>
+                        <tr v-for="r in seqDiagnostics.results" :key="r.fileName">
+                          <td>{{ r.camera }}</td>
+                          <td>{{ r.summary.error ? "—" : ( r.summary.firstSeq != null ? r.summary.firstSeq : "—" ) }}</td>
+                          <td>{{ r.summary.error ? "—" : r.summary.sampleCount }}</td>
+                          <td :class="{ 'text-warning': r.delta != null && Math.abs( r.delta ) > 1 }">{{ r.delta != null ? ( r.delta > 0 ? "+" + r.delta : r.delta ) : "—" }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
               <div class="px-2 mb-2 text-muted text-center" style="font-size: 0.85em;">
                 Forked from <a href="https://github.com/BobStrogg/teslacam-browser" target="_blank" rel="noopener noreferrer">BobStrogg/teslacam-browser</a>
@@ -311,6 +332,7 @@
           getFiles: (p, success) => electronAPI.invoke("getFiles", p).then(success),
           readEventJson: (p, success) => electronAPI.invoke("readEventJson", p).then(success).catch(() => success(null)),
           getClipTelemetry: (p, success) => electronAPI.invoke("getClipTelemetry", p).then(success).catch(e => success({ error: String(e.message || e) })),
+          getClipSeqSummary: (p, success) => electronAPI.invoke("getClipSeqSummary", p).then(success).catch(e => success({ error: String(e.message || e) })),
           getAssetUrl: rel => (assetFolder && rel) ? assetFolder + rel : null,
           openBrowser: () => electronAPI.send("openBrowser"),
           deleteFiles: files => electronAPI.send("deleteFiles", files),

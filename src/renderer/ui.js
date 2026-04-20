@@ -70,7 +70,8 @@
                 confirmMessage: "",
                 confirmCallback: null,
                 currentGps: null,
-                currentHeading: null
+                currentHeading: null,
+                seqDiagnostics: { open: false, loading: false, results: null, error: null }
                 }
             },
             provide: function()
@@ -677,6 +678,67 @@
                     handlers.copyFilePaths( files )
 
                     alert( "Copied file paths to clipboard" )
+                },
+                toggleSeqDiagnostics: function()
+                {
+                    if ( this.seqDiagnostics.open )
+                    {
+                        this.seqDiagnostics.open = false
+
+                        return
+                    }
+
+                    this.seqDiagnostics = { open: true, loading: true, results: null, error: null }
+
+                    if ( !handlers.getClipSeqSummary )
+                    {
+                        this.seqDiagnostics = { open: true, loading: false, results: null, error: "Unsupported in this build" }
+
+                        return
+                    }
+
+                    var timespan = this.controls.timespan || ( this.timespans.length ? this.timespans[ 0 ] : null )
+
+                    if ( !timespan || !timespan.views || !timespan.views.length )
+                    {
+                        this.seqDiagnostics = { open: true, loading: false, results: null, error: "No clip loaded" }
+
+                        return
+                    }
+
+                    var self = this
+                    var views = timespan.views.slice()
+                    var pending = views.length
+                    var results = []
+
+                    views.forEach( function( v, idx )
+                    {
+                        handlers.getClipSeqSummary( v.filePath, function( res )
+                        {
+                            results[ idx ] = { camera: v.camera, fileName: v.fileName, summary: res || { error: "empty" } }
+
+                            if ( --pending === 0 )
+                            {
+                                var baseline = null
+
+                                for ( var i = 0; i < results.length; i++ )
+                                {
+                                    var s = results[ i ].summary
+                                    if ( s && !s.error && typeof s.firstSeq === "number" ) { baseline = s.firstSeq; break }
+                                }
+
+                                results.forEach( function( r )
+                                {
+                                    if ( r.summary && !r.summary.error && typeof r.summary.firstSeq === "number" && baseline != null )
+                                        r.delta = r.summary.firstSeq - baseline
+                                    else
+                                        r.delta = null
+                                } )
+
+                                self.seqDiagnostics = { open: true, loading: false, results: results, error: null }
+                            }
+                        } )
+                    } )
                 },
                 showConfirm: function( message, callback )
                 {
