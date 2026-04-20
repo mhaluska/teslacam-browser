@@ -133,12 +133,12 @@
                   <div class="event-json-row"><span class="text-muted">Camera</span> {{ displayCameraName( clipEvent.camera ) }}</div>
                   <div class="event-json-row" v-if="eventLatNum != null && eventLonNum != null"><span class="text-muted">Location</span> {{ clipEvent.est_lat }}, {{ clipEvent.est_lon }}</div>
                   <event-map v-if="eventLatNum != null && eventLonNum != null" :event-lat="eventLatNum" :event-lon="eventLonNum" :current-lat="currentGps && currentGps.lat" :current-lon="currentGps && currentGps.lon" :current-heading="currentHeading"></event-map>
-                  <div v-if="openStreetMapUrl" class="mt-1">
+                  <div v-if="openStreetMapUrl" class="mt-1 text-center">
                     <a :href="openStreetMapUrl" target="_blank" rel="noopener noreferrer">Open in OpenStreetMap</a>
                   </div>
                 </template>
                 <div v-else class="text-muted">No event.json</div>
-                <div class="mt-2">
+                <div class="mt-2 text-center">
                   <button type="button" class="btn btn-sm btn-outline-secondary" @click.prevent="openSeqDiagnostics">
                     <span class="bi bi-activity" aria-hidden="true"></span>
                     Camera sync diagnostics
