@@ -795,6 +795,15 @@
                         </li>
                     </ul>
 
+                    <div class="clip-analytics-status small">
+                        <span v-if="loading" class="badge bg-primary">loading…</span>
+                        <span v-else class="badge bg-secondary">{{ samples.length }} sample{{ samples.length === 1 ? "" : "s" }}</span>
+                        <span v-if="error" class="badge bg-danger ms-1">{{ error }}</span>
+                        <span v-if="!loading && hasSamples" class="text-muted ms-2">
+                            GPS: {{ hasGps ? "yes" : "no" }} · clips spanning {{ tripStats.durationSec != null ? tripStats.durationSec.toFixed( 1 ) + "s" : "—" }}
+                        </span>
+                    </div>
+
                     <div v-if="loading" class="clip-analytics-msg text-muted">Loading telemetry…</div>
                     <div v-else-if="error" class="clip-analytics-msg text-danger">{{ error }}</div>
                     <div v-else-if="!hasSamples" class="clip-analytics-msg text-muted">No telemetry in these clips.</div>

@@ -171,7 +171,7 @@
                     }
 
                     this.currentGps = null
-                    this.clipAnalytics = { loading: false, error: null, samples: [], loadId: this.clipAnalytics.loadId + 1, shownCounter: this.clipAnalytics.shownCounter }
+                    this._resetClipAnalytics()
 
                     if ( newPath )
                     {
@@ -712,6 +712,19 @@
 
                     alert( "Copied file paths to clipboard" )
                 },
+                _resetClipAnalytics: function( patch )
+                {
+                    var prev = this.clipAnalytics || {}
+                    var base = {
+                        loading: false,
+                        error: null,
+                        samples: [],
+                        loadId: ( typeof prev.loadId === "number" ? prev.loadId : 0 ) + 1,
+                        shownCounter: ( typeof prev.shownCounter === "number" ? prev.shownCounter : 0 )
+                    }
+
+                    this.clipAnalytics = Object.assign( base, patch || {} )
+                },
                 openClipAnalytics: function()
                 {
                     var self = this
@@ -726,7 +739,10 @@
                         {
                             el.addEventListener( "shown.bs.modal", function()
                             {
-                                self.clipAnalytics = Object.assign( {}, self.clipAnalytics, { shownCounter: self.clipAnalytics.shownCounter + 1 } )
+                                var prev = self.clipAnalytics.shownCounter
+                                var next = ( typeof prev === "number" && isFinite( prev ) ) ? prev + 1 : 1
+
+                                self.clipAnalytics = Object.assign( {}, self.clipAnalytics, { shownCounter: next } )
                             } )
                             self._clipAnalyticsShownBound = true
                         }
@@ -736,14 +752,14 @@
 
                     if ( !handlers.getClipTelemetry )
                     {
-                        self.clipAnalytics = { loading: false, error: "Unsupported in this build", samples: [], loadId: self.clipAnalytics.loadId + 1 }
+                        self._resetClipAnalytics( { error: "Unsupported in this build" } )
 
                         return
                     }
 
                     if ( !self.timespans || !self.timespans.length )
                     {
-                        self.clipAnalytics = { loading: false, error: "No clip loaded", samples: [], loadId: self.clipAnalytics.loadId + 1 }
+                        self._resetClipAnalytics( { error: "No clip loaded" } )
 
                         return
                     }
@@ -759,15 +775,14 @@
 
                     if ( !fetches.length )
                     {
-                        self.clipAnalytics = { loading: false, error: "No front-camera clips available", samples: [], loadId: self.clipAnalytics.loadId + 1 }
+                        self._resetClipAnalytics( { error: "No front-camera clips available" } )
 
                         return
                     }
 
-                    var token = ++self.clipAnalytics.loadId
+                    self._resetClipAnalytics( { loading: true } )
 
-                    self.clipAnalytics = { loading: true, error: null, samples: [], loadId: token }
-
+                    var token = self.clipAnalytics.loadId
                     var pending = fetches.length
                     var perClip = new Array( fetches.length )
 
@@ -809,12 +824,11 @@
                                     offset += dur
                                 }
 
-                                self.clipAnalytics = {
+                                self.clipAnalytics = Object.assign( {}, self.clipAnalytics, {
                                     loading: false,
                                     error: ( !stitched.length && firstError ) ? firstError : null,
-                                    samples: stitched,
-                                    loadId: token
-                                }
+                                    samples: stitched
+                                } )
                             }
                         } )
                     } )

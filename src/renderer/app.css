@@ -904,6 +904,14 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
 {
   padding: 2rem 1rem;
   text-align: center;
+  font-size: 1rem;
+}
+
+.clip-analytics-status
+{
+  padding: 0.25rem 0.5rem 0.5rem;
+  border-bottom: 1px solid var( --tc-panel-border );
+  margin-bottom: 0.5rem;
 }
 
 .clip-analytics-body
