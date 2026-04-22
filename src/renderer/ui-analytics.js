@@ -12,38 +12,8 @@
     var computeTripStats = uiUtils.computeTripStats
     var buildTelemetryCsv = uiUtils.buildTelemetryCsv
     var buildTelemetryGpx = uiUtils.buildTelemetryGpx
-
-    function downloadBlob( filename, mime, text )
-    {
-        try
-        {
-            var blob = new Blob( [ text ], { type: mime + ";charset=utf-8" } )
-            var url = URL.createObjectURL( blob )
-            var a = document.createElement( "a" )
-
-            a.href = url
-            a.download = filename
-            a.style.display = "none"
-
-            document.body.appendChild( a )
-            a.click()
-            document.body.removeChild( a )
-
-            setTimeout( function() { URL.revokeObjectURL( url ) }, 0 )
-        }
-        catch ( e )
-        {
-            /* best-effort — browser may block downloads in some contexts */
-            console.error( "download failed", e )
-        }
-    }
-
-    function sanitizeFilenamePart( s )
-    {
-        if ( s == null ) return ""
-
-        return String( s ).replace( /[^A-Za-z0-9._-]+/g, "_" ).replace( /^_+|_+$/g, "" )
-    }
+    var downloadBlob = uiUtils.downloadBlob
+    var sanitizeFilenamePart = uiUtils.sanitizeFilenamePart
 
     var TABS = [
         { id: "trail",   label: "Trail"   },
@@ -541,7 +511,7 @@
 
                     var text = buildTelemetryCsv( this.samples, this.baseTime )
 
-                    downloadBlob( this.exportBasename() + ".csv", "text/csv", text )
+                    downloadBlob( this.exportBasename() + ".csv", text, "text/csv" )
                 },
                 downloadGpx: function()
                 {
@@ -549,7 +519,7 @@
 
                     var text = buildTelemetryGpx( this.samples, this.baseTime, { name: this.eventLabel || "TeslaCam clip" } )
 
-                    downloadBlob( this.exportBasename() + ".gpx", "application/gpx+xml", text )
+                    downloadBlob( this.exportBasename() + ".gpx", text, "application/gpx+xml" )
                 },
                 _scheduleChartsRefresh: function( rebuild )
                 {

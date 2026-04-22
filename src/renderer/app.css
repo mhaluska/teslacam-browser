@@ -642,6 +642,45 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
   width: 100%;
 }
 
+.tc-cam-actions
+{
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 4;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s ease-in-out;
+  pointer-events: none;
+}
+
+.tc-cam-stack:hover .tc-cam-actions,
+.tc-cam-stack:focus-within .tc-cam-actions
+{
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.tc-cam-action-btn
+{
+  background: rgba( 0, 0, 0, 0.55 );
+  color: #fff;
+  border: 0;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.tc-cam-action-btn:hover,
+.tc-cam-action-btn:focus
+{
+  background: rgba( 0, 0, 0, 0.75 );
+  outline: none;
+}
+
 .tc-dash-overlay
 {
   position: absolute;
@@ -886,6 +925,75 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
   cursor: help;
   z-index: 2;
   pointer-events: auto;
+}
+
+.loop-marker
+{
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 2px;
+  height: 18px;
+  transform: translate( -50%, -50% );
+  border-radius: 1px;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.loop-marker-a { background: #10b981; }
+.loop-marker-b { background: #f59f0a; }
+
+.loop-range
+{
+  position: absolute;
+  top: 50%;
+  left: 0;
+  height: 10px;
+  transform: translateY( -50% );
+  background: rgba( 16, 185, 129, 0.18 );
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.loop-controls
+{
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.playback-controls
+{
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.playback-controls .btn
+{
+  min-width: 5.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.skip-btn
+{
+  gap: 0.4rem;
+}
+
+.skip-btn-label
+{
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.loop-btn-label
+{
+  font-weight: 600;
+  font-size: 0.85em;
+  letter-spacing: 0.03em;
 }
 
 .clip-analytics

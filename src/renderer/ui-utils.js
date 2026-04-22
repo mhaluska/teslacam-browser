@@ -489,6 +489,42 @@
 		return head + body + tail
 	}
 
+	function sanitizeFilenamePart( s )
+	{
+		if ( s == null ) return ""
+
+		return String( s ).replace( /[^A-Za-z0-9._-]+/g, "_" ).replace( /^_+|_+$/g, "" )
+	}
+
+	function downloadBlob( filename, blobOrText, mimeIfText )
+	{
+		if ( typeof document === "undefined" || typeof URL === "undefined" ) return
+
+		try
+		{
+			var blob = ( blobOrText instanceof Blob )
+				? blobOrText
+				: new Blob( [ blobOrText ], { type: ( mimeIfText || "text/plain" ) + ";charset=utf-8" } )
+			var url = URL.createObjectURL( blob )
+			var a = document.createElement( "a" )
+
+			a.href = url
+			a.download = filename
+			a.style.display = "none"
+
+			document.body.appendChild( a )
+			a.click()
+			document.body.removeChild( a )
+
+			setTimeout( function() { URL.revokeObjectURL( url ) }, 0 )
+		}
+		catch ( e )
+		{
+			/* best-effort — browser may block downloads in some contexts */
+			console.error( "download failed", e )
+		}
+	}
+
 	return {
 		pickSeiInterpolationBracket: pickSeiInterpolationBracket,
 		blendDashSamples: blendDashSamples,
@@ -502,6 +538,8 @@
 		computeTripStats: computeTripStats,
 		buildTelemetryCsv: buildTelemetryCsv,
 		buildTelemetryGpx: buildTelemetryGpx,
+		sanitizeFilenamePart: sanitizeFilenamePart,
+		downloadBlob: downloadBlob,
 		CSV_COLUMNS: CSV_COLUMNS
 	}
 } ) );

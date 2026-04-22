@@ -12,6 +12,8 @@
     var uiUtils = ( typeof window !== "undefined" && window.uiUtils )
         ? window.uiUtils
         : require( "./ui-utils" )
+    var downloadBlob = uiUtils.downloadBlob
+    var sanitizeFilenamePart = uiUtils.sanitizeFilenamePart
 
     var uiVideo = ( typeof window !== "undefined" && window.uiVideo )
         ? window.uiVideo
@@ -30,6 +32,10 @@
         : require( "./helpers" )
 
     var CAM_GRID_ALL = uiConstants.CAM_GRID_ALL
+    var CAM_GRID_TOP = uiConstants.CAM_GRID_TOP
+    var CAM_GRID_BOTTOM = uiConstants.CAM_GRID_BOTTOM
+    var FRAME_STEP_SECONDS = uiConstants.FRAME_STEP_SECONDS
+    var FRAME_STEP_LARGE_MULTIPLIER = uiConstants.FRAME_STEP_LARGE_MULTIPLIER
     var normalizeThemePreference = uiUtils.normalizeThemePreference
     var normalizeSpeedUnit = uiUtils.normalizeSpeedUnit
     var effectiveSpeedUnit = uiUtils.effectiveSpeedUnit
@@ -65,7 +71,10 @@
                 {
                     playing: false,
                     timespan: null,
-                    speed: 1
+                    speed: 1,
+                    loopStart: null,
+                    loopEnd: null,
+                    exporting: false
                 },
                 playing: null,
                 loading: null,
@@ -288,9 +297,39 @@
                         this.controls.timespan = ( this.timespans.length > 0 ) ? this.timespans[ 0 ] : null
                         this.controls.playing = false
                         this.controls.scrub = 0
+                        this.controls.loopStart = null
+                        this.controls.loopEnd = null
                     }
 
                     this.tryAutoSeek()
+                },
+                currentTime: function( newTime )
+                {
+                    var a = this.controls.loopStart
+                    var b = this.controls.loopEnd
+
+                    if ( a == null || b == null ) return
+                    if ( !this.controls.playing ) return
+                    if ( !( newTime >= b ) ) return
+                    if ( this._loopWrapping ) return
+                    if ( this.controls.exporting ) return
+
+                    // Pause → seek → resume. While playing, each video's timeChanged
+                    // handler writes video.currentTime back into timespan.currentTime,
+                    // so a naive write to currentTime would be overwritten on the next
+                    // frame. Cycling playing re-fires startPlayback which seeks each
+                    // video to the new timespan.currentTime.
+                    var self = this
+
+                    self._loopWrapping = true
+                    self.controls.playing = false
+                    self.currentTime = a
+
+                    Vue.nextTick( function()
+                    {
+                        self.controls.playing = true
+                        self._loopWrapping = false
+                    } )
                 }
             },
             computed:
@@ -368,6 +407,19 @@
                     var pct = Math.max( 0, Math.min( 100, ( offset / total ) * 100 ) )
 
                     return { left: pct + "%" }
+                },
+                loopRangeStyle: function()
+                {
+                    var a = this.controls.loopStart
+                    var b = this.controls.loopEnd
+                    var total = this.duration
+
+                    if ( a == null || b == null || !( total > 0 ) ) return { display: "none" }
+
+                    var lo = Math.max( 0, Math.min( 100, ( Math.min( a, b ) / total ) * 100 ) )
+                    var hi = Math.max( 0, Math.min( 100, ( Math.max( a, b ) / total ) * 100 ) )
+
+                    return { left: lo + "%", width: ( hi - lo ) + "%" }
                 },
                 triggerMarkerTitle: function()
                 {
@@ -497,6 +549,9 @@
 
                 if ( handlers.getSpeedUnit ) handlers.getSpeedUnit( applySpeedUnit )
                 else applySpeedUnit( "auto" )
+
+                self._keydownListener = function( e ) { self.handleGlobalKey( e ) }
+                window.addEventListener( "keydown", self._keydownListener )
             },
             beforeUnmount: function()
             {
@@ -506,6 +561,12 @@
                 {
                     if ( self._systemMq.removeEventListener ) self._systemMq.removeEventListener( "change", self._systemThemeListener )
                     else if ( self._systemMq.removeListener ) self._systemMq.removeListener( self._systemThemeListener )
+                }
+
+                if ( self._keydownListener )
+                {
+                    window.removeEventListener( "keydown", self._keydownListener )
+                    self._keydownListener = null
                 }
             },
             methods:
@@ -659,6 +720,357 @@
                     if ( this.controls ) this.controls.timespan = timespan
 
                     this._pendingAutoSeek = null
+                },
+                handleGlobalKey: function( e )
+                {
+                    if ( e.defaultPrevented ) return
+                    if ( e.ctrlKey || e.metaKey || e.altKey ) return
+
+                    var t = e.target
+                    if ( t )
+                    {
+                        var tag = t.tagName
+                        if ( tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" ) return
+                        if ( t.isContentEditable ) return
+                    }
+
+                    if ( document.querySelector( ".modal.show" ) ) return
+
+                    if ( !this.timespans || !this.timespans.length ) return
+                    if ( !( this.duration > 0 ) ) return
+
+                    var key = e.key
+
+                    if ( key === "ArrowLeft" )
+                    {
+                        this.stepFrames( e.shiftKey ? -FRAME_STEP_LARGE_MULTIPLIER : -1 )
+                        e.preventDefault()
+                    }
+                    else if ( key === "ArrowRight" )
+                    {
+                        this.stepFrames( e.shiftKey ? FRAME_STEP_LARGE_MULTIPLIER : 1 )
+                        e.preventDefault()
+                    }
+                    else if ( key === " " || key === "Spacebar" )
+                    {
+                        this.controls.playing = !this.controls.playing
+                        e.preventDefault()
+                    }
+                    else if ( key === "[" )
+                    {
+                        this.setLoopA()
+                        e.preventDefault()
+                    }
+                    else if ( key === "]" )
+                    {
+                        this.setLoopB()
+                        e.preventDefault()
+                    }
+                    else if ( key === "\\" )
+                    {
+                        this.clearLoop()
+                        e.preventDefault()
+                    }
+                },
+                stepFrames: function( frames )
+                {
+                    if ( !( this.duration > 0 ) ) return
+
+                    this.controls.playing = false
+
+                    var next = this.currentTime + frames * FRAME_STEP_SECONDS
+                    // Clamp just shy of total — the currentTime setter uses a strict
+                    // `<` comparison against the end, so duration itself never matches.
+                    var maxSeek = this.duration - 0.001
+
+                    if ( next < 0 ) next = 0
+                    else if ( next > maxSeek ) next = maxSeek
+
+                    this.currentTime = next
+                },
+                skipSeconds: function( seconds )
+                {
+                    if ( !( this.duration > 0 ) ) return
+
+                    var wasPlaying = this.controls.playing
+                    var next = this.currentTime + seconds
+                    var maxSeek = this.duration - 0.001
+
+                    if ( next < 0 ) next = 0
+                    else if ( next > maxSeek ) next = maxSeek
+
+                    // Cycle playback if needed so each <video> re-seeks — same reason
+                    // as the loop-wrap watcher: while playing, timeChanged writes the
+                    // raw video.currentTime back onto timespan.currentTime, which would
+                    // otherwise clobber a naive jump.
+                    if ( wasPlaying )
+                    {
+                        var self = this
+
+                        self.controls.playing = false
+                        self.currentTime = next
+
+                        Vue.nextTick( function()
+                        {
+                            self.controls.playing = true
+                        } )
+                    }
+                    else
+                    {
+                        this.currentTime = next
+                    }
+                },
+                loopMarkerStyle: function( t )
+                {
+                    var total = this.duration
+
+                    if ( t == null || !( total > 0 ) ) return { display: "none" }
+
+                    var pct = Math.max( 0, Math.min( 100, ( t / total ) * 100 ) )
+
+                    return { left: pct + "%" }
+                },
+                setLoopA: function()
+                {
+                    var t = this.currentTime
+
+                    if ( t == null || !isFinite( t ) ) return
+
+                    this.controls.loopStart = t
+
+                    if ( this.controls.loopEnd != null && this.controls.loopEnd <= t )
+                    {
+                        this.controls.loopEnd = null
+                    }
+                },
+                setLoopB: function()
+                {
+                    var t = this.currentTime
+
+                    if ( t == null || !isFinite( t ) ) return
+
+                    this.controls.loopEnd = t
+
+                    if ( this.controls.loopStart != null && this.controls.loopStart >= t )
+                    {
+                        this.controls.loopStart = null
+                    }
+                },
+                clearLoop: function()
+                {
+                    this.controls.loopStart = null
+                    this.controls.loopEnd = null
+                },
+                currentClipBaseName: function()
+                {
+                    var ts = this.controls && this.controls.timespan
+                    var view = ts && ts.viewMap ? ts.viewMap.get( "front" ) : null
+
+                    if ( view && view.fileName ) return view.fileName.replace( /\.[^.]+$/, "" ).replace( /-front$/, "" )
+
+                    return "teslacam-clip"
+                },
+                exportRangeWebm: function()
+                {
+                    if ( this.controls.exporting ) return
+
+                    var a = this.controls.loopStart
+                    var b = this.controls.loopEnd
+
+                    if ( a == null || b == null || !( b > a ) ) return
+                    if ( typeof MediaRecorder === "undefined" ) { console.error( "MediaRecorder unavailable" ); return }
+
+                    var front = document.querySelector( "video.video.front" )
+
+                    if ( !front || typeof front.captureStream !== "function" )
+                    {
+                        console.error( "front camera video not ready or captureStream unsupported" )
+
+                        return
+                    }
+
+                    var mime = [
+                        "video/webm;codecs=vp9",
+                        "video/webm;codecs=vp8",
+                        "video/webm"
+                    ].find( function( m ) { return MediaRecorder.isTypeSupported( m ) } )
+
+                    if ( !mime ) { console.error( "no supported WebM MIME type" ); return }
+
+                    var self = this
+                    var chunks = []
+                    var stream = front.captureStream( 36 )
+                    var rec = new MediaRecorder( stream, { mimeType: mime } )
+
+                    rec.ondataavailable = function( e ) { if ( e.data && e.data.size ) chunks.push( e.data ) }
+
+                    var savedSpeed = self.controls.speed
+                    var fileName = sanitizeFilenamePart( self.currentClipBaseName() )
+                        + "_range_" + a.toFixed( 3 ) + "-" + b.toFixed( 3 ) + "s.webm"
+                    var stopTimer = null
+                    var rafHandle = null
+
+                    function cleanup()
+                    {
+                        if ( rafHandle )
+                        {
+                            window.cancelAnimationFrame( rafHandle )
+                            rafHandle = null
+                        }
+
+                        if ( stopTimer )
+                        {
+                            window.clearTimeout( stopTimer )
+                            stopTimer = null
+                        }
+
+                        self.controls.speed = savedSpeed
+                        self.controls.exporting = false
+                    }
+
+                    rec.onstop = function()
+                    {
+                        cleanup()
+                        self.controls.playing = false
+
+                        var blob = new Blob( chunks, { type: mime } )
+
+                        if ( blob.size ) downloadBlob( fileName, blob )
+                        else console.error( "export produced 0 bytes" )
+                    }
+
+                    rec.onerror = function( e )
+                    {
+                        console.error( "MediaRecorder error:", e && e.error ? e.error : e )
+                        cleanup()
+                    }
+
+                    self.controls.exporting = true
+                    self.controls.playing = false
+                    self.controls.speed = 1
+                    self.currentTime = a
+
+                    // Wait one seeked event on the front camera before starting, then
+                    // kick off playback and poll currentTime for the stop condition.
+                    function onSeeked()
+                    {
+                        front.removeEventListener( "seeked", onSeeked )
+
+                        try { rec.start( 100 ) }
+                        catch ( err ) { console.error( "rec.start failed:", err ); cleanup(); return }
+
+                        self.controls.playing = true
+
+                        function poll()
+                        {
+                            if ( rec.state !== "recording" ) return
+
+                            if ( self.currentTime >= b )
+                            {
+                                try { rec.stop() } catch ( _ ) { /* noop */ }
+
+                                return
+                            }
+
+                            rafHandle = window.requestAnimationFrame( poll )
+                        }
+
+                        rafHandle = window.requestAnimationFrame( poll )
+
+                        // Safety ceiling: 1.5x the wall-clock length of the range.
+                        var maxMs = Math.max( 2000, Math.ceil( ( b - a ) * 1500 ) )
+
+                        stopTimer = window.setTimeout( function()
+                        {
+                            if ( rec.state === "recording" )
+                            {
+                                console.warn( "export safety timeout — stopping recorder" )
+                                try { rec.stop() } catch ( _ ) { /* noop */ }
+                            }
+                        }, maxMs )
+                    }
+
+                    front.addEventListener( "seeked", onSeeked )
+                },
+                snapshotMosaic: function()
+                {
+                    var ts = this.controls && this.controls.timespan
+
+                    if ( !ts || !ts.views ) return
+
+                    var rows = [ CAM_GRID_TOP, CAM_GRID_BOTTOM ]
+                    var rowEls = rows.map( function( row )
+                    {
+                        return row.map( function( cam )
+                        {
+                            return document.querySelector( "video.video." + cam )
+                        } )
+                    } )
+
+                    var anyVideo = null
+                    var cellW = 0
+                    var cellH = 0
+
+                    for ( var r = 0; r < rowEls.length; r++ )
+                    {
+                        for ( var c = 0; c < rowEls[ r ].length; c++ )
+                        {
+                            var v = rowEls[ r ][ c ]
+
+                            if ( v && v.videoWidth && v.videoHeight )
+                            {
+                                if ( !anyVideo ) anyVideo = v
+                                if ( v.videoWidth > cellW ) cellW = v.videoWidth
+                                if ( v.videoHeight > cellH ) cellH = v.videoHeight
+                            }
+                        }
+                    }
+
+                    if ( !anyVideo ) return
+
+                    // Downscale so the mosaic never exceeds ~2400 px wide.
+                    var maxMosaicWidth = 2400
+                    var scale = Math.min( 1, maxMosaicWidth / ( cellW * 3 ) )
+                    var tileW = Math.round( cellW * scale )
+                    var tileH = Math.round( cellH * scale )
+                    var canvas = document.createElement( "canvas" )
+
+                    canvas.width = tileW * 3
+                    canvas.height = tileH * 2
+
+                    var ctx = canvas.getContext( "2d" )
+
+                    ctx.fillStyle = "#000"
+                    ctx.fillRect( 0, 0, canvas.width, canvas.height )
+
+                    try
+                    {
+                        for ( var rr = 0; rr < rowEls.length; rr++ )
+                        {
+                            for ( var cc = 0; cc < rowEls[ rr ].length; cc++ )
+                            {
+                                var el = rowEls[ rr ][ cc ]
+
+                                if ( el && el.videoWidth && el.videoHeight )
+                                {
+                                    ctx.drawImage( el, cc * tileW, rr * tileH, tileW, tileH )
+                                }
+                            }
+                        }
+
+                        var t = this.currentTime || 0
+                        var name = sanitizeFilenamePart( this.currentClipBaseName() ) + "_mosaic_t" + t.toFixed( 3 ) + "s.png"
+
+                        canvas.toBlob( function( blob )
+                        {
+                            if ( blob ) downloadBlob( name, blob )
+                            else console.error( "mosaic snapshot: toBlob returned null (canvas tainted?)" )
+                        }, "image/png" )
+                    }
+                    catch ( e )
+                    {
+                        console.error( "mosaic snapshot failed:", e && e.message ? e.message : e )
+                    }
                 },
                 tryAutoSeek: function()
                 {
