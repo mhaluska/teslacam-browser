@@ -1234,7 +1234,7 @@
 			var info = shareSubpathHandler( "files" )( request, response )
 			if ( !info || info.error ) return
 
-			try { response.send( await getFiles( info.relative, p => "share/" + request.params[ 0 ] + "/videos/" + p ) ) }
+			try { response.send( await getFiles( info.relative, p => "/share/" + request.params[ 0 ] + "/videos/" + p ) ) }
 			catch ( _e ) { response.status( 400 ).json( { error: "invalid_path" } ) }
 		} )
 
