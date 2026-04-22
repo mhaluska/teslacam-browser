@@ -657,6 +657,53 @@
 		diskUsageCache = { folder: null, ts: 0, value: null }
 	}
 
+	async function cleanupOlderThan( days, reasons, options )
+	{
+		options = options || {}
+		var dryRun = !!options.dryRun
+
+		if ( typeof days !== "number" || !isFinite( days ) || days < 0 )
+			throw new Error( "invalid_days" )
+		if ( !Array.isArray( reasons ) || !reasons.length )
+			throw new Error( "invalid_reasons" )
+
+		var opened = await openFolder()
+		var cutoff = Date.now() - days * 24 * 60 * 60 * 1000
+		var candidates = ( opened.folderInfos || [] ).filter( info =>
+		{
+			var d = ( info.date instanceof Date ) ? info.date : new Date( info.date )
+			if ( isNaN( d.getTime() ) ) return false
+			if ( d.getTime() >= cutoff ) return false
+			return reasons.indexOf( reasonBucket( info ) ) >= 0
+		} )
+
+		if ( dryRun )
+		{
+			var totalBytes = 0
+			for ( var info of candidates ) totalBytes += await sumFolderBytes( info.path )
+
+			return { dryRun: true, count: candidates.length, bytes: totalBytes, paths: candidates.map( i => i.relative ) }
+		}
+
+		var deleted = []
+		var failed = []
+
+		for ( var info of candidates )
+		{
+			try
+			{
+				await deleteFolder( info.relative )
+				deleted.push( info.relative )
+			}
+			catch ( e )
+			{
+				failed.push( { path: info.relative, error: String( e && e.message ? e.message : e ) } )
+			}
+		}
+
+		return { deleted: deleted, failed: failed }
+	}
+
 	async function openFolder( folder )
 	{
 		if ( !folder ) folder = lastArgs.folder
@@ -946,6 +993,35 @@
 			}
 		} )
 
+		expressApp.post( "/cleanupOlderThan", requireDeletesEnabled, deleteLimiter, requireCsrf, async ( request, response ) =>
+		{
+			var days = request.body && request.body.days
+			var reasons = request.body && request.body.reasons
+			var dryRun = !!( request.body && request.body.dryRun )
+
+			try
+			{
+				var result = await cleanupOlderThan( days, reasons, { dryRun: dryRun } )
+
+				if ( !dryRun )
+					logger.info( "cleanup_older_than_completed",
+						{ days: days, reasons: reasons,
+						  deleted: result.deleted.length, failed: result.failed.length } )
+
+				response.json( result )
+			}
+			catch ( e )
+			{
+				var msg = String( e && e.message ? e.message : e )
+
+				if ( msg === "invalid_days" || msg === "invalid_reasons" )
+					return response.status( 400 ).json( { error: msg } )
+
+				logger.warn( "cleanup_older_than_failed", { error: e } )
+				response.status( 500 ).json( { error: "cleanup_failed" } )
+			}
+		} )
+
 		expressApp.get( "/diskUsage", apiLimiter, async ( _request, response ) =>
 		{
 			try
@@ -1106,6 +1182,7 @@
         deleteFolder: deleteFolder,
         copyPath: copyPath,
         computeDiskUsage: computeDiskUsage,
+        cleanupOlderThan: cleanupOlderThan,
         initializeExpress: initializeExpress
 	}
 } ) );
