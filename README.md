@@ -10,6 +10,29 @@ To use this app, simply click the "Open..." button and browse to the ```TeslaCam
 
 Basic video playback controls let you view all available cameras side-by-side.  Clicking on a video will open a file browser pointing to the source file.
 
+### Playback controls
+
+Toolbar next to the scrubber:
+
+- **⏮ 10s / 10s ⏭** — jump the timeline back or forward 10 seconds.
+- **A / B / ✕** — set loop start, loop end, or clear the loop. Playback wraps from B back to A.
+- **Mosaic / Record** — save a 3×2 PNG of all cameras, or export the A→B range of the front camera as WebM.
+
+Per-camera buttons appear on hover in the top-right of each tile:
+
+- 📷 save that frame as PNG
+- PiP picture-in-picture (browser permitting)
+- ⛶ fullscreen that camera while the others stay in sync
+
+Keyboard shortcuts (when no text field is focused):
+
+| Key | Action |
+|---|---|
+| `Space` | Play / pause |
+| `←` / `→` | Step one frame back / forward |
+| `Shift + ← / →` | Step 10 frames |
+| `[` / `]` / `\` | Set loop A / set loop B / clear |
+
 ## Running from the command line
 
 While using the installation packages is the simplest option, you can also run the app from the command line (you'll need to ensure [Electron](https://electronjs.org/docs/tutorial/installation) is installed first).
