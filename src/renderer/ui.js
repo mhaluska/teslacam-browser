@@ -87,7 +87,9 @@
                 currentGps: null,
                 currentHeading: null,
                 seqDiagnostics: { loading: false, results: null, error: null },
-                clipAnalytics: { loading: false, error: null, samples: [], loadId: 0, shownCounter: 0 }
+                clipAnalytics: { loading: false, error: null, samples: [], loadId: 0, shownCounter: 0 },
+                diskUsage: { loading: false, error: null, data: null },
+                diskUsageOpen: false
                 }
             },
             provide: function()
@@ -1421,6 +1423,45 @@
                 copyPath: function( path )
                 {
                     handlers.copyPath( path )
+                },
+                formatBytes: function( bytes )
+                {
+                    if ( bytes == null || !isFinite( bytes ) ) return "—"
+                    if ( bytes < 1024 ) return bytes + " B"
+
+                    var units = [ "KB", "MB", "GB", "TB" ]
+                    var n = bytes / 1024
+                    var i = 0
+
+                    while ( n >= 1024 && i < units.length - 1 ) { n /= 1024; i++ }
+
+                    return ( n >= 10 ? n.toFixed( 0 ) : n.toFixed( 1 ) ) + " " + units[ i ]
+                },
+                loadDiskUsage: function()
+                {
+                    var self = this
+
+                    if ( !handlers.getDiskUsage )
+                    {
+                        self.diskUsage = { loading: false, error: "Unsupported in this build", data: null }
+                        return
+                    }
+
+                    self.diskUsage = { loading: true, error: null, data: self.diskUsage && self.diskUsage.data }
+
+                    handlers.getDiskUsage( function( res )
+                    {
+                        if ( res && res.error )
+                            self.diskUsage = { loading: false, error: String( res.error ), data: null }
+                        else
+                            self.diskUsage = { loading: false, error: null, data: res || null }
+                    } )
+                },
+                toggleDiskUsage: function()
+                {
+                    this.diskUsageOpen = !this.diskUsageOpen
+                    if ( this.diskUsageOpen && !this.diskUsage.data && !this.diskUsage.loading )
+                        this.loadDiskUsage()
                 },
                 timespanTime: function( timespan )
                 {

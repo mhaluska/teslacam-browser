@@ -176,6 +176,37 @@
                   </button>
                 </div>
               </div>
+              <div class="px-2 mb-2 disk-usage-panel small">
+                <div class="d-flex justify-content-between align-items-center" style="cursor: pointer;"
+                  @click="toggleDiskUsage()">
+                  <span class="fw-bold">
+                    <span class="bi" :class="diskUsageOpen ? 'bi-chevron-down' : 'bi-chevron-right'" aria-hidden="true"></span>
+                    Disk usage
+                  </span>
+                  <span v-if="diskUsage.data" class="text-muted">{{ formatBytes( diskUsage.data.totalBytes ) }}</span>
+                </div>
+                <div v-if="diskUsageOpen" class="mt-2">
+                  <div v-if="diskUsage.loading" class="text-muted">Calculating…</div>
+                  <div v-else-if="diskUsage.error" class="text-danger">{{ diskUsage.error }}</div>
+                  <template v-else-if="diskUsage.data">
+                    <div v-for="( bytes, reason ) in diskUsage.data.byReason" :key="reason" class="event-json-row">
+                      <span class="text-muted">{{ reason }}</span>
+                      {{ formatBytes( bytes ) }}
+                    </div>
+                    <div class="event-json-row">
+                      <span class="text-muted">Events</span>
+                      {{ diskUsage.data.eventCount }}
+                    </div>
+                    <div class="mt-1 text-end">
+                      <button type="button" class="btn btn-sm btn-outline-secondary" @click.prevent="loadDiskUsage()">
+                        <span class="bi bi-arrow-clockwise" aria-hidden="true"></span>
+                        Refresh
+                      </button>
+                    </div>
+                  </template>
+                  <div v-else class="text-muted">Click Refresh to calculate.</div>
+                </div>
+              </div>
               <div class="px-2 mb-2 text-muted text-center" style="font-size: 0.85em;">
                 Forked from <a href="https://github.com/BobStrogg/teslacam-browser" target="_blank" rel="noopener noreferrer">BobStrogg/teslacam-browser</a>
               </div>
@@ -444,6 +475,7 @@
           deleteFiles: files => electronAPI.send("deleteFiles", files),
           deleteFolder: folder => electronAPI.send("deleteFolder", folder),
           bulkDeleteFolders: paths => electronAPI.invoke("bulkDeleteFolders", paths),
+          getDiskUsage: success => electronAPI.invoke("getDiskUsage").then(success).catch(e => success({ error: String(e.message || e) })),
           copyFilePaths: filePaths => electronAPI.send("copyFilePaths", filePaths),
           copyPath: path => electronAPI.send("copyPath", path),
           openExternal: path => electronAPI.send("openExternal", path),
