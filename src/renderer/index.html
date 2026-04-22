@@ -134,19 +134,18 @@
                 </div>
                 <span>{{ selectedPaths.length }} selected</span>
               </div>
-              <div class="px-2 mb-2 d-flex justify-content-center gap-2" v-if="!selectionMode">
+              <div class="px-2 mb-2 d-flex justify-content-center gap-2 event-action-row" v-if="!selectionMode">
                 <button type="button" class="btn btn-secondary" @click="toggleSelectionMode()"
                   :disabled="times.length === 0" title="Select multiple events">Select</button>
-                <button id="deleteButton" class="btn btn-danger" @click="deleteFolder( selectedPath )">Delete
-                  folder</button>
-                <button id="copyButton" class="btn btn-primary" @click="copyPath( selectedPath )">Copy path</button>
+                <button id="deleteButton" class="btn btn-danger" @click="deleteFolder( selectedPath )">Delete</button>
+                <button id="copyButton" class="btn btn-primary" @click="copyPath( selectedPath )">Copy</button>
               </div>
-              <div class="px-2 mb-2 d-flex justify-content-center gap-2" v-if="selectionMode">
+              <div class="px-2 mb-2 d-flex justify-content-center gap-2 event-action-row" v-if="selectionMode">
                 <button type="button" class="btn btn-secondary" @click="toggleSelectionMode()">Cancel</button>
                 <button class="btn btn-danger" :disabled="selectedPaths.length === 0"
                   @click="bulkDeleteFolders()">Delete {{ selectedPaths.length }}</button>
                 <button class="btn btn-primary" :disabled="selectedPaths.length === 0"
-                  @click="bulkCopyPaths()">Copy {{ selectedPaths.length }} paths</button>
+                  @click="bulkCopyPaths()">Copy {{ selectedPaths.length }}</button>
               </div>
               <div v-if="selectedPath" class="px-2 mb-2 event-json-panel small">
                 <div v-if="clipEventLoading" class="text-muted">Loading event…</div>

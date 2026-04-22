@@ -153,6 +153,12 @@ body
   width: 100%;
 }
 
+.event-action-row > .btn
+{
+  flex: 1 1 0;
+  white-space: nowrap;
+}
+
 #sidebar.hidden
 {
     margin-left: -320px;
