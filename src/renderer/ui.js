@@ -88,12 +88,6 @@
                 currentHeading: null,
                 seqDiagnostics: { loading: false, results: null, error: null },
                 clipAnalytics: { loading: false, error: null, samples: [], loadId: 0, shownCounter: 0 },
-                diskUsage: { loading: false, error: null, data: null },
-                diskUsageOpen: false,
-                cleanupDays: 30,
-                cleanupReasons: { SavedClips: false, SentryClips: true, RecentClips: false },
-                cleanupPreview: null,
-                cleanupBusy: false,
                 shareModal: { ttlHours: 24, busy: false, error: null, url: null, expiresAt: null }
                 }
             },
@@ -1475,123 +1469,6 @@
                 {
                     if ( !this.shareModal.url ) return
                     if ( navigator.clipboard ) navigator.clipboard.writeText( this.shareModal.url )
-                },
-                formatBytes: function( bytes )
-                {
-                    if ( bytes == null || !isFinite( bytes ) ) return "—"
-                    if ( bytes < 1024 ) return bytes + " B"
-
-                    var units = [ "KB", "MB", "GB", "TB" ]
-                    var n = bytes / 1024
-                    var i = 0
-
-                    while ( n >= 1024 && i < units.length - 1 ) { n /= 1024; i++ }
-
-                    return ( n >= 10 ? n.toFixed( 0 ) : n.toFixed( 1 ) ) + " " + units[ i ]
-                },
-                loadDiskUsage: function()
-                {
-                    var self = this
-
-                    if ( !handlers.getDiskUsage )
-                    {
-                        self.diskUsage = { loading: false, error: "Unsupported in this build", data: null }
-                        return
-                    }
-
-                    self.diskUsage = { loading: true, error: null, data: self.diskUsage && self.diskUsage.data }
-
-                    handlers.getDiskUsage( function( res )
-                    {
-                        if ( res && res.error )
-                            self.diskUsage = { loading: false, error: String( res.error ), data: null }
-                        else
-                            self.diskUsage = { loading: false, error: null, data: res || null }
-                    } )
-                },
-                toggleDiskUsage: function()
-                {
-                    this.diskUsageOpen = !this.diskUsageOpen
-                    if ( this.diskUsageOpen && !this.diskUsage.data && !this.diskUsage.loading )
-                        this.loadDiskUsage()
-                },
-                selectedCleanupReasons: function()
-                {
-                    var out = []
-                    for ( var k in this.cleanupReasons )
-                    {
-                        if ( this.cleanupReasons[ k ] ) out.push( k )
-                    }
-                    return out
-                },
-                previewCleanup: function()
-                {
-                    var self = this
-
-                    if ( !handlers.cleanupOlderThan )
-                    {
-                        self.cleanupPreview = { error: "Unsupported in this build" }
-                        return
-                    }
-
-                    var reasons = self.selectedCleanupReasons()
-                    var days = Number( self.cleanupDays )
-
-                    if ( !reasons.length ) { self.cleanupPreview = { error: "Pick at least one reason" }; return }
-                    if ( !isFinite( days ) || days < 0 ) { self.cleanupPreview = { error: "Invalid days" }; return }
-
-                    self.cleanupBusy = true
-                    self.cleanupPreview = null
-
-                    handlers.cleanupOlderThan( { days: days, reasons: reasons, dryRun: true }, function( res )
-                    {
-                        self.cleanupBusy = false
-
-                        if ( !res ) { self.cleanupPreview = { error: "request_failed" }; return }
-                        if ( res.error ) { self.cleanupPreview = { error: res.error }; return }
-
-                        self.cleanupPreview = { count: res.count, bytes: res.bytes, paths: res.paths || [] }
-                    } )
-                },
-                runCleanup: function()
-                {
-                    var self = this
-
-                    if ( !self.cleanupPreview || self.cleanupPreview.error ) return
-                    if ( !self.cleanupPreview.count ) return
-
-                    var reasons = self.selectedCleanupReasons()
-                    var days = Number( self.cleanupDays )
-
-                    self.showConfirm(
-                        "Delete " + self.cleanupPreview.count + " event folder(s) older than "
-                            + days + " days (" + self.formatBytes( self.cleanupPreview.bytes ) + ")?",
-                        function()
-                        {
-                            self.cleanupBusy = true
-
-                            handlers.cleanupOlderThan( { days: days, reasons: reasons, dryRun: false }, function( res )
-                            {
-                                self.cleanupBusy = false
-
-                                if ( !res || res.error )
-                                {
-                                    self.cleanupPreview = { error: ( res && res.error ) || "request_failed" }
-                                    return
-                                }
-
-                                var failed = ( res.failed || [] ).length
-
-                                if ( failed )
-                                {
-                                    alert( "Cleanup: " + res.deleted.length + " deleted, " + failed + " failed." )
-                                }
-
-                                self.cleanupPreview = null
-                                self.loadDiskUsage()
-                                handlers.reopenFolders( self.loaded )
-                            } )
-                        } )
                 },
                 timespanTime: function( timespan )
                 {
