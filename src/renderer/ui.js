@@ -671,6 +671,48 @@
                 {
                     this.selectedPaths = []
                 },
+                bulkCopyPaths: function()
+                {
+                    if ( !this.selectedPaths.length ) return
+
+                    handlers.copyFilePaths( this.selectedPaths.slice() )
+                    alert( "Copied " + this.selectedPaths.length + " path(s) to clipboard" )
+                },
+                bulkDeleteFolders: function()
+                {
+                    var self = this
+                    var paths = this.selectedPaths.slice()
+
+                    if ( !paths.length ) return
+                    if ( !handlers.bulkDeleteFolders )
+                    {
+                        alert( "Bulk delete not supported in this build" )
+                        return
+                    }
+
+                    this.showConfirm(
+                        "Are you sure you want to delete " + paths.length + " event folder(s)?",
+                        async function()
+                        {
+                            var result = await handlers.bulkDeleteFolders( paths )
+                            var failed = ( result && result.failed ) || []
+
+                            if ( failed.length )
+                            {
+                                alert( "Deleted " + ( paths.length - failed.length ) + " / " + paths.length
+                                    + ". " + failed.length + " failed:\n"
+                                    + failed.map( f => f.path + ": " + f.error ).join( "\n" ) )
+                            }
+
+                            self.selectionMode = false
+                            self.selectedPaths = []
+                            self.timespans = []
+                            self.selectedTime = null
+                            self.selectedPath = null
+
+                            handlers.reopenFolders( self.loaded )
+                        } )
+                },
                 openBrowser: function()
                 {
                     handlers.openBrowser()

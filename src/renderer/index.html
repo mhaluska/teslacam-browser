@@ -143,6 +143,12 @@
                   folder</button>
                 <button id="copyButton" class="btn btn-primary" @click="copyPath( selectedPath )">Copy path</button>
               </div>
+              <div class="px-2 mb-2 d-flex justify-content-center gap-2" v-if="selectionMode">
+                <button class="btn btn-danger" :disabled="selectedPaths.length === 0"
+                  @click="bulkDeleteFolders()">Delete {{ selectedPaths.length }}</button>
+                <button class="btn btn-primary" :disabled="selectedPaths.length === 0"
+                  @click="bulkCopyPaths()">Copy {{ selectedPaths.length }} paths</button>
+              </div>
               <div v-if="selectedPath" class="px-2 mb-2 event-json-panel small">
                 <div v-if="clipEventLoading" class="text-muted">Loading event…</div>
                 <template v-else-if="clipEvent">
@@ -437,6 +443,7 @@
           openBrowser: () => electronAPI.send("openBrowser"),
           deleteFiles: files => electronAPI.send("deleteFiles", files),
           deleteFolder: folder => electronAPI.send("deleteFolder", folder),
+          bulkDeleteFolders: paths => electronAPI.invoke("bulkDeleteFolders", paths),
           copyFilePaths: filePaths => electronAPI.send("copyFilePaths", filePaths),
           copyPath: path => electronAPI.send("copyPath", path),
           openExternal: path => electronAPI.send("openExternal", path),
