@@ -750,6 +750,21 @@
                         this.controls.playing = !this.controls.playing
                         e.preventDefault()
                     }
+                    else if ( key === "[" )
+                    {
+                        this.setLoopA()
+                        e.preventDefault()
+                    }
+                    else if ( key === "]" )
+                    {
+                        this.setLoopB()
+                        e.preventDefault()
+                    }
+                    else if ( key === "\\" )
+                    {
+                        this.clearLoop()
+                        e.preventDefault()
+                    }
                 },
                 stepFrames: function( frames )
                 {
