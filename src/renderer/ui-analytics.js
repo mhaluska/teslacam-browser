@@ -394,6 +394,10 @@
                 {
                     this._rebuildTrailPolyline()
                 },
+                hasGps: function( val )
+                {
+                    if ( !val ) this._destroyTrailMap()
+                },
                 currentTime: function()
                 {
                     this._updateTrailVehicle()
