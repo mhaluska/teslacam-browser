@@ -30,6 +30,8 @@
         : require( "./helpers" )
 
     var CAM_GRID_ALL = uiConstants.CAM_GRID_ALL
+    var FRAME_STEP_SECONDS = uiConstants.FRAME_STEP_SECONDS
+    var FRAME_STEP_LARGE_MULTIPLIER = uiConstants.FRAME_STEP_LARGE_MULTIPLIER
     var normalizeThemePreference = uiUtils.normalizeThemePreference
     var normalizeSpeedUnit = uiUtils.normalizeSpeedUnit
     var effectiveSpeedUnit = uiUtils.effectiveSpeedUnit
@@ -497,6 +499,9 @@
 
                 if ( handlers.getSpeedUnit ) handlers.getSpeedUnit( applySpeedUnit )
                 else applySpeedUnit( "auto" )
+
+                self._keydownListener = function( e ) { self.handleGlobalKey( e ) }
+                window.addEventListener( "keydown", self._keydownListener )
             },
             beforeUnmount: function()
             {
@@ -506,6 +511,12 @@
                 {
                     if ( self._systemMq.removeEventListener ) self._systemMq.removeEventListener( "change", self._systemThemeListener )
                     else if ( self._systemMq.removeListener ) self._systemMq.removeListener( self._systemThemeListener )
+                }
+
+                if ( self._keydownListener )
+                {
+                    window.removeEventListener( "keydown", self._keydownListener )
+                    self._keydownListener = null
                 }
             },
             methods:
@@ -659,6 +670,58 @@
                     if ( this.controls ) this.controls.timespan = timespan
 
                     this._pendingAutoSeek = null
+                },
+                handleGlobalKey: function( e )
+                {
+                    if ( e.defaultPrevented ) return
+                    if ( e.ctrlKey || e.metaKey || e.altKey ) return
+
+                    var t = e.target
+                    if ( t )
+                    {
+                        var tag = t.tagName
+                        if ( tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" ) return
+                        if ( t.isContentEditable ) return
+                    }
+
+                    if ( document.querySelector( ".modal.show" ) ) return
+
+                    if ( !this.timespans || !this.timespans.length ) return
+                    if ( !( this.duration > 0 ) ) return
+
+                    var key = e.key
+
+                    if ( key === "ArrowLeft" )
+                    {
+                        this.stepFrames( e.shiftKey ? -FRAME_STEP_LARGE_MULTIPLIER : -1 )
+                        e.preventDefault()
+                    }
+                    else if ( key === "ArrowRight" )
+                    {
+                        this.stepFrames( e.shiftKey ? FRAME_STEP_LARGE_MULTIPLIER : 1 )
+                        e.preventDefault()
+                    }
+                    else if ( key === " " || key === "Spacebar" )
+                    {
+                        this.controls.playing = !this.controls.playing
+                        e.preventDefault()
+                    }
+                },
+                stepFrames: function( frames )
+                {
+                    if ( !( this.duration > 0 ) ) return
+
+                    this.controls.playing = false
+
+                    var next = this.currentTime + frames * FRAME_STEP_SECONDS
+                    // Clamp just shy of total — the currentTime setter uses a strict
+                    // `<` comparison against the end, so duration itself never matches.
+                    var maxSeek = this.duration - 0.001
+
+                    if ( next < 0 ) next = 0
+                    else if ( next > maxSeek ) next = maxSeek
+
+                    this.currentTime = next
                 },
                 tryAutoSeek: function()
                 {
