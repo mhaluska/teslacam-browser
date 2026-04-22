@@ -149,7 +149,8 @@
                 return {
                     activeTab: "trail",
                     tabs: TABS,
-                    trailColorMode: "speed"
+                    trailColorMode: "speed",
+                    chartsDebug: ""
                 }
             },
             created: function()
@@ -562,15 +563,24 @@
                 {
                     this._destroyCharts()
 
-                    if ( !window.uPlot || !this.hasSamples ) return
+                    var diag = []
+
+                    if ( !window.uPlot ) { this.chartsDebug = "window.uPlot missing"; return }
+                    diag.push( "uPlot:ok" )
+
+                    if ( !this.hasSamples ) { this.chartsDebug = "no samples"; return }
 
                     var defs = this.chartDefs
                     var xs = this.chartXValues
 
-                    if ( !defs.length || !xs.length ) return
+                    diag.push( "defs=" + defs.length, "xs=" + xs.length )
+
+                    if ( !defs.length || !xs.length ) { this.chartsDebug = diag.join( " · " ) + " · defs/xs empty"; return }
 
                     var chartEls = this.$refs.chartEls ? [].concat( this.$refs.chartEls ) : []
                     var playheadEls = this.$refs.playheadEls ? [].concat( this.$refs.playheadEls ) : []
+
+                    diag.push( "chartEls=" + chartEls.length, "playheadEls=" + playheadEls.length )
 
                     this._chartEls = chartEls
                     this._playheadEls = playheadEls
@@ -578,13 +588,15 @@
                     var xMin = xs[ 0 ]
                     var xMax = xs[ xs.length - 1 ]
                     var self = this
+                    var built = 0
+                    var errors = []
 
                     for ( var i = 0; i < defs.length; i++ )
                     {
                         var def = defs[ i ]
                         var el = chartEls[ i ]
 
-                        if ( !el ) continue
+                        if ( !el ) { errors.push( "el[" + i + "]=null" ); continue }
 
                         var width = Math.max( 320, Math.floor( el.clientWidth || el.parentElement.clientWidth || 600 ) )
                         var data = [ xs ]
@@ -625,7 +637,18 @@
                             }
                         }
 
-                        var u = new window.uPlot( opts, data, el )
+                        var u
+                        try
+                        {
+                            u = new window.uPlot( opts, data, el )
+                            built += 1
+                        }
+                        catch ( e )
+                        {
+                            errors.push( "uPlot[" + i + "]: " + ( e && e.message ? e.message : String( e ) ) )
+                            continue
+                        }
+
                         var chartInfo = { id: def.id, uplot: u, def: def, el: el, capturedTSec: null }
 
                         this._charts.push( chartInfo )
@@ -683,6 +706,10 @@
                         window.addEventListener( "mousemove", this._onChartMove )
                         window.addEventListener( "mouseup", this._onChartUp )
                     }
+
+                    diag.push( "built=" + built )
+                    if ( errors.length ) diag.push( "errs: " + errors.join( "; " ) )
+                    this.chartsDebug = diag.join( " · " )
 
                     if ( !this._chartResizeObserver && typeof ResizeObserver !== "undefined" )
                     {
@@ -828,6 +855,7 @@
                         </div>
 
                         <div v-show="activeTab === 'charts'" class="clip-analytics-tab">
+                            <div v-if="chartsDebug" class="small text-warning mb-1" style="font-family: monospace;">{{ chartsDebug }}</div>
                             <div class="clip-analytics-charts" ref="chartsHost">
                                 <div v-for="(c, i) in chartDefs" :key="c.id" class="clip-analytics-chart-wrap">
                                     <div ref="chartEls" class="clip-analytics-chart"></div>

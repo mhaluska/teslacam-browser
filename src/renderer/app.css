@@ -957,11 +957,14 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
 {
   position: relative;
   width: 100%;
+  min-height: 80px;
+  outline: 1px dashed rgba( 128, 128, 128, 0.35 );
 }
 
 .clip-analytics-chart
 {
   width: 100%;
+  min-height: 60px;
   user-select: none;
   cursor: col-resize;
 }
