@@ -165,6 +165,36 @@
 		} )
 	}
 
+	function routeLabel( request )
+	{
+		// Prefer the matched route path to keep cardinality bounded. Fall back to a
+		// coarse bucket for requests that never hit a router (404s, static misses).
+		if ( request.route && request.route.path ) return String( request.route.path )
+
+		var p = request.path || ""
+		if ( p.indexOf( "/videos/" ) === 0 ) return "/videos/*"
+		if ( p.indexOf( "/share/" ) === 0 ) return "/share/*"
+		if ( p.indexOf( "/node_modules/" ) === 0 ) return "/node_modules/*"
+		if ( p.indexOf( "/content/" ) === 0 ) return "/content/*"
+
+		return p || "/"
+	}
+
+	function attachMetricsMiddleware( app )
+	{
+		app.use( ( request, response, next ) =>
+		{
+			response.on( "finish", () =>
+			{
+				metrics.incrementCounter( "tc_http_requests_total",
+					{ method: request.method, route: routeLabel( request ), status: String( response.statusCode ) },
+					1, "HTTP requests handled" )
+			} )
+
+			next()
+		} )
+	}
+
 	function getCookieOptions( request )
 	{
 		return {
@@ -903,6 +933,7 @@
         expressApp.use( express.urlencoded( { extended: false } ) )
 		expressApp.use( express.json( { limit: "1mb" } ) )
 		if ( initializeOptions.headless ) attachAccessLoggingMiddleware( expressApp )
+		attachMetricsMiddleware( expressApp )
 
 		if ( enableHelmet )
 		{
