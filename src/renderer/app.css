@@ -642,6 +642,45 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
   width: 100%;
 }
 
+.tc-cam-actions
+{
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 4;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s ease-in-out;
+  pointer-events: none;
+}
+
+.tc-cam-stack:hover .tc-cam-actions,
+.tc-cam-stack:focus-within .tc-cam-actions
+{
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.tc-cam-action-btn
+{
+  background: rgba( 0, 0, 0, 0.55 );
+  color: #fff;
+  border: 0;
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.tc-cam-action-btn:hover,
+.tc-cam-action-btn:focus
+{
+  background: rgba( 0, 0, 0, 0.75 );
+  outline: none;
+}
+
 .tc-dash-overlay
 {
   position: absolute;

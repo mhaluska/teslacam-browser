@@ -356,6 +356,11 @@
             },
             template:
                 `<div :class="[ 'tc-cam-stack', view.camera === 'front' ? 'tc-cam-front' : '' ]">
+                    <div class="tc-cam-actions" aria-hidden="false">
+                        <button type="button" class="tc-cam-action-btn" @click.stop="toggleFullscreen" title="Fullscreen this camera">
+                            <span class="bi bi-arrows-fullscreen" aria-hidden="true"></span>
+                        </button>
+                    </div>
                     <div v-if="view.camera === 'front' && telemetryGaps.length" class="tc-telemetry-gap-chip" :title="telemetryGapSummary">
                         <span class="bi bi-exclamation-triangle-fill" aria-hidden="true"></span>
                         {{ telemetryGaps.length }} telemetry gap{{ telemetryGaps.length === 1 ? "" : "s" }}
@@ -833,6 +838,24 @@
                 openExternal: function()
                 {
                     handlers.openExternal( this.view.file )
+                },
+                toggleFullscreen: function()
+                {
+                    var video = this.$refs[ "video" ]
+
+                    if ( !video ) return
+
+                    if ( document.fullscreenElement === video )
+                    {
+                        document.exitFullscreen()
+                    }
+                    else if ( video.requestFullscreen )
+                    {
+                        video.requestFullscreen().catch( function( e )
+                        {
+                            console.warn( "fullscreen failed:", e && e.message ? e.message : e )
+                        } )
+                    }
                 }
             }
         }
