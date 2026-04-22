@@ -297,6 +297,33 @@
                     }
 
                     this.tryAutoSeek()
+                },
+                currentTime: function( newTime )
+                {
+                    var a = this.controls.loopStart
+                    var b = this.controls.loopEnd
+
+                    if ( a == null || b == null ) return
+                    if ( !this.controls.playing ) return
+                    if ( !( newTime >= b ) ) return
+                    if ( this._loopWrapping ) return
+
+                    // Pause → seek → resume. While playing, each video's timeChanged
+                    // handler writes video.currentTime back into timespan.currentTime,
+                    // so a naive write to currentTime would be overwritten on the next
+                    // frame. Cycling playing re-fires startPlayback which seeks each
+                    // video to the new timespan.currentTime.
+                    var self = this
+
+                    self._loopWrapping = true
+                    self.controls.playing = false
+                    self.currentTime = a
+
+                    Vue.nextTick( function()
+                    {
+                        self.controls.playing = true
+                        self._loopWrapping = false
+                    } )
                 }
             },
             computed:
