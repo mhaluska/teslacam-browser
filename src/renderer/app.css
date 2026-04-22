@@ -970,10 +970,16 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
   align-items: center;
 }
 
-.skip-btn
+.playback-controls .btn
 {
+  min-width: 5.25rem;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+}
+
+.skip-btn
+{
   gap: 0.4rem;
 }
 
