@@ -963,6 +963,29 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
   align-items: center;
 }
 
+.playback-controls
+{
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.skip-btn
+{
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.6rem;
+  line-height: 1;
+}
+
+.skip-btn-label
+{
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
 .loop-btn-label
 {
   font-weight: 600;

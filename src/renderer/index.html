@@ -166,13 +166,17 @@
 
               <div class="timespan card mb-2 mx-2" v-if="combineClips">
                 <div class="d-flex align-items-center titleContainer card-header">
-                  <div class="px-2 controls">
+                  <div class="px-2 controls playback-controls">
+                    <button type="button" class="btn btn-outline-secondary skip-btn" @click="skipSeconds( -10 )"
+                      title="Back 10 seconds"><span class="bi bi-skip-backward" aria-hidden="true"></span><span class="skip-btn-label">10s</span></button>
                     <button class="btn btn-success play" v-show="!controls.playing"
                       @click="controls.playing = !controls.playing"><span class="bi bi-play"
                         title="Play"></span></button>
                     <button class="btn btn-warning pause" v-show="controls.playing"
                       @click="controls.playing = !controls.playing"><span class="bi bi-pause"
                         title="Pause"></span></button>
+                    <button type="button" class="btn btn-outline-secondary skip-btn" @click="skipSeconds( 10 )"
+                      title="Forward 10 seconds"><span class="skip-btn-label">10s</span><span class="bi bi-skip-forward" aria-hidden="true"></span></button>
                   </div>
                   <div class="px-2 flex-grow-1 controls">
                     <div class="scrub-wrap">

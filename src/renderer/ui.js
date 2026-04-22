@@ -788,6 +788,38 @@
 
                     this.currentTime = next
                 },
+                skipSeconds: function( seconds )
+                {
+                    if ( !( this.duration > 0 ) ) return
+
+                    var wasPlaying = this.controls.playing
+                    var next = this.currentTime + seconds
+                    var maxSeek = this.duration - 0.001
+
+                    if ( next < 0 ) next = 0
+                    else if ( next > maxSeek ) next = maxSeek
+
+                    // Cycle playback if needed so each <video> re-seeks — same reason
+                    // as the loop-wrap watcher: while playing, timeChanged writes the
+                    // raw video.currentTime back onto timespan.currentTime, which would
+                    // otherwise clobber a naive jump.
+                    if ( wasPlaying )
+                    {
+                        var self = this
+
+                        self.controls.playing = false
+                        self.currentTime = next
+
+                        Vue.nextTick( function()
+                        {
+                            self.controls.playing = true
+                        } )
+                    }
+                    else
+                    {
+                        this.currentTime = next
+                    }
+                },
                 loopMarkerStyle: function( t )
                 {
                     var total = this.duration
