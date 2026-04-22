@@ -8,6 +8,7 @@
 	const seiTelemetry = require( "./seiTelemetry" )
 	const auth = require( "./auth" )
 	const logger = require( "./logger" )
+	const shareToken = require( "./shareToken" )
 	const helmet = require( "helmet" )
 	const compression = require( "compression" )
 	const rateLimit = require( "express-rate-limit" )
@@ -59,6 +60,8 @@
 	var csrfSecret = process.env.TC_CSRF_SECRET || crypto.randomBytes( 32 ).toString( "hex" )
 	/** When true (default), delete UI is hidden and delete API returns 403. Set TC_HIDE_DELETE_BUTTONS=false to allow deletes. */
 	var hideDeleteButtons = parseBoolean( process.env.TC_HIDE_DELETE_BUTTONS, true )
+	/** When true, POST /shareLink and GET /share/:token routes are enabled. Default false to keep the surface off unless opted in. */
+	var shareEnabled = parseBoolean( process.env.TC_SHARE_ENABLED, false )
 
 	function parseBoolean( value, fallback )
 	{
@@ -870,6 +873,13 @@
 				standardHeaders: true,
 				legacyHeaders: false
 			} )
+		var shareCreateLimiter = rateLimit(
+			{
+				windowMs: 60 * 60 * 1000,
+				max: parseInt( process.env.TC_SHARE_MAX_PER_HOUR || "10", 10 ),
+				standardHeaders: true,
+				legacyHeaders: false
+			} )
 		var enableHelmet = parseBoolean( process.env.TC_ENABLE_HELMET, true )
 		var enableCspUpgradeInsecureRequests = parseBoolean( process.env.TC_CSP_UPGRADE_INSECURE_REQUESTS, false )
 
@@ -1122,6 +1132,141 @@
 
             response.json( { deleted: deleted, failed: failed } )
         } )
+
+		function requireShareEnabled( _request, response, next )
+		{
+			if ( !shareEnabled ) return response.status( 404 ).json( { error: "not_found" } )
+			next()
+		}
+
+		function resolveSharedSubpath( token, subRel )
+		{
+			var decoded = shareToken.verify( token )
+			if ( !decoded ) return { error: "invalid_or_expired" }
+
+			try
+			{
+				var base = sanitizeRelativePath( decoded.eventPath, false )
+				var requested = subRel ? sanitizeRelativePath( subRel, true ) : ""
+				var rel = requested.length ? base + "/" + requested : base
+
+				// Enforce that the resolved path remains within the event folder.
+				var scoped = path.posix.normalize( rel.replace( /\\/g, "/" ) )
+				var scopedBase = path.posix.normalize( base.replace( /\\/g, "/" ) )
+				if ( scoped !== scopedBase && scoped.indexOf( scopedBase + "/" ) !== 0 )
+					return { error: "path_outside_share" }
+
+				return { eventPath: decoded.eventPath, relative: rel, expiry: decoded.expiry }
+			}
+			catch ( _e )
+			{
+				return { error: "invalid_path" }
+			}
+		}
+
+		expressApp.post( "/shareLink", requireShareEnabled, shareCreateLimiter, requireCsrf, ( request, response ) =>
+		{
+			var rel = request.body && request.body.eventPath
+			var ttlHours = request.body && request.body.ttlHours
+
+			if ( typeof rel !== "string" || !rel.length )
+				return response.status( 400 ).json( { error: "invalid_event_path" } )
+			if ( typeof ttlHours !== "number" || !isFinite( ttlHours ) || ttlHours <= 0 || ttlHours > 24 * 30 )
+				return response.status( 400 ).json( { error: "invalid_ttl" } )
+
+			try
+			{
+				var resolved = resolveWithinRoot( rel )
+				var expiry = Date.now() + Math.floor( ttlHours * 60 * 60 * 1000 )
+				var token = shareToken.sign( resolved.relative, expiry )
+
+				logger.info( "share_link_issued", { eventPath: resolved.relative, expiry: expiry } )
+
+				response.json( { token: token, path: "/share/" + token, expiresAt: new Date( expiry ).toISOString() } )
+			}
+			catch ( e )
+			{
+				logger.warn( "share_link_route_failed", { error: e } )
+				response.status( 400 ).json( { error: "invalid_event_path" } )
+			}
+		} )
+
+		expressApp.get( /^\/share\/([^/]+)$/, requireShareEnabled, apiLimiter, ( request, response ) =>
+		{
+			var token = request.params[ 0 ]
+			var decoded = shareToken.verify( token )
+			if ( !decoded ) return response.status( 410 ).send( "Share link invalid or expired" )
+
+			response.sendFile( path.join( __dirname, "../renderer/share.html" ) )
+		} )
+
+		function shareSubpathHandler( mountName )
+		{
+			return function( request, response, kind )
+			{
+				var token = request.params[ 0 ]
+				var subRel = request.params[ 1 ] || ""
+				var info = resolveSharedSubpath( token, subRel )
+
+				if ( info.error === "invalid_or_expired" )
+					return response.status( 410 ).json( { error: "invalid_or_expired" } )
+				if ( info.error )
+					return response.status( 403 ).json( { error: info.error } )
+
+				request._shareRelative = info.relative
+				request._shareKind = kind || mountName
+				return info
+			}
+		}
+
+		expressApp.get( /^\/share\/([^/]+)\/eventJson(?:\/(.*))?$/, requireShareEnabled, apiLimiter, async ( request, response ) =>
+		{
+			var info = shareSubpathHandler( "eventJson" )( request, response )
+			if ( !info || info.error ) return
+
+			try { response.json( await readEventJson( info.relative ) ) }
+			catch ( _e ) { response.status( 400 ).json( { error: "invalid_path" } ) }
+		} )
+
+		expressApp.get( /^\/share\/([^/]+)\/files(?:\/(.*))?$/, requireShareEnabled, apiLimiter, async ( request, response ) =>
+		{
+			var info = shareSubpathHandler( "files" )( request, response )
+			if ( !info || info.error ) return
+
+			try { response.send( await getFiles( info.relative, p => "share/" + request.params[ 0 ] + "/videos/" + p ) ) }
+			catch ( _e ) { response.status( 400 ).json( { error: "invalid_path" } ) }
+		} )
+
+		expressApp.get( /^\/share\/([^/]+)\/clipTelemetry\/(.+)$/, requireShareEnabled, apiLimiter, async ( request, response ) =>
+		{
+			var info = shareSubpathHandler( "clipTelemetry" )( request, response )
+			if ( !info || info.error ) return
+
+			try { response.json( await readClipTelemetry( info.relative ) ) }
+			catch ( _e ) { response.status( 400 ).json( { error: "invalid_path" } ) }
+		} )
+
+		expressApp.get( /^\/share\/([^/]+)\/clipSeqSummary\/(.+)$/, requireShareEnabled, apiLimiter, async ( request, response ) =>
+		{
+			var info = shareSubpathHandler( "clipSeqSummary" )( request, response )
+			if ( !info || info.error ) return
+
+			try { response.json( await readClipSeqSummary( info.relative ) ) }
+			catch ( _e ) { response.status( 400 ).json( { error: "invalid_path" } ) }
+		} )
+
+		expressApp.get( /^\/share\/([^/]+)\/videos\/(.+)$/, requireShareEnabled, apiLimiter, ( request, response ) =>
+		{
+			var info = shareSubpathHandler( "videos" )( request, response )
+			if ( !info || info.error ) return
+
+			try
+			{
+				var resolved = resolveWithinRoot( info.relative )
+				response.sendFile( resolved.resolved, { maxAge: "7d" } )
+			}
+			catch ( _e ) { response.status( 400 ).json( { error: "invalid_path" } ) }
+		} )
 
 		expressApp.use( "/content", express.static( path.join( __dirname, "../renderer" ) ) )
 		var nodeModulesDir = path.join( __dirname, "../../node_modules" )
