@@ -22,6 +22,8 @@
     var blendDashSamples = uiUtils.blendDashSamples
     var lerpAngleDeg = uiUtils.lerpAngleDeg
     var detectSeqGaps = uiUtils.detectSeqGaps
+    var downloadBlob = uiUtils.downloadBlob
+    var sanitizeFilenamePart = uiUtils.sanitizeFilenamePart
 
     var METADATA_PROBE_CONCURRENCY = 3
     var METADATA_PROBE_SAFETY_TIMEOUT_MS = 15000
@@ -357,6 +359,9 @@
             template:
                 `<div :class="[ 'tc-cam-stack', view.camera === 'front' ? 'tc-cam-front' : '' ]">
                     <div class="tc-cam-actions" aria-hidden="false">
+                        <button type="button" class="tc-cam-action-btn" @click.stop="snapshotThis" title="Save PNG snapshot">
+                            <span class="bi bi-camera" aria-hidden="true"></span>
+                        </button>
                         <button v-if="pipSupported" type="button" class="tc-cam-action-btn" @click.stop="togglePip" title="Picture-in-picture">
                             <span class="bi bi-pip" aria-hidden="true"></span>
                         </button>
@@ -883,6 +888,45 @@
                         {
                             console.warn( "PiP failed:", e && e.message ? e.message : e )
                         } )
+                    }
+                },
+                snapshotFilename: function()
+                {
+                    var base = this.view && this.view.fileName
+                        ? this.view.fileName.replace( /\.[^.]+$/, "" )
+                        : "frame"
+                    var cam = sanitizeFilenamePart( this.view && this.view.camera ? this.view.camera : "cam" )
+                    var video = this.$refs[ "video" ]
+                    var t = video && isFinite( video.currentTime ) ? video.currentTime : 0
+
+                    return sanitizeFilenamePart( base ) + "_" + cam + "_t" + t.toFixed( 3 ) + "s.png"
+                },
+                snapshotThis: function()
+                {
+                    var video = this.$refs[ "video" ]
+
+                    if ( !video || !video.videoWidth || !video.videoHeight ) return
+
+                    var canvas = document.createElement( "canvas" )
+
+                    canvas.width = video.videoWidth
+                    canvas.height = video.videoHeight
+
+                    var ctx = canvas.getContext( "2d" )
+                    var name = this.snapshotFilename()
+
+                    try
+                    {
+                        ctx.drawImage( video, 0, 0, canvas.width, canvas.height )
+                        canvas.toBlob( function( blob )
+                        {
+                            if ( blob ) downloadBlob( name, blob )
+                            else console.error( "snapshot: toBlob returned null (canvas tainted?)" )
+                        }, "image/png" )
+                    }
+                    catch ( e )
+                    {
+                        console.error( "snapshot failed:", e && e.message ? e.message : e )
                     }
                 }
             }
