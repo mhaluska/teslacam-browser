@@ -171,11 +171,26 @@
                   </div>
                   <div class="px-2 flex-grow-1 controls">
                     <div class="scrub-wrap">
+                      <div v-if="controls.loopStart != null && controls.loopEnd != null" class="loop-range"
+                        :style="loopRangeStyle" aria-hidden="true"></div>
                       <input class="form-range scrub" v-model="currentTime" type="range" :max="duration"
                         @input="controls.playing = false"/>
                       <div v-if="triggerOffsetSeconds != null" class="trigger-marker"
                         :style="triggerMarkerStyle" :title="triggerMarkerTitle"></div>
+                      <div v-if="controls.loopStart != null" class="loop-marker loop-marker-a"
+                        :style="loopMarkerStyle( controls.loopStart )" title="Loop start (A)"></div>
+                      <div v-if="controls.loopEnd != null" class="loop-marker loop-marker-b"
+                        :style="loopMarkerStyle( controls.loopEnd )" title="Loop end (B)"></div>
                     </div>
+                  </div>
+                  <div class="px-2 controls loop-controls">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @click="setLoopA"
+                      title="Set loop start (A)"><span class="loop-btn-label">A</span></button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @click="setLoopB"
+                      title="Set loop end (B)"><span class="loop-btn-label">B</span></button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                      v-show="controls.loopStart != null || controls.loopEnd != null"
+                      @click="clearLoop" title="Clear loop"><span class="bi bi-x-lg"></span></button>
                   </div>
                   <div class="px-2 controls">
                     <select class="form-control" v-model="controls.speed">
