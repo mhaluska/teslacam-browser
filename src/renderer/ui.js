@@ -63,6 +63,8 @@
                 times: [],
                 selectedTime: null,
                 selectedPath: null,
+                selectionMode: false,
+                selectedPaths: [],
                 clipEvent: null,
                 clipEventLoading: false,
                 clipEventLoadId: 0,
@@ -128,6 +130,7 @@
                 },
                 selectedDate: function( newDate, oldDate )
                 {
+                    this.selectedPaths = []
                     this.setDate( newDate )
                 },
                 selectedTime: function( newTime, oldTime )
@@ -648,6 +651,25 @@
                 openFolders: function()
                 {
                     handlers.openFolders( this.loaded )
+                },
+                toggleSelectionMode: function()
+                {
+                    this.selectionMode = !this.selectionMode
+                    if ( !this.selectionMode ) this.selectedPaths = []
+                },
+                toggleSelectedPath: function( relative )
+                {
+                    var i = this.selectedPaths.indexOf( relative )
+                    if ( i < 0 ) this.selectedPaths.push( relative )
+                    else this.selectedPaths.splice( i, 1 )
+                },
+                selectAllVisible: function()
+                {
+                    this.selectedPaths = this.times.map( t => t.time.relative )
+                },
+                clearSelection: function()
+                {
+                    this.selectedPaths = []
                 },
                 openBrowser: function()
                 {
