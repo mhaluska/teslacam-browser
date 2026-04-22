@@ -9,6 +9,7 @@
 	const auth = require( "./auth" )
 	const logger = require( "./logger" )
 	const shareToken = require( "./shareToken" )
+	const metrics = require( "./metrics" )
 	const helmet = require( "helmet" )
 	const compression = require( "compression" )
 	const rateLimit = require( "express-rate-limit" )
@@ -52,6 +53,9 @@
 	var lastArgs = { version: version, folder: "" }
 	var clipTelemetryCache = new LruCache( 200 )
 	var clipTelemetryCacheKeySuffix = "\0tSecV4"
+	metrics.defineHistogram( "tc_telemetry_parse_duration_seconds",
+		[ 0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5 ],
+		"Duration of SEI telemetry parse in seconds" )
 	var videosMounted = false
 	var expressInitialized = false
 	var csrfCookieName = "tc_csrf"
@@ -431,9 +435,18 @@
 			var cached = clipTelemetryCache.get( cacheKey )
 
 			if ( cached && cached.mtimeMs === stat.mtimeMs )
+			{
+				metrics.incrementCounter( "tc_cache_hits_total", { cache: "telemetry" }, 1, "Cache hits by cache name" )
 				return cached.result
+			}
 
+			metrics.incrementCounter( "tc_cache_misses_total", { cache: "telemetry" }, 1, "Cache misses by cache name" )
+
+			var started = process.hrtime.bigint()
 			var samples = await seiTelemetry.extractSamplesFromFile( resolvedFile )
+			var elapsedSec = Number( process.hrtime.bigint() - started ) / 1e9
+
+			metrics.observeHistogram( "tc_telemetry_parse_duration_seconds", elapsedSec )
 
 			var result = { samples: samples }
 
@@ -443,6 +456,7 @@
 		}
 		catch ( e )
 		{
+			metrics.incrementCounter( "tc_telemetry_parse_errors_total", {}, 1, "Telemetry parse errors" )
 			logger.warn( "read_clip_telemetry_failed", { error: e } )
 
 			return { error: String( e.message || e ) }
