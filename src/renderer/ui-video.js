@@ -357,6 +357,9 @@
             template:
                 `<div :class="[ 'tc-cam-stack', view.camera === 'front' ? 'tc-cam-front' : '' ]">
                     <div class="tc-cam-actions" aria-hidden="false">
+                        <button v-if="pipSupported" type="button" class="tc-cam-action-btn" @click.stop="togglePip" title="Picture-in-picture">
+                            <span class="bi bi-pip" aria-hidden="true"></span>
+                        </button>
                         <button type="button" class="tc-cam-action-btn" @click.stop="toggleFullscreen" title="Fullscreen this camera">
                             <span class="bi bi-arrows-fullscreen" aria-hidden="true"></span>
                         </button>
@@ -496,6 +499,10 @@
                         clipped: clamped,
                         title: "G: " + ( Math.sqrt( magSq ) ).toFixed( 2 ) + "g"
                     }
+                },
+                pipSupported: function()
+                {
+                    return typeof document !== "undefined" && !!document.pictureInPictureEnabled
                 },
                 speedDisplay: function()
                 {
@@ -854,6 +861,27 @@
                         video.requestFullscreen().catch( function( e )
                         {
                             console.warn( "fullscreen failed:", e && e.message ? e.message : e )
+                        } )
+                    }
+                },
+                togglePip: function()
+                {
+                    var video = this.$refs[ "video" ]
+
+                    if ( !video || !document.pictureInPictureEnabled ) return
+
+                    if ( document.pictureInPictureElement === video )
+                    {
+                        document.exitPictureInPicture().catch( function( e )
+                        {
+                            console.warn( "exit PiP failed:", e && e.message ? e.message : e )
+                        } )
+                    }
+                    else if ( video.requestPictureInPicture )
+                    {
+                        video.requestPictureInPicture().catch( function( e )
+                        {
+                            console.warn( "PiP failed:", e && e.message ? e.message : e )
                         } )
                     }
                 }
