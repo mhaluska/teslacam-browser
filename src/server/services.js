@@ -880,6 +880,40 @@
             }
         } )
 
+        expressApp.post( "/bulkDeleteFolders", requireDeletesEnabled, deleteLimiter, requireCsrf, async ( request, response ) =>
+        {
+            var paths = request.body && request.body.paths
+
+            if ( !Array.isArray( paths ) || !paths.length )
+                return response.status( 400 ).send( "Expected JSON object { paths: string[] }" )
+
+            for ( var p of paths )
+            {
+                if ( typeof p !== "string" || !p.length )
+                    return response.status( 400 ).send( "Each path must be a non-empty string" )
+            }
+
+            var deleted = []
+            var failed = []
+
+            for ( var rel of paths )
+            {
+                try
+                {
+                    await deleteFolder( rel )
+                    deleted.push( rel )
+                }
+                catch ( e )
+                {
+                    failed.push( { path: rel, error: String( e && e.message ? e.message : e ) } )
+                }
+            }
+
+            logger.info( "bulk_delete_completed", { requested: paths.length, deleted: deleted.length, failed: failed.length } )
+
+            response.json( { deleted: deleted, failed: failed } )
+        } )
+
 		expressApp.use( "/content", express.static( path.join( __dirname, "../renderer" ) ) )
 		var nodeModulesDir = path.join( __dirname, "../../node_modules" )
 		var libCacheHeaders = { "Cache-Control": "public, max-age=31536000, immutable" }
