@@ -513,6 +513,8 @@
 
 			logger.info( "delete_folder_completed", { folder: parentFolder } )
 		}
+
+		invalidateDiskUsageCache()
 	}
 
 	async function deleteFolder( folder )
@@ -535,6 +537,124 @@
 	function copyPath( folderPath )
 	{
 		return resolveWithinRoot( folderPath, true ).resolved
+	}
+
+	async function sumFolderBytes( folderPath )
+	{
+		var total = 0
+
+		try
+		{
+			var entries = await fs.promises.readdir( folderPath, { withFileTypes: true } )
+
+			for ( var entry of entries )
+			{
+				if ( entry.isFile() )
+				{
+					try
+					{
+						var s = await fs.promises.stat( path.join( folderPath, entry.name ) )
+						total += s.size
+					}
+					catch ( _e ) { /* skip unreadable files */ }
+				}
+			}
+		}
+		catch ( e )
+		{
+			logger.warn( "disk_usage_readdir_failed", { folder: folderPath, error: e } )
+		}
+
+		return total
+	}
+
+	function reasonBucket( info )
+	{
+		var folder = ( info.relative || "" ).split( /[/\\]/ )[ 0 ]
+		if ( info.reason ) return info.reason
+		if ( folder === "RecentClips" || info.recent ) return "RecentClips"
+		if ( folder === "SavedClips" ) return "SavedClips"
+		if ( folder === "SentryClips" || folder === "TeslaSentry" ) return "SentryClips"
+		return "Other"
+	}
+
+	var diskUsageCache = { folder: null, ts: 0, value: null }
+	var DISK_USAGE_TTL_MS = 60 * 1000
+
+	async function computeDiskUsage()
+	{
+		var opened = await openFolder()
+		var cacheKey = opened.folder
+
+		if ( diskUsageCache.folder === cacheKey
+			&& diskUsageCache.value
+			&& ( Date.now() - diskUsageCache.ts ) < DISK_USAGE_TTL_MS )
+		{
+			return diskUsageCache.value
+		}
+
+		var infos = opened.folderInfos || []
+		var perInfo = new Array( infos.length )
+
+		await runPool( infos, 8, async function( info )
+		{
+			var idx = infos.indexOf( info )
+			perInfo[ idx ] = await sumFolderBytes( info.path )
+		} )
+
+		var totalBytes = 0
+		var byReason = {}
+		var byDayMap = new Map()
+		var oldest = null
+		var newest = null
+
+		for ( var i = 0; i < infos.length; i++ )
+		{
+			var info = infos[ i ]
+			var bytes = perInfo[ i ] || 0
+			var reason = reasonBucket( info )
+			var date = ( info.date instanceof Date ) ? info.date : new Date( info.date )
+			var dayKey = isNaN( date.getTime() ) ? "unknown" : date.toISOString().slice( 0, 10 )
+
+			totalBytes += bytes
+			byReason[ reason ] = ( byReason[ reason ] || 0 ) + bytes
+
+			var day = byDayMap.get( dayKey )
+			if ( !day )
+			{
+				day = { date: dayKey, bytes: 0, byReason: {} }
+				byDayMap.set( dayKey, day )
+			}
+			day.bytes += bytes
+			day.byReason[ reason ] = ( day.byReason[ reason ] || 0 ) + bytes
+
+			if ( !isNaN( date.getTime() ) )
+			{
+				if ( !oldest || date < oldest ) oldest = date
+				if ( !newest || date > newest ) newest = date
+			}
+		}
+
+		var byDay = Array.from( byDayMap.values() )
+		byDay.sort( function( a, b ) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0 } )
+
+		var value = {
+			totalBytes: totalBytes,
+			byReason: byReason,
+			byDay: byDay,
+			eventCount: infos.length,
+			oldestDate: oldest ? oldest.toISOString() : null,
+			newestDate: newest ? newest.toISOString() : null
+		}
+
+		diskUsageCache = { folder: cacheKey, ts: Date.now(), value: value }
+
+		return value
+	}
+
+	function invalidateDiskUsageCache()
+	{
+		diskUsageCache = { folder: null, ts: 0, value: null }
 	}
 
 	async function openFolder( folder )
@@ -826,6 +946,19 @@
 			}
 		} )
 
+		expressApp.get( "/diskUsage", apiLimiter, async ( _request, response ) =>
+		{
+			try
+			{
+				response.json( await computeDiskUsage() )
+			}
+			catch ( e )
+			{
+				logger.warn( "disk_usage_route_failed", { error: e } )
+				response.status( 500 ).json( { error: "disk_usage_failed" } )
+			}
+		} )
+
 		expressApp.get( /^\/clipSeqSummary(?:\/.*)?$/, apiLimiter, async ( request, response ) =>
 		{
 			try
@@ -972,6 +1105,7 @@
         copyFilePaths: copyFilePaths,
         deleteFolder: deleteFolder,
         copyPath: copyPath,
+        computeDiskUsage: computeDiskUsage,
         initializeExpress: initializeExpress
 	}
 } ) );
