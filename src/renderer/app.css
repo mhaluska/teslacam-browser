@@ -974,14 +974,11 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
 {
   display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.35rem 0.6rem;
-  line-height: 1;
+  gap: 0.4rem;
 }
 
 .skip-btn-label
 {
-  font-size: 0.8rem;
   font-weight: 600;
   letter-spacing: 0.02em;
 }
