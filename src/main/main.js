@@ -201,6 +201,28 @@ function initialize()
 		ipcMain.on( "deleteFiles", ( _event, files ) => services.deleteFiles( files ).catch( e => logger.warn( "ipc_delete_files_failed", { error: e } ) ) )
 		ipcMain.on( "copyFilePaths", ( _event, filePaths ) => clipboard.writeText( services.copyFilePaths( filePaths ) ) )
 		ipcMain.on( "deleteFolder", ( _event, folder ) => services.deleteFolder( folder ).catch( e => logger.warn( "ipc_delete_folder_failed", { error: e } ) ) )
+		ipcMain.handle( "bulkDeleteFolders", async ( _event, paths ) =>
+		{
+			var deleted = []
+			var failed = []
+
+			if ( !Array.isArray( paths ) ) return { deleted: deleted, failed: failed }
+
+			for ( var rel of paths )
+			{
+				try
+				{
+					await services.deleteFolder( rel )
+					deleted.push( rel )
+				}
+				catch ( e )
+				{
+					failed.push( { path: rel, error: String( e && e.message ? e.message : e ) } )
+				}
+			}
+
+			return { deleted: deleted, failed: failed }
+		} )
 		ipcMain.on( "copyPath", ( _event, p ) => clipboard.writeText( services.copyPath( p ) ) )
 		ipcMain.on( "openExternal", ( _event, p ) => shell.showItemInFolder( p ) )
 
