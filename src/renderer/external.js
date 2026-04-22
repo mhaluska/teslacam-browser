@@ -69,6 +69,8 @@
       openBrowser: () => fetch("openBrowser", { method: "POST" }),
       deleteFiles: files => postJson( "/deleteFiles", { paths: files } ),
       deleteFolder: folder => postJson( "/deleteFolder", { path: folder } ),
+      bulkDeleteFolders: paths => postJson( "/bulkDeleteFolders", { paths: paths } ).then( r => r.json() ).catch( e => ( { deleted: [], failed: paths.map( p => ( { path: p, error: String( e.message || e ) } ) ) } ) ),
+      createShareLink: ( opts, success ) => postJson( "/shareLink", opts ).then( r => r.json() ).then( success ).catch( e => success( { error: String( e.message || e ) } ) ),
       copyFilePaths: filePaths => copyToClipboard( joinFilePaths( filePaths ) ),
       copyPath: path => copyToClipboard( joinFolderPath( path ) ),
       openExternal: path => window.open(path),

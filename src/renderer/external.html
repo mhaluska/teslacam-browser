@@ -111,14 +111,37 @@
               <div class="px-2 mb-2">
                 <div class="list-group list-group-flush overflow-auto times">
                   <a v-for="t in times" href="" class="list-group-item list-group-item-action d-flex align-items-center"
-                    :class="{active: t === selectedTime}" @click.prevent="selectedTime = t"
-                    style="cursor: pointer;"><img v-if="t.thumbUrl" :src="t.thumbUrl" class="time-thumb me-2" alt=""><span>{{ t.name }}</span></a>
+                    :class="{active: !selectionMode && t === selectedTime}"
+                    @click.prevent="selectionMode ? toggleSelectedPath( t.time.relative ) : ( selectedTime = t )"
+                    style="cursor: pointer;">
+                    <input v-if="selectionMode" type="checkbox" class="form-check-input me-2"
+                      :checked="selectedPaths.indexOf( t.time.relative ) >= 0"
+                      @click.stop="toggleSelectedPath( t.time.relative )"
+                      :aria-label="'Select ' + t.name" />
+                    <img v-if="t.thumbUrl" :src="t.thumbUrl" class="time-thumb me-2" alt=""><span>{{ t.name }}</span></a>
                 </div>
               </div>
-              <div class="px-2 mb-2 d-flex justify-content-center gap-2">
-                <button v-if="args.hideDeleteButtons === false" id="deleteButton" class="btn btn-danger" @click="deleteFolder( selectedPath )">Delete
-                  folder</button>
-                <button id="copyButton" class="btn btn-primary" @click="copyPath( selectedPath )">Copy path</button>
+              <div v-if="selectionMode && times.length > 0" class="px-2 mb-1 small text-muted d-flex justify-content-between">
+                <div>
+                  <a href="" @click.prevent="selectAllVisible()">All</a>
+                  /
+                  <a href="" @click.prevent="clearSelection()">None</a>
+                </div>
+                <span>{{ selectedPaths.length }} selected</span>
+              </div>
+              <div class="px-2 mb-2 d-flex justify-content-center gap-2 event-action-row" v-if="!selectionMode">
+                <button type="button" class="btn btn-secondary" @click="toggleSelectionMode()"
+                  :disabled="times.length === 0" title="Select multiple events">Select</button>
+                <button v-if="args.hideDeleteButtons === false" id="deleteButton" class="btn btn-danger" @click="deleteFolder( selectedPath )">Delete</button>
+                <button id="copyButton" class="btn btn-primary" @click="copyPath( selectedPath )">Copy</button>
+              </div>
+              <div class="px-2 mb-2 d-flex justify-content-center gap-2 event-action-row" v-if="selectionMode">
+                <button type="button" class="btn btn-secondary" @click="toggleSelectionMode()">Cancel</button>
+                <button v-if="args.hideDeleteButtons === false" class="btn btn-danger"
+                  :disabled="selectedPaths.length === 0"
+                  @click="bulkDeleteFolders()">Delete {{ selectedPaths.length }}</button>
+                <button class="btn btn-primary" :disabled="selectedPaths.length === 0"
+                  @click="bulkCopyPaths()">Copy {{ selectedPaths.length }}</button>
               </div>
               <div v-if="selectedPath" class="px-2 mb-2 event-json-panel small">
                 <div v-if="clipEventLoading" class="text-muted">Loading event…</div>
@@ -136,7 +159,7 @@
                   </div>
                 </template>
                 <div v-else class="text-muted">No event.json</div>
-                <div class="mt-2 d-flex justify-content-center gap-2">
+                <div class="mt-2 d-flex justify-content-center gap-2 flex-wrap">
                   <button type="button" class="btn btn-sm btn-outline-secondary" @click.prevent="openClipAnalytics">
                     <span class="bi bi-bar-chart-line" aria-hidden="true"></span>
                     Analytics
@@ -144,6 +167,10 @@
                   <button type="button" class="btn btn-sm btn-outline-secondary" @click.prevent="openSeqDiagnostics">
                     <span class="bi bi-activity" aria-hidden="true"></span>
                     Sync check
+                  </button>
+                  <button v-if="args.shareEnabled" type="button" class="btn btn-sm btn-outline-secondary" @click.prevent="openShareModal()">
+                    <span class="bi bi-share" aria-hidden="true"></span>
+                    Share
                   </button>
                 </div>
               </div>
@@ -365,6 +392,45 @@
               @seek="seekToSampleTime"></clip-analytics>
           </div>
           <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Share link modal -->
+    <div class="modal fade" id="shareLinkModal" tabindex="-1" aria-labelledby="shareLinkLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="shareLinkLabel">Create share link</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div v-if="!shareModal.url">
+              <div class="mb-3">
+                <label class="form-label">Link valid for</label>
+                <select class="form-select" v-model.number="shareModal.ttlHours">
+                  <option :value="1">1 hour</option>
+                  <option :value="24">24 hours</option>
+                  <option :value="168">7 days</option>
+                </select>
+              </div>
+              <div v-if="shareModal.error" class="text-danger">{{ shareModal.error }}</div>
+            </div>
+            <div v-else>
+              <div class="mb-2"><strong>Link:</strong></div>
+              <div class="input-group mb-2">
+                <input type="text" class="form-control" :value="shareModal.url" readonly />
+                <button class="btn btn-outline-secondary" type="button" @click.prevent="copyShareUrl()">Copy</button>
+              </div>
+              <div class="small text-muted">Expires: {{ shareModal.expiresAt }}</div>
+              <div class="small text-muted mt-2">Anyone with this link can view this event until it expires. Treat it like a password.</div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button v-if="!shareModal.url" type="button" class="btn btn-primary"
+              :disabled="shareModal.busy" @click.prevent="createShareLink()">Create link</button>
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
           </div>
         </div>

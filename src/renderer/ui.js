@@ -63,6 +63,8 @@
                 times: [],
                 selectedTime: null,
                 selectedPath: null,
+                selectionMode: false,
+                selectedPaths: [],
                 clipEvent: null,
                 clipEventLoading: false,
                 clipEventLoadId: 0,
@@ -85,7 +87,8 @@
                 currentGps: null,
                 currentHeading: null,
                 seqDiagnostics: { loading: false, results: null, error: null },
-                clipAnalytics: { loading: false, error: null, samples: [], loadId: 0, shownCounter: 0 }
+                clipAnalytics: { loading: false, error: null, samples: [], loadId: 0, shownCounter: 0 },
+                shareModal: { ttlHours: 24, busy: false, error: null, url: null, expiresAt: null }
                 }
             },
             provide: function()
@@ -128,6 +131,7 @@
                 },
                 selectedDate: function( newDate, oldDate )
                 {
+                    this.selectedPaths = []
                     this.setDate( newDate )
                 },
                 selectedTime: function( newTime, oldTime )
@@ -648,6 +652,67 @@
                 openFolders: function()
                 {
                     handlers.openFolders( this.loaded )
+                },
+                toggleSelectionMode: function()
+                {
+                    this.selectionMode = !this.selectionMode
+                    if ( !this.selectionMode ) this.selectedPaths = []
+                },
+                toggleSelectedPath: function( relative )
+                {
+                    var i = this.selectedPaths.indexOf( relative )
+                    if ( i < 0 ) this.selectedPaths.push( relative )
+                    else this.selectedPaths.splice( i, 1 )
+                },
+                selectAllVisible: function()
+                {
+                    this.selectedPaths = this.times.map( t => t.time.relative )
+                },
+                clearSelection: function()
+                {
+                    this.selectedPaths = []
+                },
+                bulkCopyPaths: function()
+                {
+                    if ( !this.selectedPaths.length ) return
+
+                    handlers.copyFilePaths( this.selectedPaths.slice() )
+                    alert( "Copied " + this.selectedPaths.length + " path(s) to clipboard" )
+                },
+                bulkDeleteFolders: function()
+                {
+                    var self = this
+                    var paths = this.selectedPaths.slice()
+
+                    if ( !paths.length ) return
+                    if ( !handlers.bulkDeleteFolders )
+                    {
+                        alert( "Bulk delete not supported in this build" )
+                        return
+                    }
+
+                    this.showConfirm(
+                        "Are you sure you want to delete " + paths.length + " event folder(s)?",
+                        async function()
+                        {
+                            var result = await handlers.bulkDeleteFolders( paths )
+                            var failed = ( result && result.failed ) || []
+
+                            if ( failed.length )
+                            {
+                                alert( "Deleted " + ( paths.length - failed.length ) + " / " + paths.length
+                                    + ". " + failed.length + " failed:\n"
+                                    + failed.map( f => f.path + ": " + f.error ).join( "\n" ) )
+                            }
+
+                            self.selectionMode = false
+                            self.selectedPaths = []
+                            self.timespans = []
+                            self.selectedTime = null
+                            self.selectedPath = null
+
+                            handlers.reopenFolders( self.loaded )
+                        } )
                 },
                 openBrowser: function()
                 {
@@ -1357,6 +1422,53 @@
                 copyPath: function( path )
                 {
                     handlers.copyPath( path )
+                },
+                openShareModal: function()
+                {
+                    var self = this
+                    self.shareModal = { ttlHours: self.shareModal.ttlHours || 24, busy: false, error: null, url: null, expiresAt: null }
+
+                    self.$nextTick( function()
+                    {
+                        var el = document.getElementById( "shareLinkModal" )
+                        if ( el && window.bootstrap ) window.bootstrap.Modal.getOrCreateInstance( el ).show()
+                    } )
+                },
+                createShareLink: function()
+                {
+                    var self = this
+
+                    if ( !handlers.createShareLink || !self.selectedPath )
+                    {
+                        self.shareModal = Object.assign( {}, self.shareModal, { error: "Unsupported" } )
+                        return
+                    }
+
+                    self.shareModal = Object.assign( {}, self.shareModal, { busy: true, error: null, url: null, expiresAt: null } )
+
+                    handlers.createShareLink( { eventPath: self.selectedPath, ttlHours: Number( self.shareModal.ttlHours ) }, function( res )
+                    {
+                        if ( !res || res.error )
+                        {
+                            self.shareModal = Object.assign( {}, self.shareModal, { busy: false, error: ( res && res.error ) || "request_failed" } )
+                            return
+                        }
+
+                        var url = res.path
+                        if ( url && url.charAt( 0 ) === "/" ) url = window.location.origin + url
+
+                        self.shareModal = Object.assign( {}, self.shareModal, {
+                            busy: false,
+                            error: null,
+                            url: url,
+                            expiresAt: res.expiresAt
+                        } )
+                    } )
+                },
+                copyShareUrl: function()
+                {
+                    if ( !this.shareModal.url ) return
+                    if ( navigator.clipboard ) navigator.clipboard.writeText( this.shareModal.url )
                 },
                 timespanTime: function( timespan )
                 {

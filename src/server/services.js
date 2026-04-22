@@ -8,6 +8,8 @@
 	const seiTelemetry = require( "./seiTelemetry" )
 	const auth = require( "./auth" )
 	const logger = require( "./logger" )
+	const shareToken = require( "./shareToken" )
+	const metrics = require( "./metrics" )
 	const helmet = require( "helmet" )
 	const compression = require( "compression" )
 	const rateLimit = require( "express-rate-limit" )
@@ -51,6 +53,9 @@
 	var lastArgs = { version: version, folder: "" }
 	var clipTelemetryCache = new LruCache( 200 )
 	var clipTelemetryCacheKeySuffix = "\0tSecV4"
+	metrics.defineHistogram( "tc_telemetry_parse_duration_seconds",
+		[ 0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5 ],
+		"Duration of SEI telemetry parse in seconds" )
 	var videosMounted = false
 	var expressInitialized = false
 	var csrfCookieName = "tc_csrf"
@@ -59,6 +64,10 @@
 	var csrfSecret = process.env.TC_CSRF_SECRET || crypto.randomBytes( 32 ).toString( "hex" )
 	/** When true (default), delete UI is hidden and delete API returns 403. Set TC_HIDE_DELETE_BUTTONS=false to allow deletes. */
 	var hideDeleteButtons = parseBoolean( process.env.TC_HIDE_DELETE_BUTTONS, true )
+	/** When true, POST /shareLink and GET /share/:token routes are enabled. Default false to keep the surface off unless opted in. */
+	var shareEnabled = parseBoolean( process.env.TC_SHARE_ENABLED, false )
+	/** When true, GET /metrics is exposed in Prometheus text format (no auth). Default false. */
+	var metricsEnabled = parseBoolean( process.env.TC_METRICS_ENABLED, false )
 
 	function parseBoolean( value, fallback )
 	{
@@ -152,6 +161,36 @@
 				}
 
 				logger.info( "http_access", entry )
+			} )
+
+			next()
+		} )
+	}
+
+	function routeLabel( request )
+	{
+		// Prefer the matched route path to keep cardinality bounded. Fall back to a
+		// coarse bucket for requests that never hit a router (404s, static misses).
+		if ( request.route && request.route.path ) return String( request.route.path )
+
+		var p = request.path || ""
+		if ( p.indexOf( "/videos/" ) === 0 ) return "/videos/*"
+		if ( p.indexOf( "/share/" ) === 0 ) return "/share/*"
+		if ( p.indexOf( "/node_modules/" ) === 0 ) return "/node_modules/*"
+		if ( p.indexOf( "/content/" ) === 0 ) return "/content/*"
+
+		return p || "/"
+	}
+
+	function attachMetricsMiddleware( app )
+	{
+		app.use( ( request, response, next ) =>
+		{
+			response.on( "finish", () =>
+			{
+				metrics.incrementCounter( "tc_http_requests_total",
+					{ method: request.method, route: routeLabel( request ), status: String( response.statusCode ) },
+					1, "HTTP requests handled" )
 			} )
 
 			next()
@@ -428,9 +467,18 @@
 			var cached = clipTelemetryCache.get( cacheKey )
 
 			if ( cached && cached.mtimeMs === stat.mtimeMs )
+			{
+				metrics.incrementCounter( "tc_cache_hits_total", { cache: "telemetry" }, 1, "Cache hits by cache name" )
 				return cached.result
+			}
 
+			metrics.incrementCounter( "tc_cache_misses_total", { cache: "telemetry" }, 1, "Cache misses by cache name" )
+
+			var started = process.hrtime.bigint()
 			var samples = await seiTelemetry.extractSamplesFromFile( resolvedFile )
+			var elapsedSec = Number( process.hrtime.bigint() - started ) / 1e9
+
+			metrics.observeHistogram( "tc_telemetry_parse_duration_seconds", elapsedSec )
 
 			var result = { samples: samples }
 
@@ -440,6 +488,7 @@
 		}
 		catch ( e )
 		{
+			metrics.incrementCounter( "tc_telemetry_parse_errors_total", {}, 1, "Telemetry parse errors" )
 			logger.warn( "read_clip_telemetry_failed", { error: e } )
 
 			return { error: String( e.message || e ) }
@@ -513,6 +562,8 @@
 
 			logger.info( "delete_folder_completed", { folder: parentFolder } )
 		}
+
+		invalidateDiskUsageCache()
 	}
 
 	async function deleteFolder( folder )
@@ -535,6 +586,171 @@
 	function copyPath( folderPath )
 	{
 		return resolveWithinRoot( folderPath, true ).resolved
+	}
+
+	async function sumFolderBytes( folderPath )
+	{
+		var total = 0
+
+		try
+		{
+			var entries = await fs.promises.readdir( folderPath, { withFileTypes: true } )
+
+			for ( var entry of entries )
+			{
+				if ( entry.isFile() )
+				{
+					try
+					{
+						var s = await fs.promises.stat( path.join( folderPath, entry.name ) )
+						total += s.size
+					}
+					catch ( _e ) { /* skip unreadable files */ }
+				}
+			}
+		}
+		catch ( e )
+		{
+			logger.warn( "disk_usage_readdir_failed", { folder: folderPath, error: e } )
+		}
+
+		return total
+	}
+
+	function reasonBucket( info )
+	{
+		var folder = ( info.relative || "" ).split( /[/\\]/ )[ 0 ]
+		if ( info.reason ) return info.reason
+		if ( folder === "RecentClips" || info.recent ) return "RecentClips"
+		if ( folder === "SavedClips" ) return "SavedClips"
+		if ( folder === "SentryClips" || folder === "TeslaSentry" ) return "SentryClips"
+		return "Other"
+	}
+
+	var diskUsageCache = { folder: null, ts: 0, value: null }
+	var DISK_USAGE_TTL_MS = 60 * 1000
+
+	async function computeDiskUsage()
+	{
+		var opened = await openFolder()
+		var cacheKey = opened.folder
+
+		if ( diskUsageCache.folder === cacheKey
+			&& diskUsageCache.value
+			&& ( Date.now() - diskUsageCache.ts ) < DISK_USAGE_TTL_MS )
+		{
+			return diskUsageCache.value
+		}
+
+		var infos = opened.folderInfos || []
+		var perInfo = new Array( infos.length )
+
+		await runPool( infos, 8, async function( info )
+		{
+			var idx = infos.indexOf( info )
+			perInfo[ idx ] = await sumFolderBytes( info.path )
+		} )
+
+		var totalBytes = 0
+		var byReason = {}
+		var byDayMap = new Map()
+		var oldest = null
+		var newest = null
+
+		for ( var i = 0; i < infos.length; i++ )
+		{
+			var info = infos[ i ]
+			var bytes = perInfo[ i ] || 0
+			var reason = reasonBucket( info )
+			var date = ( info.date instanceof Date ) ? info.date : new Date( info.date )
+			var dayKey = isNaN( date.getTime() ) ? "unknown" : date.toISOString().slice( 0, 10 )
+
+			totalBytes += bytes
+			byReason[ reason ] = ( byReason[ reason ] || 0 ) + bytes
+
+			var day = byDayMap.get( dayKey )
+			if ( !day )
+			{
+				day = { date: dayKey, bytes: 0, byReason: {} }
+				byDayMap.set( dayKey, day )
+			}
+			day.bytes += bytes
+			day.byReason[ reason ] = ( day.byReason[ reason ] || 0 ) + bytes
+
+			if ( !isNaN( date.getTime() ) )
+			{
+				if ( !oldest || date < oldest ) oldest = date
+				if ( !newest || date > newest ) newest = date
+			}
+		}
+
+		var byDay = Array.from( byDayMap.values() )
+		byDay.sort( function( a, b ) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0 } )
+
+		var value = {
+			totalBytes: totalBytes,
+			byReason: byReason,
+			byDay: byDay,
+			eventCount: infos.length,
+			oldestDate: oldest ? oldest.toISOString() : null,
+			newestDate: newest ? newest.toISOString() : null
+		}
+
+		diskUsageCache = { folder: cacheKey, ts: Date.now(), value: value }
+
+		return value
+	}
+
+	function invalidateDiskUsageCache()
+	{
+		diskUsageCache = { folder: null, ts: 0, value: null }
+	}
+
+	async function cleanupOlderThan( days, reasons, options )
+	{
+		options = options || {}
+		var dryRun = !!options.dryRun
+
+		if ( typeof days !== "number" || !isFinite( days ) || days < 0 )
+			throw new Error( "invalid_days" )
+		if ( !Array.isArray( reasons ) || !reasons.length )
+			throw new Error( "invalid_reasons" )
+
+		var opened = await openFolder()
+		var cutoff = Date.now() - days * 24 * 60 * 60 * 1000
+		var candidates = ( opened.folderInfos || [] ).filter( info =>
+		{
+			var d = ( info.date instanceof Date ) ? info.date : new Date( info.date )
+			if ( isNaN( d.getTime() ) ) return false
+			if ( d.getTime() >= cutoff ) return false
+			return reasons.indexOf( reasonBucket( info ) ) >= 0
+		} )
+
+		if ( dryRun )
+		{
+			var totalBytes = 0
+			for ( var dryInfo of candidates ) totalBytes += await sumFolderBytes( dryInfo.path )
+
+			return { dryRun: true, count: candidates.length, bytes: totalBytes, paths: candidates.map( i => i.relative ) }
+		}
+
+		var deleted = []
+		var failed = []
+
+		for ( var victim of candidates )
+		{
+			try
+			{
+				await deleteFolder( victim.relative )
+				deleted.push( victim.relative )
+			}
+			catch ( e )
+			{
+				failed.push( { path: victim.relative, error: String( e && e.message ? e.message : e ) } )
+			}
+		}
+
+		return { deleted: deleted, failed: failed }
 	}
 
 	async function openFolder( folder )
@@ -650,7 +866,8 @@
 			folderPathParts: folderPathParts,
 			subfolders: subfolders,
 			version: version,
-			hideDeleteButtons: hideDeleteButtons
+			hideDeleteButtons: hideDeleteButtons,
+			shareEnabled: shareEnabled
         }
     }
 
@@ -703,6 +920,13 @@
 				standardHeaders: true,
 				legacyHeaders: false
 			} )
+		var shareCreateLimiter = rateLimit(
+			{
+				windowMs: 60 * 60 * 1000,
+				max: parseInt( process.env.TC_SHARE_MAX_PER_HOUR || "10", 10 ),
+				standardHeaders: true,
+				legacyHeaders: false
+			} )
 		var enableHelmet = parseBoolean( process.env.TC_ENABLE_HELMET, true )
 		var enableCspUpgradeInsecureRequests = parseBoolean( process.env.TC_CSP_UPGRADE_INSECURE_REQUESTS, false )
 
@@ -711,6 +935,7 @@
         expressApp.use( express.urlencoded( { extended: false } ) )
 		expressApp.use( express.json( { limit: "1mb" } ) )
 		if ( initializeOptions.headless ) attachAccessLoggingMiddleware( expressApp )
+		attachMetricsMiddleware( expressApp )
 
 		if ( enableHelmet )
 		{
@@ -741,6 +966,13 @@
 		}
 
         expressApp.get( "/healthz", ( request, response ) => response.json( { ok: true } ) )
+        expressApp.get( "/metrics", ( _request, response ) =>
+        {
+            if ( !metricsEnabled ) return response.status( 404 ).send( "Not Found" )
+
+            response.set( "Content-Type", "text/plain; version=0.0.4; charset=utf-8" )
+            response.send( metrics.render() )
+        } )
         expressApp.get( "/login", auth.loginPageHandler )
         expressApp.post( "/login", loginLimiter, auth.loginHandler )
 		expressApp.get( "/csrf", ( request, response ) => response.json( { token: ensureCsrfCookie( request, response ) } ) )
@@ -826,6 +1058,48 @@
 			}
 		} )
 
+		expressApp.post( "/cleanupOlderThan", requireDeletesEnabled, deleteLimiter, requireCsrf, async ( request, response ) =>
+		{
+			var days = request.body && request.body.days
+			var reasons = request.body && request.body.reasons
+			var dryRun = !!( request.body && request.body.dryRun )
+
+			try
+			{
+				var result = await cleanupOlderThan( days, reasons, { dryRun: dryRun } )
+
+				if ( !dryRun )
+					logger.info( "cleanup_older_than_completed",
+						{ days: days, reasons: reasons,
+						  deleted: result.deleted.length, failed: result.failed.length } )
+
+				response.json( result )
+			}
+			catch ( e )
+			{
+				var msg = String( e && e.message ? e.message : e )
+
+				if ( msg === "invalid_days" || msg === "invalid_reasons" )
+					return response.status( 400 ).json( { error: msg } )
+
+				logger.warn( "cleanup_older_than_failed", { error: e } )
+				response.status( 500 ).json( { error: "cleanup_failed" } )
+			}
+		} )
+
+		expressApp.get( "/diskUsage", apiLimiter, async ( _request, response ) =>
+		{
+			try
+			{
+				response.json( await computeDiskUsage() )
+			}
+			catch ( e )
+			{
+				logger.warn( "disk_usage_route_failed", { error: e } )
+				response.status( 500 ).json( { error: "disk_usage_failed" } )
+			}
+		} )
+
 		expressApp.get( /^\/clipSeqSummary(?:\/.*)?$/, apiLimiter, async ( request, response ) =>
 		{
 			try
@@ -879,6 +1153,176 @@
                 response.status( 400 ).json( { error: "invalid_path_or_delete_failed" } )
             }
         } )
+
+        expressApp.post( "/bulkDeleteFolders", requireDeletesEnabled, deleteLimiter, requireCsrf, async ( request, response ) =>
+        {
+            var paths = request.body && request.body.paths
+
+            if ( !Array.isArray( paths ) || !paths.length )
+                return response.status( 400 ).send( "Expected JSON object { paths: string[] }" )
+
+            for ( var p of paths )
+            {
+                if ( typeof p !== "string" || !p.length )
+                    return response.status( 400 ).send( "Each path must be a non-empty string" )
+            }
+
+            var deleted = []
+            var failed = []
+
+            for ( var rel of paths )
+            {
+                try
+                {
+                    await deleteFolder( rel )
+                    deleted.push( rel )
+                }
+                catch ( e )
+                {
+                    failed.push( { path: rel, error: String( e && e.message ? e.message : e ) } )
+                }
+            }
+
+            logger.info( "bulk_delete_completed", { requested: paths.length, deleted: deleted.length, failed: failed.length } )
+
+            response.json( { deleted: deleted, failed: failed } )
+        } )
+
+		function requireShareEnabled( _request, response, next )
+		{
+			if ( !shareEnabled ) return response.status( 404 ).json( { error: "not_found" } )
+			next()
+		}
+
+		function resolveSharedSubpath( token, subRel )
+		{
+			var decoded = shareToken.verify( token )
+			if ( !decoded ) return { error: "invalid_or_expired" }
+
+			try
+			{
+				var base = sanitizeRelativePath( decoded.eventPath, false )
+				// The client sends full root-relative paths (matching how the main
+				// UI builds them). Assert they stay within the token's event folder.
+				var requested = subRel ? sanitizeRelativePath( subRel, true ) : ""
+				var rel = requested.length ? requested : base
+
+				var scopedBase = path.posix.normalize( base.replace( /\\/g, "/" ) )
+				var scoped = path.posix.normalize( rel.replace( /\\/g, "/" ) )
+				if ( scoped !== scopedBase && scoped.indexOf( scopedBase + "/" ) !== 0 )
+					return { error: "path_outside_share" }
+
+				return { eventPath: decoded.eventPath, relative: rel, expiry: decoded.expiry }
+			}
+			catch ( _e )
+			{
+				return { error: "invalid_path" }
+			}
+		}
+
+		expressApp.post( "/shareLink", requireShareEnabled, shareCreateLimiter, requireCsrf, ( request, response ) =>
+		{
+			var rel = request.body && request.body.eventPath
+			var ttlHours = request.body && request.body.ttlHours
+
+			if ( typeof rel !== "string" || !rel.length )
+				return response.status( 400 ).json( { error: "invalid_event_path" } )
+			if ( typeof ttlHours !== "number" || !isFinite( ttlHours ) || ttlHours <= 0 || ttlHours > 24 * 30 )
+				return response.status( 400 ).json( { error: "invalid_ttl" } )
+
+			try
+			{
+				var resolved = resolveWithinRoot( rel )
+				var expiry = Date.now() + Math.floor( ttlHours * 60 * 60 * 1000 )
+				var token = shareToken.sign( resolved.relative, expiry )
+
+				logger.info( "share_link_issued", { eventPath: resolved.relative, expiry: expiry } )
+
+				response.json( { token: token, path: "/share/" + token, expiresAt: new Date( expiry ).toISOString() } )
+			}
+			catch ( e )
+			{
+				logger.warn( "share_link_route_failed", { error: e } )
+				response.status( 400 ).json( { error: "invalid_event_path" } )
+			}
+		} )
+
+		expressApp.get( /^\/share\/([^/]+)$/, requireShareEnabled, apiLimiter, ( request, response ) =>
+		{
+			var token = request.params[ 0 ]
+			var decoded = shareToken.verify( token )
+			if ( !decoded ) return response.status( 410 ).send( "Share link invalid or expired" )
+
+			response.sendFile( path.join( __dirname, "../renderer/share.html" ) )
+		} )
+
+		function shareSubpathHandler( mountName )
+		{
+			return function( request, response, kind )
+			{
+				var token = request.params[ 0 ]
+				var subRel = request.params[ 1 ] || ""
+				var info = resolveSharedSubpath( token, subRel )
+
+				if ( info.error === "invalid_or_expired" )
+					return response.status( 410 ).json( { error: "invalid_or_expired" } )
+				if ( info.error )
+					return response.status( 403 ).json( { error: info.error } )
+
+				request._shareRelative = info.relative
+				request._shareKind = kind || mountName
+				return info
+			}
+		}
+
+		expressApp.get( /^\/share\/([^/]+)\/eventJson(?:\/(.*))?$/, requireShareEnabled, apiLimiter, async ( request, response ) =>
+		{
+			var info = shareSubpathHandler( "eventJson" )( request, response )
+			if ( !info || info.error ) return
+
+			try { response.json( await readEventJson( info.relative ) ) }
+			catch ( _e ) { response.status( 400 ).json( { error: "invalid_path" } ) }
+		} )
+
+		expressApp.get( /^\/share\/([^/]+)\/files(?:\/(.*))?$/, requireShareEnabled, apiLimiter, async ( request, response ) =>
+		{
+			var info = shareSubpathHandler( "files" )( request, response )
+			if ( !info || info.error ) return
+
+			try { response.send( await getFiles( info.relative, p => "/share/" + request.params[ 0 ] + "/videos/" + p ) ) }
+			catch ( _e ) { response.status( 400 ).json( { error: "invalid_path" } ) }
+		} )
+
+		expressApp.get( /^\/share\/([^/]+)\/clipTelemetry\/(.+)$/, requireShareEnabled, apiLimiter, async ( request, response ) =>
+		{
+			var info = shareSubpathHandler( "clipTelemetry" )( request, response )
+			if ( !info || info.error ) return
+
+			try { response.json( await readClipTelemetry( info.relative ) ) }
+			catch ( _e ) { response.status( 400 ).json( { error: "invalid_path" } ) }
+		} )
+
+		expressApp.get( /^\/share\/([^/]+)\/clipSeqSummary\/(.+)$/, requireShareEnabled, apiLimiter, async ( request, response ) =>
+		{
+			var info = shareSubpathHandler( "clipSeqSummary" )( request, response )
+			if ( !info || info.error ) return
+
+			try { response.json( await readClipSeqSummary( info.relative ) ) }
+			catch ( _e ) { response.status( 400 ).json( { error: "invalid_path" } ) }
+		} )
+
+		expressApp.get( /^\/share\/([^/]+)\/videos\/(.+)$/, requireShareEnabled, apiLimiter, ( request, response ) =>
+		{
+			var info = shareSubpathHandler( "videos" )( request, response )
+			if ( !info || info.error ) return
+
+			try
+			{
+				var resolved = resolveWithinRoot( info.relative )
+				response.sendFile( resolved.resolved, { maxAge: "7d" } )
+			}
+			catch ( _e ) { response.status( 400 ).json( { error: "invalid_path" } ) }
+		} )
 
 		expressApp.use( "/content", express.static( path.join( __dirname, "../renderer" ) ) )
 		var nodeModulesDir = path.join( __dirname, "../../node_modules" )
@@ -938,6 +1382,8 @@
         copyFilePaths: copyFilePaths,
         deleteFolder: deleteFolder,
         copyPath: copyPath,
+        computeDiskUsage: computeDiskUsage,
+        cleanupOlderThan: cleanupOlderThan,
         initializeExpress: initializeExpress
 	}
 } ) );

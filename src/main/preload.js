@@ -4,7 +4,10 @@ const INVOKE_CHANNELS = [
 	"openFolders", "reopenFolders", "openFolder", "getFiles",
 	"readEventJson", "getClipTelemetry", "getClipSeqSummary",
 	"getThemePreference", "setThemePreference",
-	"getSpeedUnit", "setSpeedUnit"
+	"getSpeedUnit", "setSpeedUnit",
+	"bulkDeleteFolders",
+	"getDiskUsage",
+	"cleanupOlderThan"
 ]
 
 const SEND_CHANNELS = [

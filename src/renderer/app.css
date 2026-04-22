@@ -140,6 +140,14 @@ body
   min-width: 320px;
   max-width: 320px;
   overflow-x: hidden;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.event-action-row > .btn
+{
+  flex: 1 1 0;
+  white-space: nowrap;
 }
 
 #sidebar.hidden

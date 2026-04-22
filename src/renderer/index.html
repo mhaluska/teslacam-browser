@@ -116,14 +116,36 @@
               <div class="px-2 mb-2">
                 <div class="list-group list-group-flush overflow-auto times">
                   <a v-for="t in times" href="" class="list-group-item list-group-item-action d-flex align-items-center"
-                    :class="{active: t === selectedTime}" @click.prevent="selectedTime = t"
-                    style="cursor: pointer;"><img v-if="t.thumbUrl" :src="t.thumbUrl" class="time-thumb me-2" alt=""><span>{{ t.name }}</span></a>
+                    :class="{active: !selectionMode && t === selectedTime}"
+                    @click.prevent="selectionMode ? toggleSelectedPath( t.time.relative ) : ( selectedTime = t )"
+                    style="cursor: pointer;">
+                    <input v-if="selectionMode" type="checkbox" class="form-check-input me-2"
+                      :checked="selectedPaths.indexOf( t.time.relative ) >= 0"
+                      @click.stop="toggleSelectedPath( t.time.relative )"
+                      :aria-label="'Select ' + t.name" />
+                    <img v-if="t.thumbUrl" :src="t.thumbUrl" class="time-thumb me-2" alt=""><span>{{ t.name }}</span></a>
                 </div>
               </div>
-              <div class="px-2 mb-2 d-flex justify-content-center gap-2">
-                <button id="deleteButton" class="btn btn-danger" @click="deleteFolder( selectedPath )">Delete
-                  folder</button>
-                <button id="copyButton" class="btn btn-primary" @click="copyPath( selectedPath )">Copy path</button>
+              <div v-if="selectionMode && times.length > 0" class="px-2 mb-1 small text-muted d-flex justify-content-between">
+                <div>
+                  <a href="" @click.prevent="selectAllVisible()">All</a>
+                  /
+                  <a href="" @click.prevent="clearSelection()">None</a>
+                </div>
+                <span>{{ selectedPaths.length }} selected</span>
+              </div>
+              <div class="px-2 mb-2 d-flex justify-content-center gap-2 event-action-row" v-if="!selectionMode">
+                <button type="button" class="btn btn-secondary" @click="toggleSelectionMode()"
+                  :disabled="times.length === 0" title="Select multiple events">Select</button>
+                <button id="deleteButton" class="btn btn-danger" @click="deleteFolder( selectedPath )">Delete</button>
+                <button id="copyButton" class="btn btn-primary" @click="copyPath( selectedPath )">Copy</button>
+              </div>
+              <div class="px-2 mb-2 d-flex justify-content-center gap-2 event-action-row" v-if="selectionMode">
+                <button type="button" class="btn btn-secondary" @click="toggleSelectionMode()">Cancel</button>
+                <button class="btn btn-danger" :disabled="selectedPaths.length === 0"
+                  @click="bulkDeleteFolders()">Delete {{ selectedPaths.length }}</button>
+                <button class="btn btn-primary" :disabled="selectedPaths.length === 0"
+                  @click="bulkCopyPaths()">Copy {{ selectedPaths.length }}</button>
               </div>
               <div v-if="selectedPath" class="px-2 mb-2 event-json-panel small">
                 <div v-if="clipEventLoading" class="text-muted">Loading event…</div>
@@ -419,6 +441,7 @@
           openBrowser: () => electronAPI.send("openBrowser"),
           deleteFiles: files => electronAPI.send("deleteFiles", files),
           deleteFolder: folder => electronAPI.send("deleteFolder", folder),
+          bulkDeleteFolders: paths => electronAPI.invoke("bulkDeleteFolders", paths),
           copyFilePaths: filePaths => electronAPI.send("copyFilePaths", filePaths),
           copyPath: path => electronAPI.send("copyPath", path),
           openExternal: path => electronAPI.send("openExternal", path),

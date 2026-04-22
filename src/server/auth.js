@@ -174,6 +174,8 @@ function middleware( req, res, next )
 {
     // Whitelist paths that don't require auth
     if ( req.path === "/login" || req.path === "/auth-enabled" || req.path === "/csrf" ) return next()
+    if ( req.path === "/metrics" ) return next()
+    if ( req.path.startsWith( "/share/" ) ) return next()
     if ( req.path === "/node_modules/bootstrap/dist/css/bootstrap.min.css" ) return next()
     if ( req.path === "/node_modules/bootstrap-icons/font/bootstrap-icons.css" ) return next()
     if ( req.path.startsWith( "/node_modules/bootstrap-icons/font/fonts/" ) ) return next()

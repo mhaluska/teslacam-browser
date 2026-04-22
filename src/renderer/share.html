@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>TeslaCam shared event</title>
+  <link rel="icon" type="image/svg+xml" href="/content/favicon.svg">
+  <link rel="stylesheet" href="/node_modules/bootstrap/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="/node_modules/bootstrap-icons/font/bootstrap-icons.css" />
+  <link rel="stylesheet" href="/content/app.css" />
+  <script type="text/javascript" src="/node_modules/vue/dist/vue.global.js"></script>
+</head>
+
+<body class="p-3">
+  <div id="root">
+    <div v-cloak>
+      <div class="d-flex justify-content-between align-items-start mb-3">
+        <div>
+          <h4 class="mb-1">Shared TeslaCam event</h4>
+          <div class="text-muted small" v-if="expiresAt">Link expires {{ expiresAt }}</div>
+        </div>
+      </div>
+
+      <div v-if="loading" class="text-muted">Loading…</div>
+      <div v-else-if="error" class="alert alert-danger">{{ error }}</div>
+
+      <template v-else>
+        <div v-if="event" class="card mb-3">
+          <div class="card-body">
+            <div><strong>Time:</strong> {{ event.timestamp || "—" }}</div>
+            <div v-if="event.city"><strong>City:</strong> {{ event.city }}</div>
+            <div v-if="event.street"><strong>Street:</strong> {{ event.street }}</div>
+            <div v-if="event.reason"><strong>Reason:</strong> {{ event.reason }}</div>
+          </div>
+        </div>
+
+        <div v-if="!timespans.length" class="text-muted">No video files available.</div>
+
+        <div v-for="ts in timespans" :key="ts.title" class="mb-4">
+          <h6 class="mb-2">{{ ts.title }}</h6>
+          <div class="row g-2">
+            <div v-for="v in ts.views" :key="v.camera" class="col-12 col-md-6 col-lg-4">
+              <div class="card h-100">
+                <div class="card-header py-1 small">{{ v.camera }}</div>
+                <video :src="v.url" controls preload="metadata" class="w-100" style="max-height: 40vh; background: #000;"></video>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <script type="text/javascript" src="/content/share.js"></script>
+</body>
+
+</html>
