@@ -140,6 +140,17 @@ body
   min-width: 320px;
   max-width: 320px;
   overflow-x: hidden;
+  min-height: 0;
+  align-self: stretch;
+}
+
+#sidebar > .navigation
+{
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  align-self: stretch;
+  width: 100%;
 }
 
 #sidebar.hidden
