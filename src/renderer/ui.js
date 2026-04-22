@@ -67,7 +67,9 @@
                 {
                     playing: false,
                     timespan: null,
-                    speed: 1
+                    speed: 1,
+                    loopStart: null,
+                    loopEnd: null
                 },
                 playing: null,
                 loading: null,
@@ -290,6 +292,8 @@
                         this.controls.timespan = ( this.timespans.length > 0 ) ? this.timespans[ 0 ] : null
                         this.controls.playing = false
                         this.controls.scrub = 0
+                        this.controls.loopStart = null
+                        this.controls.loopEnd = null
                     }
 
                     this.tryAutoSeek()
@@ -370,6 +374,19 @@
                     var pct = Math.max( 0, Math.min( 100, ( offset / total ) * 100 ) )
 
                     return { left: pct + "%" }
+                },
+                loopRangeStyle: function()
+                {
+                    var a = this.controls.loopStart
+                    var b = this.controls.loopEnd
+                    var total = this.duration
+
+                    if ( a == null || b == null || !( total > 0 ) ) return { display: "none" }
+
+                    var lo = Math.max( 0, Math.min( 100, ( Math.min( a, b ) / total ) * 100 ) )
+                    var hi = Math.max( 0, Math.min( 100, ( Math.max( a, b ) / total ) * 100 ) )
+
+                    return { left: lo + "%", width: ( hi - lo ) + "%" }
                 },
                 triggerMarkerTitle: function()
                 {
@@ -722,6 +739,47 @@
                     else if ( next > maxSeek ) next = maxSeek
 
                     this.currentTime = next
+                },
+                loopMarkerStyle: function( t )
+                {
+                    var total = this.duration
+
+                    if ( t == null || !( total > 0 ) ) return { display: "none" }
+
+                    var pct = Math.max( 0, Math.min( 100, ( t / total ) * 100 ) )
+
+                    return { left: pct + "%" }
+                },
+                setLoopA: function()
+                {
+                    var t = this.currentTime
+
+                    if ( t == null || !isFinite( t ) ) return
+
+                    this.controls.loopStart = t
+
+                    if ( this.controls.loopEnd != null && this.controls.loopEnd <= t )
+                    {
+                        this.controls.loopEnd = null
+                    }
+                },
+                setLoopB: function()
+                {
+                    var t = this.currentTime
+
+                    if ( t == null || !isFinite( t ) ) return
+
+                    this.controls.loopEnd = t
+
+                    if ( this.controls.loopStart != null && this.controls.loopStart >= t )
+                    {
+                        this.controls.loopStart = null
+                    }
+                },
+                clearLoop: function()
+                {
+                    this.controls.loopStart = null
+                    this.controls.loopEnd = null
                 },
                 tryAutoSeek: function()
                 {
