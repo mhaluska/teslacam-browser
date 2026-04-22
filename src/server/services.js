@@ -1147,12 +1147,13 @@
 			try
 			{
 				var base = sanitizeRelativePath( decoded.eventPath, false )
+				// The client sends full root-relative paths (matching how the main
+				// UI builds them). Assert they stay within the token's event folder.
 				var requested = subRel ? sanitizeRelativePath( subRel, true ) : ""
-				var rel = requested.length ? base + "/" + requested : base
+				var rel = requested.length ? requested : base
 
-				// Enforce that the resolved path remains within the event folder.
-				var scoped = path.posix.normalize( rel.replace( /\\/g, "/" ) )
 				var scopedBase = path.posix.normalize( base.replace( /\\/g, "/" ) )
+				var scoped = path.posix.normalize( rel.replace( /\\/g, "/" ) )
 				if ( scoped !== scopedBase && scoped.indexOf( scopedBase + "/" ) !== 0 )
 					return { error: "path_outside_share" }
 
