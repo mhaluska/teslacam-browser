@@ -12,6 +12,8 @@
     var uiUtils = ( typeof window !== "undefined" && window.uiUtils )
         ? window.uiUtils
         : require( "./ui-utils" )
+    var downloadBlob = uiUtils.downloadBlob
+    var sanitizeFilenamePart = uiUtils.sanitizeFilenamePart
 
     var uiVideo = ( typeof window !== "undefined" && window.uiVideo )
         ? window.uiVideo
@@ -30,6 +32,8 @@
         : require( "./helpers" )
 
     var CAM_GRID_ALL = uiConstants.CAM_GRID_ALL
+    var CAM_GRID_TOP = uiConstants.CAM_GRID_TOP
+    var CAM_GRID_BOTTOM = uiConstants.CAM_GRID_BOTTOM
     var FRAME_STEP_SECONDS = uiConstants.FRAME_STEP_SECONDS
     var FRAME_STEP_LARGE_MULTIPLIER = uiConstants.FRAME_STEP_LARGE_MULTIPLIER
     var normalizeThemePreference = uiUtils.normalizeThemePreference
@@ -822,6 +826,95 @@
                 {
                     this.controls.loopStart = null
                     this.controls.loopEnd = null
+                },
+                currentClipBaseName: function()
+                {
+                    var ts = this.controls && this.controls.timespan
+                    var view = ts && ts.viewMap ? ts.viewMap.get( "front" ) : null
+
+                    if ( view && view.fileName ) return view.fileName.replace( /\.[^.]+$/, "" ).replace( /-front$/, "" )
+
+                    return "teslacam-clip"
+                },
+                snapshotMosaic: function()
+                {
+                    var ts = this.controls && this.controls.timespan
+
+                    if ( !ts || !ts.views ) return
+
+                    var rows = [ CAM_GRID_TOP, CAM_GRID_BOTTOM ]
+                    var rowEls = rows.map( function( row )
+                    {
+                        return row.map( function( cam )
+                        {
+                            return document.querySelector( "video.video." + cam )
+                        } )
+                    } )
+
+                    var anyVideo = null
+                    var cellW = 0
+                    var cellH = 0
+
+                    for ( var r = 0; r < rowEls.length; r++ )
+                    {
+                        for ( var c = 0; c < rowEls[ r ].length; c++ )
+                        {
+                            var v = rowEls[ r ][ c ]
+
+                            if ( v && v.videoWidth && v.videoHeight )
+                            {
+                                if ( !anyVideo ) anyVideo = v
+                                if ( v.videoWidth > cellW ) cellW = v.videoWidth
+                                if ( v.videoHeight > cellH ) cellH = v.videoHeight
+                            }
+                        }
+                    }
+
+                    if ( !anyVideo ) return
+
+                    // Downscale so the mosaic never exceeds ~2400 px wide.
+                    var maxMosaicWidth = 2400
+                    var scale = Math.min( 1, maxMosaicWidth / ( cellW * 3 ) )
+                    var tileW = Math.round( cellW * scale )
+                    var tileH = Math.round( cellH * scale )
+                    var canvas = document.createElement( "canvas" )
+
+                    canvas.width = tileW * 3
+                    canvas.height = tileH * 2
+
+                    var ctx = canvas.getContext( "2d" )
+
+                    ctx.fillStyle = "#000"
+                    ctx.fillRect( 0, 0, canvas.width, canvas.height )
+
+                    try
+                    {
+                        for ( var rr = 0; rr < rowEls.length; rr++ )
+                        {
+                            for ( var cc = 0; cc < rowEls[ rr ].length; cc++ )
+                            {
+                                var el = rowEls[ rr ][ cc ]
+
+                                if ( el && el.videoWidth && el.videoHeight )
+                                {
+                                    ctx.drawImage( el, cc * tileW, rr * tileH, tileW, tileH )
+                                }
+                            }
+                        }
+
+                        var t = this.currentTime || 0
+                        var name = sanitizeFilenamePart( this.currentClipBaseName() ) + "_mosaic_t" + t.toFixed( 3 ) + "s.png"
+
+                        canvas.toBlob( function( blob )
+                        {
+                            if ( blob ) downloadBlob( name, blob )
+                            else console.error( "mosaic snapshot: toBlob returned null (canvas tainted?)" )
+                        }, "image/png" )
+                    }
+                    catch ( e )
+                    {
+                        console.error( "mosaic snapshot failed:", e && e.message ? e.message : e )
+                    }
                 },
                 tryAutoSeek: function()
                 {
