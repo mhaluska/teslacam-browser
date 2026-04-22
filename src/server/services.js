@@ -680,7 +680,7 @@
 		if ( dryRun )
 		{
 			var totalBytes = 0
-			for ( var info of candidates ) totalBytes += await sumFolderBytes( info.path )
+			for ( var dryInfo of candidates ) totalBytes += await sumFolderBytes( dryInfo.path )
 
 			return { dryRun: true, count: candidates.length, bytes: totalBytes, paths: candidates.map( i => i.relative ) }
 		}
@@ -688,16 +688,16 @@
 		var deleted = []
 		var failed = []
 
-		for ( var info of candidates )
+		for ( var victim of candidates )
 		{
 			try
 			{
-				await deleteFolder( info.relative )
-				deleted.push( info.relative )
+				await deleteFolder( victim.relative )
+				deleted.push( victim.relative )
 			}
 			catch ( e )
 			{
-				failed.push( { path: info.relative, error: String( e && e.message ? e.message : e ) } )
+				failed.push( { path: victim.relative, error: String( e && e.message ? e.message : e ) } )
 			}
 		}
 
