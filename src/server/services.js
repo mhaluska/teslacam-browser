@@ -66,6 +66,8 @@
 	var hideDeleteButtons = parseBoolean( process.env.TC_HIDE_DELETE_BUTTONS, true )
 	/** When true, POST /shareLink and GET /share/:token routes are enabled. Default false to keep the surface off unless opted in. */
 	var shareEnabled = parseBoolean( process.env.TC_SHARE_ENABLED, false )
+	/** When true, GET /metrics is exposed in Prometheus text format (no auth). Default false. */
+	var metricsEnabled = parseBoolean( process.env.TC_METRICS_ENABLED, false )
 
 	function parseBoolean( value, fallback )
 	{
@@ -964,6 +966,13 @@
 		}
 
         expressApp.get( "/healthz", ( request, response ) => response.json( { ok: true } ) )
+        expressApp.get( "/metrics", ( _request, response ) =>
+        {
+            if ( !metricsEnabled ) return response.status( 404 ).send( "Not Found" )
+
+            response.set( "Content-Type", "text/plain; version=0.0.4; charset=utf-8" )
+            response.send( metrics.render() )
+        } )
         expressApp.get( "/login", auth.loginPageHandler )
         expressApp.post( "/login", loginLimiter, auth.loginHandler )
 		expressApp.get( "/csrf", ( request, response ) => response.json( { token: ensureCsrfCookie( request, response ) } ) )
