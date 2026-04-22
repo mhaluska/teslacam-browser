@@ -73,7 +73,8 @@
                     timespan: null,
                     speed: 1,
                     loopStart: null,
-                    loopEnd: null
+                    loopEnd: null,
+                    exporting: false
                 },
                 playing: null,
                 loading: null,
@@ -311,6 +312,7 @@
                     if ( !this.controls.playing ) return
                     if ( !( newTime >= b ) ) return
                     if ( this._loopWrapping ) return
+                    if ( this.controls.exporting ) return
 
                     // Pause → seek → resume. While playing, each video's timeChanged
                     // handler writes video.currentTime back into timespan.currentTime,
@@ -835,6 +837,128 @@
                     if ( view && view.fileName ) return view.fileName.replace( /\.[^.]+$/, "" ).replace( /-front$/, "" )
 
                     return "teslacam-clip"
+                },
+                exportRangeWebm: function()
+                {
+                    if ( this.controls.exporting ) return
+
+                    var a = this.controls.loopStart
+                    var b = this.controls.loopEnd
+
+                    if ( a == null || b == null || !( b > a ) ) return
+                    if ( typeof MediaRecorder === "undefined" ) { console.error( "MediaRecorder unavailable" ); return }
+
+                    var front = document.querySelector( "video.video.front" )
+
+                    if ( !front || typeof front.captureStream !== "function" )
+                    {
+                        console.error( "front camera video not ready or captureStream unsupported" )
+
+                        return
+                    }
+
+                    var mime = [
+                        "video/webm;codecs=vp9",
+                        "video/webm;codecs=vp8",
+                        "video/webm"
+                    ].find( function( m ) { return MediaRecorder.isTypeSupported( m ) } )
+
+                    if ( !mime ) { console.error( "no supported WebM MIME type" ); return }
+
+                    var self = this
+                    var chunks = []
+                    var stream = front.captureStream( 36 )
+                    var rec = new MediaRecorder( stream, { mimeType: mime } )
+
+                    rec.ondataavailable = function( e ) { if ( e.data && e.data.size ) chunks.push( e.data ) }
+
+                    var savedSpeed = self.controls.speed
+                    var fileName = sanitizeFilenamePart( self.currentClipBaseName() )
+                        + "_range_" + a.toFixed( 3 ) + "-" + b.toFixed( 3 ) + "s.webm"
+                    var stopTimer = null
+                    var rafHandle = null
+
+                    function cleanup()
+                    {
+                        if ( rafHandle )
+                        {
+                            window.cancelAnimationFrame( rafHandle )
+                            rafHandle = null
+                        }
+
+                        if ( stopTimer )
+                        {
+                            window.clearTimeout( stopTimer )
+                            stopTimer = null
+                        }
+
+                        self.controls.speed = savedSpeed
+                        self.controls.exporting = false
+                    }
+
+                    rec.onstop = function()
+                    {
+                        cleanup()
+                        self.controls.playing = false
+
+                        var blob = new Blob( chunks, { type: mime } )
+
+                        if ( blob.size ) downloadBlob( fileName, blob )
+                        else console.error( "export produced 0 bytes" )
+                    }
+
+                    rec.onerror = function( e )
+                    {
+                        console.error( "MediaRecorder error:", e && e.error ? e.error : e )
+                        cleanup()
+                    }
+
+                    self.controls.exporting = true
+                    self.controls.playing = false
+                    self.controls.speed = 1
+                    self.currentTime = a
+
+                    // Wait one seeked event on the front camera before starting, then
+                    // kick off playback and poll currentTime for the stop condition.
+                    function onSeeked()
+                    {
+                        front.removeEventListener( "seeked", onSeeked )
+
+                        try { rec.start( 100 ) }
+                        catch ( err ) { console.error( "rec.start failed:", err ); cleanup(); return }
+
+                        self.controls.playing = true
+
+                        function poll()
+                        {
+                            if ( rec.state !== "recording" ) return
+
+                            if ( self.currentTime >= b )
+                            {
+                                try { rec.stop() } catch ( _ ) { /* noop */ }
+
+                                return
+                            }
+
+                            rafHandle = window.requestAnimationFrame( poll )
+                        }
+
+                        rafHandle = window.requestAnimationFrame( poll )
+
+                        // Safety ceiling: 1.5x the wall-clock length of the range.
+                        var maxMs = Math.max( 2000, Math.ceil( ( b - a ) * 1500 ) )
+
+                        stopTimer = window.setTimeout( function()
+                        {
+                            if ( rec.state === "recording" )
+                            {
+                                console.warn( "export safety timeout — stopping recorder" )
+                                try { rec.stop() } catch ( _ ) { /* noop */ }
+                            }
+                        }, maxMs )
+                    }
+
+                    front.addEventListener( "seeked", onSeeked )
                 },
                 snapshotMosaic: function()
                 {
