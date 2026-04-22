@@ -5,7 +5,9 @@ const INVOKE_CHANNELS = [
 	"readEventJson", "getClipTelemetry", "getClipSeqSummary",
 	"getThemePreference", "setThemePreference",
 	"getSpeedUnit", "setSpeedUnit",
-	"bulkDeleteFolders"
+	"bulkDeleteFolders",
+	"getDiskUsage",
+	"cleanupOlderThan"
 ]
 
 const SEND_CHANNELS = [

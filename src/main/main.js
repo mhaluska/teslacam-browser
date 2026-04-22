@@ -201,6 +201,28 @@ function initialize()
 		ipcMain.on( "deleteFiles", ( _event, files ) => services.deleteFiles( files ).catch( e => logger.warn( "ipc_delete_files_failed", { error: e } ) ) )
 		ipcMain.on( "copyFilePaths", ( _event, filePaths ) => clipboard.writeText( services.copyFilePaths( filePaths ) ) )
 		ipcMain.on( "deleteFolder", ( _event, folder ) => services.deleteFolder( folder ).catch( e => logger.warn( "ipc_delete_folder_failed", { error: e } ) ) )
+		ipcMain.handle( "getDiskUsage", async () =>
+		{
+			try { return await services.computeDiskUsage() }
+			catch ( e )
+			{
+				logger.warn( "ipc_disk_usage_failed", { error: e } )
+				return { error: String( e && e.message ? e.message : e ) }
+			}
+		} )
+		ipcMain.handle( "cleanupOlderThan", async ( _event, opts ) =>
+		{
+			try
+			{
+				opts = opts || {}
+				return await services.cleanupOlderThan( opts.days, opts.reasons, { dryRun: !!opts.dryRun } )
+			}
+			catch ( e )
+			{
+				logger.warn( "ipc_cleanup_older_than_failed", { error: e } )
+				return { error: String( e && e.message ? e.message : e ) }
+			}
+		} )
 		ipcMain.handle( "bulkDeleteFolders", async ( _event, paths ) =>
 		{
 			var deleted = []
