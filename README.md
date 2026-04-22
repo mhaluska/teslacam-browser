@@ -213,6 +213,7 @@ Additional optional variables:
 | `TC_SHARE_ENABLED` | `false` | When `true`, enables read-only share links. A "Share" button appears on the event panel; authenticated users can mint a tokenized URL (1h / 24h / 7d) that anyone can open without logging in. When `false` all `/share/*` routes return 404. |
 | `TC_SHARE_SECRET` | Random per startup | Secret used to HMAC-sign share tokens. If unset, a fresh value is generated at boot — meaning a restart invalidates every outstanding share link. Set a stable value for persistent links. |
 | `TC_SHARE_MAX_PER_HOUR` | `10` | Max share-link creation requests per hour per IP. |
+| `TC_METRICS_ENABLED` | `false` | When `true`, exposes `GET /metrics` in Prometheus text format (HTTP request counts, telemetry cache hit/miss, parse-duration histogram). The endpoint is intentionally unauthenticated so scrapers work out of the box — restrict access via reverse proxy or a private bind address. |
 
 Authentication only applies to the web server mode. The Electron desktop app is not affected.
 
