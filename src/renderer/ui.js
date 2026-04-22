@@ -93,7 +93,8 @@
                 cleanupDays: 30,
                 cleanupReasons: { SavedClips: false, SentryClips: true, RecentClips: false },
                 cleanupPreview: null,
-                cleanupBusy: false
+                cleanupBusy: false,
+                shareModal: { ttlHours: 24, busy: false, error: null, url: null, expiresAt: null }
                 }
             },
             provide: function()
@@ -1427,6 +1428,53 @@
                 copyPath: function( path )
                 {
                     handlers.copyPath( path )
+                },
+                openShareModal: function()
+                {
+                    var self = this
+                    self.shareModal = { ttlHours: self.shareModal.ttlHours || 24, busy: false, error: null, url: null, expiresAt: null }
+
+                    self.$nextTick( function()
+                    {
+                        var el = document.getElementById( "shareLinkModal" )
+                        if ( el && window.bootstrap ) window.bootstrap.Modal.getOrCreateInstance( el ).show()
+                    } )
+                },
+                createShareLink: function()
+                {
+                    var self = this
+
+                    if ( !handlers.createShareLink || !self.selectedPath )
+                    {
+                        self.shareModal = Object.assign( {}, self.shareModal, { error: "Unsupported" } )
+                        return
+                    }
+
+                    self.shareModal = Object.assign( {}, self.shareModal, { busy: true, error: null, url: null, expiresAt: null } )
+
+                    handlers.createShareLink( { eventPath: self.selectedPath, ttlHours: Number( self.shareModal.ttlHours ) }, function( res )
+                    {
+                        if ( !res || res.error )
+                        {
+                            self.shareModal = Object.assign( {}, self.shareModal, { busy: false, error: ( res && res.error ) || "request_failed" } )
+                            return
+                        }
+
+                        var url = res.path
+                        if ( url && url.charAt( 0 ) === "/" ) url = window.location.origin + url
+
+                        self.shareModal = Object.assign( {}, self.shareModal, {
+                            busy: false,
+                            error: null,
+                            url: url,
+                            expiresAt: res.expiresAt
+                        } )
+                    } )
+                },
+                copyShareUrl: function()
+                {
+                    if ( !this.shareModal.url ) return
+                    if ( navigator.clipboard ) navigator.clipboard.writeText( this.shareModal.url )
                 },
                 formatBytes: function( bytes )
                 {

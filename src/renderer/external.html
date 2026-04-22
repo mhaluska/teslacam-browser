@@ -161,7 +161,7 @@
                   </div>
                 </template>
                 <div v-else class="text-muted">No event.json</div>
-                <div class="mt-2 d-flex justify-content-center gap-2">
+                <div class="mt-2 d-flex justify-content-center gap-2 flex-wrap">
                   <button type="button" class="btn btn-sm btn-outline-secondary" @click.prevent="openClipAnalytics">
                     <span class="bi bi-bar-chart-line" aria-hidden="true"></span>
                     Analytics
@@ -169,6 +169,10 @@
                   <button type="button" class="btn btn-sm btn-outline-secondary" @click.prevent="openSeqDiagnostics">
                     <span class="bi bi-activity" aria-hidden="true"></span>
                     Sync check
+                  </button>
+                  <button v-if="args.shareEnabled" type="button" class="btn btn-sm btn-outline-secondary" @click.prevent="openShareModal()">
+                    <span class="bi bi-share" aria-hidden="true"></span>
+                    Share
                   </button>
                 </div>
               </div>
@@ -450,6 +454,45 @@
               @seek="seekToSampleTime"></clip-analytics>
           </div>
           <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Share link modal -->
+    <div class="modal fade" id="shareLinkModal" tabindex="-1" aria-labelledby="shareLinkLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="shareLinkLabel">Create share link</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div v-if="!shareModal.url">
+              <div class="mb-3">
+                <label class="form-label">Link valid for</label>
+                <select class="form-select" v-model.number="shareModal.ttlHours">
+                  <option :value="1">1 hour</option>
+                  <option :value="24">24 hours</option>
+                  <option :value="168">7 days</option>
+                </select>
+              </div>
+              <div v-if="shareModal.error" class="text-danger">{{ shareModal.error }}</div>
+            </div>
+            <div v-else>
+              <div class="mb-2"><strong>Link:</strong></div>
+              <div class="input-group mb-2">
+                <input type="text" class="form-control" :value="shareModal.url" readonly />
+                <button class="btn btn-outline-secondary" type="button" @click.prevent="copyShareUrl()">Copy</button>
+              </div>
+              <div class="small text-muted">Expires: {{ shareModal.expiresAt }}</div>
+              <div class="small text-muted mt-2">Anyone with this link can view this event until it expires. Treat it like a password.</div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button v-if="!shareModal.url" type="button" class="btn btn-primary"
+              :disabled="shareModal.busy" @click.prevent="createShareLink()">Create link</button>
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
           </div>
         </div>

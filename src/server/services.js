@@ -820,7 +820,8 @@
 			folderPathParts: folderPathParts,
 			subfolders: subfolders,
 			version: version,
-			hideDeleteButtons: hideDeleteButtons
+			hideDeleteButtons: hideDeleteButtons,
+			shareEnabled: shareEnabled
         }
     }
 
