@@ -53,6 +53,55 @@ function selectFolders( webContents )
 	if ( webContents && !webContents.isDestroyed() ) webContents.reload()
 }
 
+const DESTRUCTIVE_IPC_CHANNELS = new Set( [
+	"deleteFiles", "deleteFolder", "bulkDeleteFolders", "cleanupOlderThan"
+] )
+
+function isAllowedSender( event )
+{
+	if ( !mainWindow || mainWindow.isDestroyed() ) return false
+	if ( event.sender !== mainWindow.webContents ) return false
+
+	var frame = event.senderFrame
+	if ( !frame || frame !== frame.top ) return false
+
+	return true
+}
+
+function safeHandle( channel, handler )
+{
+	ipcMain.handle( channel, async ( event, ...args ) =>
+	{
+		if ( !isAllowedSender( event ) )
+		{
+			logger.warn( "ipc_rejected", { channel: channel } )
+			return { error: "ipc_not_allowed" }
+		}
+
+		if ( DESTRUCTIVE_IPC_CHANNELS.has( channel ) )
+			logger.info( "ipc_destructive_invoked", { channel: channel } )
+
+		return await handler( event, ...args )
+	} )
+}
+
+function safeOn( channel, handler )
+{
+	ipcMain.on( channel, ( event, ...args ) =>
+	{
+		if ( !isAllowedSender( event ) )
+		{
+			logger.warn( "ipc_rejected", { channel: channel } )
+			return
+		}
+
+		if ( DESTRUCTIVE_IPC_CHANNELS.has( channel ) )
+			logger.info( "ipc_destructive_invoked", { channel: channel } )
+
+		handler( event, ...args )
+	} )
+}
+
 function createWindow()
 {
 	// Create the browser window.
@@ -64,6 +113,8 @@ function createWindow()
 		{
 			nodeIntegration: false,
 			contextIsolation: true,
+			sandbox: true,
+			webSecurity: true,
 			preload: path.join( __dirname, "preload.js" )
 		}
 	} )
@@ -165,17 +216,17 @@ function initialize()
 	{
 		services.initializeExpress( port, { host: "127.0.0.1" } )
 
-		ipcMain.handle( "openFolders", async () => await open() )
-		ipcMain.handle( "reopenFolders", async () => await services.reopenFolders() )
-		ipcMain.handle( "openFolder", async ( _event, folder ) => setFolder( await services.openFolder( folder ) ) )
-		ipcMain.handle( "getFiles", async ( _event, p ) => await services.getFiles( p, f => path.join( services.args().folder, f ) ) )
-		ipcMain.handle( "readEventJson", async ( _event, p ) => await services.readEventJson( p ) )
+		safeHandle( "openFolders", async () => await open() )
+		safeHandle( "reopenFolders", async () => await services.reopenFolders() )
+		safeHandle( "openFolder", async ( _event, folder ) => setFolder( await services.openFolder( folder ) ) )
+		safeHandle( "getFiles", async ( _event, p ) => await services.getFiles( p, f => path.join( services.args().folder, f ) ) )
+		safeHandle( "readEventJson", async ( _event, p ) => await services.readEventJson( p ) )
 
-		ipcMain.handle( "getClipTelemetry", async ( _event, p ) => await services.readClipTelemetry( p ) )
-		ipcMain.handle( "getClipSeqSummary", async ( _event, p ) => await services.readClipSeqSummary( p ) )
+		safeHandle( "getClipTelemetry", async ( _event, p ) => await services.readClipTelemetry( p ) )
+		safeHandle( "getClipSeqSummary", async ( _event, p ) => await services.readClipSeqSummary( p ) )
 
-		ipcMain.handle( "getThemePreference", () => normalizeThemePreference( settings.getSync( "themePreference" ) ) )
-		ipcMain.handle( "setThemePreference", ( _event, mode ) =>
+		safeHandle( "getThemePreference", () => normalizeThemePreference( settings.getSync( "themePreference" ) ) )
+		safeHandle( "setThemePreference", ( _event, mode ) =>
 		{
 			var m = normalizeThemePreference( mode )
 
@@ -187,8 +238,8 @@ function initialize()
 
 		syncNativeThemeSource( normalizeThemePreference( settings.getSync( "themePreference" ) ) )
 
-		ipcMain.handle( "getSpeedUnit", () => normalizeSpeedUnit( settings.getSync( "speedUnit" ) ) )
-		ipcMain.handle( "setSpeedUnit", ( _event, mode ) =>
+		safeHandle( "getSpeedUnit", () => normalizeSpeedUnit( settings.getSync( "speedUnit" ) ) )
+		safeHandle( "setSpeedUnit", ( _event, mode ) =>
 		{
 			var m = normalizeSpeedUnit( mode )
 
@@ -197,11 +248,11 @@ function initialize()
 			return m
 		} )
 
-		ipcMain.on( "openBrowser", () => browse() )
-		ipcMain.on( "deleteFiles", ( _event, files ) => services.deleteFiles( files ).catch( e => logger.warn( "ipc_delete_files_failed", { error: e } ) ) )
-		ipcMain.on( "copyFilePaths", ( _event, filePaths ) => clipboard.writeText( services.copyFilePaths( filePaths ) ) )
-		ipcMain.on( "deleteFolder", ( _event, folder ) => services.deleteFolder( folder ).catch( e => logger.warn( "ipc_delete_folder_failed", { error: e } ) ) )
-		ipcMain.handle( "getDiskUsage", async () =>
+		safeOn( "openBrowser", () => browse() )
+		safeOn( "deleteFiles", ( _event, files ) => services.deleteFiles( files ).catch( e => logger.warn( "ipc_delete_files_failed", { error: e } ) ) )
+		safeOn( "copyFilePaths", ( _event, filePaths ) => clipboard.writeText( services.copyFilePaths( filePaths ) ) )
+		safeOn( "deleteFolder", ( _event, folder ) => services.deleteFolder( folder ).catch( e => logger.warn( "ipc_delete_folder_failed", { error: e } ) ) )
+		safeHandle( "getDiskUsage", async () =>
 		{
 			try { return await services.computeDiskUsage() }
 			catch ( e )
@@ -210,7 +261,7 @@ function initialize()
 				return { error: String( e && e.message ? e.message : e ) }
 			}
 		} )
-		ipcMain.handle( "cleanupOlderThan", async ( _event, opts ) =>
+		safeHandle( "cleanupOlderThan", async ( _event, opts ) =>
 		{
 			try
 			{
@@ -223,7 +274,7 @@ function initialize()
 				return { error: String( e && e.message ? e.message : e ) }
 			}
 		} )
-		ipcMain.handle( "bulkDeleteFolders", async ( _event, paths ) =>
+		safeHandle( "bulkDeleteFolders", async ( _event, paths ) =>
 		{
 			var deleted = []
 			var failed = []
@@ -245,8 +296,8 @@ function initialize()
 
 			return { deleted: deleted, failed: failed }
 		} )
-		ipcMain.on( "copyPath", ( _event, p ) => clipboard.writeText( services.copyPath( p ) ) )
-		ipcMain.on( "openExternal", ( _event, p ) => shell.showItemInFolder( p ) )
+		safeOn( "copyPath", ( _event, p ) => clipboard.writeText( services.copyPath( p ) ) )
+		safeOn( "openExternal", ( _event, p ) => shell.showItemInFolder( p ) )
 
 		backendInitialized = true
 	}
