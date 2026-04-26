@@ -163,7 +163,7 @@ function initialize()
 
 	if ( !backendInitialized )
 	{
-		services.initializeExpress( port )
+		services.initializeExpress( port, { host: "127.0.0.1" } )
 
 		ipcMain.handle( "openFolders", async () => await open() )
 		ipcMain.handle( "reopenFolders", async () => await services.reopenFolders() )
