@@ -132,7 +132,8 @@
 			return { headless: false }
 
 		return {
-			headless: parseBoolean( options.headless, false )
+			headless: parseBoolean( options.headless, false ),
+			host: typeof options.host === "string" && options.host.length > 0 ? options.host : undefined
 		}
 	}
 
@@ -1356,13 +1357,13 @@
 			response.status( 500 ).json( { error: "internal" } )
 		} )
 
-        var server = expressApp.listen( port, () =>
+        var server = expressApp.listen( port, initializeOptions.host, () =>
         {
-            logger.info( "server_listening", { port: port } )
+            logger.info( "server_listening", { port: port, host: initializeOptions.host || "0.0.0.0" } )
         } )
         server.on( "error", function ( err )
         {
-            logger.error( "server_listen_failed", { port: port, error: err } )
+            logger.error( "server_listen_failed", { port: port, host: initializeOptions.host || "0.0.0.0", error: err } )
             if ( initializeOptions.headless ) process.exit( 1 )
         } )
     }
