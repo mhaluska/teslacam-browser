@@ -824,6 +824,12 @@
                 },
                 timeChanged: function( event )
                 {
+                    // Only the front camera writes to timespan.currentTime. Without this gate
+                    // every duration-matched camera writes on every timeupdate, so when one
+                    // camera drifts behind the others the shared clock visibly oscillates
+                    // (timeline dot jumps front/back as different cameras' timeupdates land).
+                    if ( this.view.camera !== "front" ) return
+
                     var video = event.target
 
                     if ( !video.paused
