@@ -17,6 +17,7 @@
     var CAM_GRID_BOTTOM = uiConstants.CAM_GRID_BOTTOM
     var CAM_GRID_ALL = uiConstants.CAM_GRID_ALL
     var DURATION_MATCH_EPSILON_SEC = uiConstants.DURATION_MATCH_EPSILON_SEC
+    var DRIFT_CORRECTION_THRESHOLD_SEC = uiConstants.DRIFT_CORRECTION_THRESHOLD_SEC
 
     var pickSeiInterpolationBracket = uiUtils.pickSeiInterpolationBracket
     var blendDashSamples = uiUtils.blendDashSamples
@@ -424,7 +425,7 @@
                             </svg>
                         </div>
                     </div>
-                    <video ref="video" class="video" :class="view.camera" :src="view.file" :playbackRate="playbackRate" crossorigin="anonymous" preload="auto" @durationchange="durationChanged" @timeupdate="timeChanged" @ended="ended" title="Open in file explorer" @click="openExternal" playsinline></video>
+                    <video ref="video" class="video" :class="view.camera" :src="view.file" :playbackRate="playbackRate" crossorigin="anonymous" preload="auto" @durationchange="durationChanged" @timeupdate="timeChanged" @ended="ended" @waiting="onMediaWaiting" @stalled="onMediaStalled" @error="onMediaError" @playing="onMediaPlaying" title="Open in file explorer" @click="openExternal" playsinline></video>
                 </div>`,
             computed:
             {
@@ -600,9 +601,12 @@
                 },
                 "timespan.currentTime":
                 {
-                    handler: function( currentTime, oldTime )
+                    handler: function()
                     {
+                        // syncPausedPosition is a no-op while playing;
+                        // correctDriftDuringPlay is a no-op while paused.
                         this.syncPausedPosition()
+                        this.correctDriftDuringPlay()
                     }
                 },
                 overlayVideoTime: function()
@@ -822,8 +826,39 @@
 
                     this.syncOverlayClock()
                 },
+                correctDriftDuringPlay: function()
+                {
+                    // Followers seek themselves back into alignment whenever they have drifted
+                    // more than DRIFT_CORRECTION_THRESHOLD_SEC from the shared (leader-driven)
+                    // clock. The leader doesn't follow itself.
+                    if ( this.view.camera === "front" ) return
+                    if ( !this.timespan.playing ) return
+
+                    var video = this.$refs[ "video" ]
+
+                    if ( !video || video.paused ) return
+                    if ( !isFinite( video.duration ) ) return
+                    if ( !isFinite( this.timespan.duration ) ) return
+
+                    var adjustedTime = this.timespan.currentTime - ( this.timespan.duration - video.duration )
+
+                    if ( !isFinite( adjustedTime ) || adjustedTime < 0 ) return
+
+                    var drift = video.currentTime - adjustedTime
+
+                    if ( Math.abs( drift ) > DRIFT_CORRECTION_THRESHOLD_SEC )
+                    {
+                        video.currentTime = adjustedTime
+                    }
+                },
                 timeChanged: function( event )
                 {
+                    // Only the front camera writes to timespan.currentTime. Without this gate
+                    // every duration-matched camera writes on every timeupdate, so when one
+                    // camera drifts behind the others the shared clock visibly oscillates
+                    // (timeline dot jumps front/back as different cameras' timeupdates land).
+                    if ( this.view.camera !== "front" ) return
+
                     var video = event.target
 
                     if ( !video.paused
@@ -846,6 +881,42 @@
                     {
                         this.timespan.ended = true
                     }
+                },
+                describeMediaState: function( video )
+                {
+                    var bufEnd = ( video.buffered && video.buffered.length )
+                        ? video.buffered.end( video.buffered.length - 1 )
+                        : null
+
+                    return {
+                        camera: this.view.camera,
+                        currentTime: Number( video.currentTime.toFixed( 3 ) ),
+                        bufferedAhead: bufEnd != null ? Number( ( bufEnd - video.currentTime ).toFixed( 3 ) ) : null,
+                        readyState: video.readyState,
+                        networkState: video.networkState
+                    }
+                },
+                onMediaWaiting: function( event )
+                {
+                    console.warn( "[media] waiting", this.describeMediaState( event.target ) )
+                },
+                onMediaStalled: function( event )
+                {
+                    console.warn( "[media] stalled", this.describeMediaState( event.target ) )
+                },
+                onMediaError: function( event )
+                {
+                    var video = event.target
+                    var err = video.error
+
+                    console.error( "[media] error", Object.assign( this.describeMediaState( video ), {
+                        code: err ? err.code : null,
+                        message: err ? err.message : null
+                    } ) )
+                },
+                onMediaPlaying: function( event )
+                {
+                    console.info( "[media] playing", this.describeMediaState( event.target ) )
                 },
                 openExternal: function()
                 {
