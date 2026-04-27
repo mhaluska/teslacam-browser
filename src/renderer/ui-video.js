@@ -425,7 +425,7 @@
                             </svg>
                         </div>
                     </div>
-                    <video ref="video" class="video" :class="view.camera" :src="view.file" :playbackRate="playbackRate" crossorigin="anonymous" preload="auto" @durationchange="durationChanged" @timeupdate="timeChanged" @ended="ended" title="Open in file explorer" @click="openExternal" playsinline></video>
+                    <video ref="video" class="video" :class="view.camera" :src="view.file" :playbackRate="playbackRate" crossorigin="anonymous" preload="auto" @durationchange="durationChanged" @timeupdate="timeChanged" @ended="ended" @waiting="onMediaWaiting" @stalled="onMediaStalled" @error="onMediaError" @playing="onMediaPlaying" title="Open in file explorer" @click="openExternal" playsinline></video>
                 </div>`,
             computed:
             {
@@ -881,6 +881,42 @@
                     {
                         this.timespan.ended = true
                     }
+                },
+                describeMediaState: function( video )
+                {
+                    var bufEnd = ( video.buffered && video.buffered.length )
+                        ? video.buffered.end( video.buffered.length - 1 )
+                        : null
+
+                    return {
+                        camera: this.view.camera,
+                        currentTime: Number( video.currentTime.toFixed( 3 ) ),
+                        bufferedAhead: bufEnd != null ? Number( ( bufEnd - video.currentTime ).toFixed( 3 ) ) : null,
+                        readyState: video.readyState,
+                        networkState: video.networkState
+                    }
+                },
+                onMediaWaiting: function( event )
+                {
+                    console.warn( "[media] waiting", this.describeMediaState( event.target ) )
+                },
+                onMediaStalled: function( event )
+                {
+                    console.warn( "[media] stalled", this.describeMediaState( event.target ) )
+                },
+                onMediaError: function( event )
+                {
+                    var video = event.target
+                    var err = video.error
+
+                    console.error( "[media] error", Object.assign( this.describeMediaState( video ), {
+                        code: err ? err.code : null,
+                        message: err ? err.message : null
+                    } ) )
+                },
+                onMediaPlaying: function( event )
+                {
+                    console.info( "[media] playing", this.describeMediaState( event.target ) )
                 },
                 openExternal: function()
                 {
