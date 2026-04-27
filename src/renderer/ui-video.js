@@ -17,6 +17,7 @@
     var CAM_GRID_BOTTOM = uiConstants.CAM_GRID_BOTTOM
     var CAM_GRID_ALL = uiConstants.CAM_GRID_ALL
     var DURATION_MATCH_EPSILON_SEC = uiConstants.DURATION_MATCH_EPSILON_SEC
+    var DRIFT_CORRECTION_THRESHOLD_SEC = uiConstants.DRIFT_CORRECTION_THRESHOLD_SEC
 
     var pickSeiInterpolationBracket = uiUtils.pickSeiInterpolationBracket
     var blendDashSamples = uiUtils.blendDashSamples
@@ -600,9 +601,12 @@
                 },
                 "timespan.currentTime":
                 {
-                    handler: function( currentTime, oldTime )
+                    handler: function()
                     {
+                        // syncPausedPosition is a no-op while playing;
+                        // correctDriftDuringPlay is a no-op while paused.
                         this.syncPausedPosition()
+                        this.correctDriftDuringPlay()
                     }
                 },
                 overlayVideoTime: function()
@@ -821,6 +825,31 @@
                     else video.style.opacity = 0.3
 
                     this.syncOverlayClock()
+                },
+                correctDriftDuringPlay: function()
+                {
+                    // Followers seek themselves back into alignment whenever they have drifted
+                    // more than DRIFT_CORRECTION_THRESHOLD_SEC from the shared (leader-driven)
+                    // clock. The leader doesn't follow itself.
+                    if ( this.view.camera === "front" ) return
+                    if ( !this.timespan.playing ) return
+
+                    var video = this.$refs[ "video" ]
+
+                    if ( !video || video.paused ) return
+                    if ( !isFinite( video.duration ) ) return
+                    if ( !isFinite( this.timespan.duration ) ) return
+
+                    var adjustedTime = this.timespan.currentTime - ( this.timespan.duration - video.duration )
+
+                    if ( !isFinite( adjustedTime ) || adjustedTime < 0 ) return
+
+                    var drift = video.currentTime - adjustedTime
+
+                    if ( Math.abs( drift ) > DRIFT_CORRECTION_THRESHOLD_SEC )
+                    {
+                        video.currentTime = adjustedTime
+                    }
                 },
                 timeChanged: function( event )
                 {
