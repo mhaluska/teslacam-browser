@@ -18,6 +18,8 @@ COPY --chown=node:node src/renderer ./src/renderer
 
 USER node
 
+ENV TC_BIND_HOST=0.0.0.0
+
 EXPOSE 8088
 VOLUME ["/data"]
 

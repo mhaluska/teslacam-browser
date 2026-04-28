@@ -31,5 +31,8 @@ catch ( e )
     process.exit( 1 )
 }
 
+const bindHostRaw = typeof process.env.TC_BIND_HOST === "string" ? process.env.TC_BIND_HOST.trim() : ""
+const bindHost = bindHostRaw.length > 0 ? bindHostRaw : "127.0.0.1"
+
 services.setFolder( resolvedFolder )
-services.initializeExpress( port, { headless: true } )
+services.initializeExpress( port, { headless: true, host: bindHost } )

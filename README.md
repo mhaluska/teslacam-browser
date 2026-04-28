@@ -53,10 +53,18 @@ npm ci --omit=dev
 node src/server/server.js /path/to/TeslaCam
 ```
 
+> **⚠️ Network binding changed:** the headless server now binds to `127.0.0.1` by default and is only reachable from the same machine. To expose it to your LAN, set `TC_BIND_HOST=0.0.0.0` (or a specific NIC address, e.g. `TC_BIND_HOST=192.168.1.10`):
+>
+> ```
+> TC_BIND_HOST=0.0.0.0 node src/server/server.js /path/to/TeslaCam
+> ```
+>
+> The published Docker image overrides this default to `0.0.0.0` so existing `-p 8088:8088` mappings keep working — see [Running with Docker](#running-with-docker).
+
 The startup path is required in headless mode and is treated as the fixed root for all file operations.
 Folder browsing/switching in the headless web UI is intentionally disabled.
 
-You can then open the app in a browser by pointing to `http://localhost:8088` (replace `localhost` with address of your server).
+You can then open the app in a browser by pointing to `http://localhost:8088` (replace `localhost` with address of your server, after setting `TC_BIND_HOST` accordingly).
 
 After updating to a new version, re-run `npm ci --omit=dev` to ensure all dependencies are up to date.
 
@@ -214,6 +222,7 @@ Additional optional variables:
 | `TC_SHARE_SECRET` | Random per startup | Secret used to HMAC-sign share tokens. If unset, a fresh value is generated at boot — meaning a restart invalidates every outstanding share link. Set a stable value for persistent links. |
 | `TC_SHARE_MAX_PER_HOUR` | `10` | Max share-link creation requests per hour per IP. |
 | `TC_METRICS_ENABLED` | `false` | When `true`, exposes `GET /metrics` in Prometheus text format (HTTP request counts, telemetry cache hit/miss, parse-duration histogram). The endpoint is intentionally unauthenticated so scrapers work out of the box — restrict access via reverse proxy or a private bind address. |
+| `TC_BIND_HOST` | `127.0.0.1` | Address the headless server listens on. Default `127.0.0.1` accepts only loopback connections. Set to `0.0.0.0` to accept connections from any interface, or to a specific IP to bind a single NIC. The published Docker image overrides this default to `0.0.0.0` so port mapping works. |
 
 Authentication only applies to the web server mode. The Electron desktop app is not affected.
 
@@ -223,10 +232,11 @@ Authentication only applies to the web server mode. The Electron desktop app is 
 
 1. Set `TC_AUTH_USER`, `TC_AUTH_PASS_HASH`, and a persistent `TC_AUTH_SECRET`.
 2. Place the app behind HTTPS reverse proxy and do not expose raw Node port directly.
-3. Set `TC_TRUST_IP` to your reverse proxy IP/CIDR ranges.
-4. Keep `TC_COOKIE_SECURE=auto` (or `true` if TLS is always used end-to-end).
-5. If all browser traffic is HTTPS, optionally set `TC_CSP_UPGRADE_INSECURE_REQUESTS=true`.
-6. Review rate-limit env vars for your traffic profile.
+3. Decide on `TC_BIND_HOST`. The default `127.0.0.1` is correct when a reverse proxy runs on the same host; use `0.0.0.0` only when you intentionally want the Node process reachable on the network.
+4. Set `TC_TRUST_IP` to your reverse proxy IP/CIDR ranges.
+5. Keep `TC_COOKIE_SECURE=auto` (or `true` if TLS is always used end-to-end).
+6. If all browser traffic is HTTPS, optionally set `TC_CSP_UPGRADE_INSECURE_REQUESTS=true`.
+7. Review rate-limit env vars for your traffic profile.
 
 ## Project layout
 
