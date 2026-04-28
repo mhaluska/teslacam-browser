@@ -795,8 +795,24 @@
                     if ( t )
                     {
                         var tag = t.tagName
-                        if ( tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" ) return
+                        if ( tag === "TEXTAREA" || tag === "SELECT" ) return
                         if ( t.isContentEditable ) return
+
+                        if ( tag === "INPUT" )
+                        {
+                            var inputType = ( t.type || "text" ).toLowerCase()
+
+                            // Text-entry inputs swallow typing — bail.
+                            if ( inputType !== "range" && inputType !== "checkbox" && inputType !== "radio" ) return
+
+                            // The timeline scrubber is a range input and keeps focus after a click,
+                            // which would otherwise sink every shortcut. Let our handler run, but
+                            // skip keys the input itself handles natively so we don't fight it.
+                            if ( e.key === "ArrowLeft" || e.key === "ArrowRight"
+                                || e.key === "ArrowUp" || e.key === "ArrowDown"
+                                || e.key === "Home" || e.key === "End"
+                                || e.key === "PageUp" || e.key === "PageDown" ) return
+                        }
                     }
 
                     if ( document.querySelector( ".modal.show" ) ) return
