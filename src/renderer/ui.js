@@ -1321,6 +1321,12 @@
                     this.controls.playing = false
                     this.currentTime = Math.max( 0, Math.min( total, tSec ) )
                 },
+                openHelp: function()
+                {
+                    var el = document.getElementById( "helpModal" )
+
+                    if ( el && window.bootstrap ) window.bootstrap.Modal.getOrCreateInstance( el ).show()
+                },
                 openSeqDiagnostics: function()
                 {
                     var self = this
