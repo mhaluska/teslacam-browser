@@ -425,7 +425,7 @@
                             </svg>
                         </div>
                     </div>
-                    <video ref="video" class="video" :class="view.camera" :src="view.file" :playbackRate="playbackRate" crossorigin="anonymous" preload="auto" @durationchange="durationChanged" @timeupdate="timeChanged" @ended="ended" @waiting="onMediaWaiting" @stalled="onMediaStalled" @error="onMediaError" @playing="onMediaPlaying" title="Open in file explorer" @click="openExternal" playsinline></video>
+                    <video ref="video" class="video" :class="view.camera" :src="view.file" :playbackRate="playbackRate" crossorigin="anonymous" preload="auto" @durationchange="durationChanged" @timeupdate="timeChanged" @pause="onPause" @ended="ended" @waiting="onMediaWaiting" @stalled="onMediaStalled" @error="onMediaError" @playing="onMediaPlaying" title="Open in file explorer" @click="openExternal" playsinline></video>
                 </div>`,
             computed:
             {
@@ -863,6 +863,24 @@
 
                     if ( !video.paused
                         && this.timespan.duration != null
+                        && isFinite( this.timespan.duration )
+                        && isFinite( video.duration )
+                        && Math.abs( video.duration - this.timespan.duration ) < DURATION_MATCH_EPSILON_SEC )
+                    {
+                        this.timespan.currentTime = video.currentTime
+                    }
+                },
+                onPause: function( event )
+                {
+                    // timeChanged stops writing once video.paused flips true, so the last
+                    // tick can land up to ~250ms before the actual pause point. Flush the
+                    // final position here so [ / ] / \ shortcuts read the real cursor
+                    // position when the clip is paused, not the last timeupdate sample.
+                    if ( this.view.camera !== "front" ) return
+
+                    var video = event.target
+
+                    if ( this.timespan.duration != null
                         && isFinite( this.timespan.duration )
                         && isFinite( video.duration )
                         && Math.abs( video.duration - this.timespan.duration ) < DURATION_MATCH_EPSILON_SEC )
