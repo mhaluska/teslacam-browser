@@ -458,6 +458,59 @@
       </div>
     </div>
 
+    <!-- Help modal -->
+    <div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="helpModalLabel">Help</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+
+            <h6 class="mb-2">Keyboard shortcuts</h6>
+            <table class="table table-sm align-middle mb-2">
+              <tbody>
+                <tr><th scope="row" style="width: 40%;"><kbd>Space</kbd></th><td>Play / pause</td></tr>
+                <tr><th scope="row"><kbd>&larr;</kbd> / <kbd>&rarr;</kbd></th><td>Step one frame back / forward</td></tr>
+                <tr><th scope="row"><kbd>Shift</kbd> + <kbd>&larr;</kbd> / <kbd>&rarr;</kbd></th><td>Larger jump back / forward</td></tr>
+                <tr><th scope="row"><kbd>[</kbd></th><td>Set loop start (A) at current time</td></tr>
+                <tr><th scope="row"><kbd>]</kbd></th><td>Set loop end (B) at current time</td></tr>
+                <tr><th scope="row"><kbd>\</kbd></th><td>Clear loop</td></tr>
+              </tbody>
+            </table>
+            <p class="text-muted small mb-4">Shortcuts are disabled while a dialog is open or a text field has focus.</p>
+
+            <h6 class="mb-2">Sidebar buttons (per clip)</h6>
+            <dl class="mb-4">
+              <dt><span class="bi bi-bar-chart-line me-1" aria-hidden="true"></span>Analytics</dt>
+              <dd>Opens speed and acceleration graphs derived from the clip's telemetry. Click a point on a graph to seek the player to that sample.</dd>
+              <dt><span class="bi bi-activity me-1" aria-hidden="true"></span>Sync check</dt>
+              <dd>Shows the first SEI frame sequence number for each camera and the delta (Δ) relative to the baseline camera. Δ ≈ 0 means the cameras started in lockstep; Δ &gt; 1 means that camera began recording a few frames late.</dd>
+            </dl>
+
+            <h6 class="mb-2">Timeline buttons (above the scrub bar)</h6>
+            <dl class="mb-0">
+              <dt><span class="loop-btn-label">A</span></dt>
+              <dd>Set loop start at the current time (shortcut <kbd>[</kbd>).</dd>
+              <dt><span class="loop-btn-label">B</span></dt>
+              <dd>Set loop end at the current time (shortcut <kbd>]</kbd>).</dd>
+              <dt><span class="bi bi-x-lg" aria-hidden="true"></span> Clear loop</dt>
+              <dd>Removes both A and B markers (shortcut <kbd>\</kbd>).</dd>
+              <dt><span class="bi bi-grid-3x2-gap" aria-hidden="true"></span> Mosaic snapshot</dt>
+              <dd>Saves a 3×2 mosaic PNG of all six cameras at the current frame.</dd>
+              <dt><span class="bi bi-record-circle" aria-hidden="true"></span> Export A→B</dt>
+              <dd>Visible only when both A and B are set. Exports the A→B range as a WebM clip from the front camera.</dd>
+            </dl>
+
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <script type="text/javascript" src="node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
