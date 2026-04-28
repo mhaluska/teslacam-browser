@@ -29,6 +29,13 @@ services:
       # Persistent secret — if unset, sessions are invalidated on restart.
       TC_AUTH_SECRET: "change-me-to-a-long-random-string"
 
+      # --- Network binding ---
+      # The image defaults to TC_BIND_HOST=0.0.0.0 so port mapping works.
+      # Override to 127.0.0.1 only if you want the container reachable from
+      # the docker host itself (e.g. a reverse proxy on the host network
+      # using 127.0.0.1:8088 as upstream).
+      # TC_BIND_HOST: "0.0.0.0"
+
       # --- Reverse proxy ---
       # Comma-separated trusted proxy IP/CIDR ranges so the logged client IP is correct.
       # TC_TRUST_IP: "10.0.0.0/8,192.168.0.0/16,172.16.0.0/12"
