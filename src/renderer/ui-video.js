@@ -879,13 +879,10 @@
 
                     var video = event.target
 
-                    if ( this.timespan.duration != null
-                        && isFinite( this.timespan.duration )
-                        && isFinite( video.duration )
-                        && Math.abs( video.duration - this.timespan.duration ) < DURATION_MATCH_EPSILON_SEC )
-                    {
-                        this.timespan.currentTime = video.currentTime
-                    }
+                    if ( !isFinite( video.duration ) ) return
+                    if ( !isFinite( this.timespan.duration ) ) return
+
+                    this.timespan.currentTime = video.currentTime + ( this.timespan.duration - video.duration )
                 },
                 ended()
                 {
