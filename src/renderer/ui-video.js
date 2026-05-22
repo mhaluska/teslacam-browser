@@ -886,15 +886,12 @@
                 },
                 ended()
                 {
-                    var video = this.$refs[ "video" ]
+                    // The front camera is the authoritative reference for clip end.
+                    // Followers may have extra trailing frames whose end carries no
+                    // semantic meaning, so transition only when the leader finishes.
+                    if ( this.view.camera !== "front" ) return
 
-                    if ( video
-                        && isFinite( video.duration )
-                        && isFinite( this.timespan.duration )
-                        && Math.abs( video.duration - this.timespan.duration ) < DURATION_MATCH_EPSILON_SEC )
-                    {
-                        this.timespan.ended = true
-                    }
+                    this.timespan.ended = true
                 },
                 describeMediaState: function( video )
                 {
