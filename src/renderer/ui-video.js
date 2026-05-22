@@ -706,6 +706,16 @@
 
                     if ( !video ) return
 
+                    // Cancel any pending delayed-start timer from a prior startPlayback
+                    // invocation. Without this, a skip/seek that re-fires startPlayback
+                    // mid-delay leaks the old timer, which then runs video.currentTime=0
+                    // after the new playback has already advanced.
+                    if ( this.timeout )
+                    {
+                        window.clearTimeout( this.timeout )
+                        this.timeout = null
+                    }
+
                     if ( video.readyState < 1 )
                     {
                         video.addEventListener( "loadedmetadata", () => this.startPlayback(), { once: true } )
