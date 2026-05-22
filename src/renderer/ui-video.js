@@ -16,7 +16,6 @@
     var CAM_GRID_TOP = uiConstants.CAM_GRID_TOP
     var CAM_GRID_BOTTOM = uiConstants.CAM_GRID_BOTTOM
     var CAM_GRID_ALL = uiConstants.CAM_GRID_ALL
-    var DURATION_MATCH_EPSILON_SEC = uiConstants.DURATION_MATCH_EPSILON_SEC
     var DRIFT_CORRECTION_THRESHOLD_SEC = uiConstants.DRIFT_CORRECTION_THRESHOLD_SEC
 
     var pickSeiInterpolationBracket = uiUtils.pickSeiInterpolationBracket
