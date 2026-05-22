@@ -853,22 +853,21 @@
                 },
                 timeChanged: function( event )
                 {
-                    // Only the front camera writes to timespan.currentTime. Without this gate
-                    // every duration-matched camera writes on every timeupdate, so when one
-                    // camera drifts behind the others the shared clock visibly oscillates
-                    // (timeline dot jumps front/back as different cameras' timeupdates land).
+                    // Only the front camera writes to timespan.currentTime — the front-only
+                    // gate is what prevents the shared clock from oscillating as siblings'
+                    // timeupdates land at slightly different positions.
                     if ( this.view.camera !== "front" ) return
 
                     var video = event.target
 
-                    if ( !video.paused
-                        && this.timespan.duration != null
-                        && isFinite( this.timespan.duration )
-                        && isFinite( video.duration )
-                        && Math.abs( video.duration - this.timespan.duration ) < DURATION_MATCH_EPSILON_SEC )
-                    {
-                        this.timespan.currentTime = video.currentTime
-                    }
+                    if ( video.paused ) return
+                    if ( !isFinite( video.duration ) ) return
+                    if ( !isFinite( this.timespan.duration ) ) return
+
+                    // Map the leader's local clock onto the shared (longest-camera)
+                    // timeline. Inverse of the adjustedTime calculation used by followers
+                    // in startPlayback / correctDriftDuringPlay / syncPausedPosition.
+                    this.timespan.currentTime = video.currentTime + ( this.timespan.duration - video.duration )
                 },
                 onPause: function( event )
                 {
