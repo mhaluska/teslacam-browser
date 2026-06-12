@@ -61,7 +61,6 @@
 	var csrfCookieName = "tc_csrf"
 	var csrfHeaderName = "x-csrf-token"
 	var trustProxy = parseTrustProxySetting( process.env.TC_TRUST_IP )
-	var csrfSecret = process.env.TC_CSRF_SECRET || crypto.randomBytes( 32 ).toString( "hex" )
 	/** When true (default), delete UI is hidden and delete API returns 403. Set TC_HIDE_DELETE_BUTTONS=false to allow deletes. */
 	var hideDeleteButtons = parseBoolean( process.env.TC_HIDE_DELETE_BUTTONS, true )
 	/** When true, POST /shareLink and GET /share/:token routes are enabled. Default false to keep the surface off unless opted in. */
@@ -294,9 +293,7 @@
 
 		if ( current ) return current
 
-		var token = crypto.createHmac( "sha256", csrfSecret )
-			.update( String( Date.now() ) + "|" + String( Math.random() ) )
-			.digest( "base64url" )
+		var token = crypto.randomBytes( 32 ).toString( "base64url" )
 
 		response.cookie( csrfCookieName, token, getCookieOptions( request ) )
 		return token

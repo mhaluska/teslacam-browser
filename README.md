@@ -216,7 +216,6 @@ Additional optional variables:
 | `TC_LOGIN_MAX_ATTEMPTS` | `10` | Max login attempts per 10-minute window per IP. |
 | `TC_DELETE_MAX_PER_MINUTE` | `20` | Max destructive requests (`deleteFiles`, `deleteFolder`) per minute per IP. |
 | `TC_API_MAX_PER_MINUTE` | `600` | Max read/telemetry API requests per minute per IP (covers `/files`, `/eventJson`, `/clipTelemetry`, `/clipSeqSummary`, `/copyPath`, `/copyFilePaths`, `/reopenFolders`, `/openDefaultFolder`). |
-| `TC_CSRF_SECRET` | Random per startup | Secret used to mint CSRF tokens for authenticated POST requests. |
 | `TC_HIDE_DELETE_BUTTONS` | `true` | When `true`, hides clip/folder Delete controls in the headless web UI and rejects delete API calls (`403`). Set to `false` to allow deletes. |
 | `TC_SHARE_ENABLED` | `false` | When `true`, enables read-only share links. A "Share" button appears on the event panel; authenticated users can mint a tokenized URL (1h / 24h / 7d) that anyone can open without logging in. When `false` all `/share/*` routes return 404. |
 | `TC_SHARE_SECRET` | Random per startup | Secret used to HMAC-sign share tokens. If unset, a fresh value is generated at boot — meaning a restart invalidates every outstanding share link. Set a stable value for persistent links. |
