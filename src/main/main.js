@@ -140,7 +140,23 @@ function createWindow()
 	initialize()
 }
 
-app.whenReady().then( createWindow )
+if ( !app.requestSingleInstanceLock() )
+{
+	app.quit()
+}
+else
+{
+	app.on( "second-instance", function ()
+	{
+		if ( mainWindow )
+		{
+			if ( mainWindow.isMinimized() ) mainWindow.restore()
+			mainWindow.focus()
+		}
+	} )
+
+	app.whenReady().then( createWindow )
+}
 
 // Quit when all windows are closed.
 app.on( "window-all-closed", function ()
