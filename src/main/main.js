@@ -10,6 +10,7 @@ const path = require( "path" )
 
 if ( app.isPackaged )
 {
+	autoUpdater.on( "error", e => logger.warn( "auto_update_failed", { error: String( e && e.message ? e.message : e ) } ) )
 	autoUpdater.checkForUpdatesAndNotify()
 }
 
