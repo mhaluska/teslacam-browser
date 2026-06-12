@@ -69,7 +69,7 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.5.2",
     "flatpickr": "^4.6.13",
-    "helmet": "^8.1.0",
+    "helmet": "^8.2.0",
     "leaflet": "^1.9.4",
     "protobufjs": "^8.3.0",
     "uplot": "^1.6.32",
