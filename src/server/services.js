@@ -1250,9 +1250,15 @@
 				var info = resolveSharedSubpath( token, subRel )
 
 				if ( info.error === "invalid_or_expired" )
-					return response.status( 410 ).json( { error: "invalid_or_expired" } )
+				{
+					response.status( 410 ).json( { error: "invalid_or_expired" } )
+					return null
+				}
 				if ( info.error )
-					return response.status( 403 ).json( { error: info.error } )
+				{
+					response.status( 403 ).json( { error: info.error } )
+					return null
+				}
 
 				request._shareRelative = info.relative
 				request._shareKind = kind || mountName
