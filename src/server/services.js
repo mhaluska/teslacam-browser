@@ -1350,6 +1350,8 @@
             logger.error( "server_listen_failed", { port: port, host: initializeOptions.host || "0.0.0.0", error: err } )
             if ( initializeOptions.headless ) process.exit( 1 )
         } )
+
+        return server
     }
 
 	return {
