@@ -207,26 +207,6 @@
 		}
 	}
 
-	function parseCookies( header )
-	{
-		var cookies = {}
-		if ( !header ) return cookies
-
-		header.split( ";" ).forEach( function( part )
-		{
-			var eq = part.indexOf( "=" )
-			if ( eq < 0 ) return
-
-			var key = part.substring( 0, eq ).trim()
-			var val = part.substring( eq + 1 ).trim()
-
-			try { cookies[ key ] = decodeURIComponent( val ) }
-			catch ( _e ) { cookies[ key ] = val }
-		} )
-
-		return cookies
-	}
-
 	function ensureRootFolder()
 	{
 		if ( !lastArgs.folder || typeof lastArgs.folder !== "string" )
@@ -288,7 +268,7 @@
 
 	function ensureCsrfCookie( request, response )
 	{
-		var cookies = parseCookies( request.headers.cookie )
+		var cookies = auth.parseCookies( request.headers.cookie )
 		var current = cookies[ csrfCookieName ]
 
 		if ( current ) return current
@@ -303,7 +283,7 @@
 	{
 		if ( !auth.isEnabled() ) return next()
 
-		var cookies = parseCookies( request.headers.cookie )
+		var cookies = auth.parseCookies( request.headers.cookie )
 		var cookieToken = cookies[ csrfCookieName ]
 		var headerToken = request.get( csrfHeaderName )
 

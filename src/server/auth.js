@@ -306,5 +306,6 @@ module.exports = {
     loginPageHandler,
     loginHandler,
     logoutHandler,
-    shouldUseSecureCookie
+    shouldUseSecureCookie,
+    parseCookies
 }
