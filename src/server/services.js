@@ -81,6 +81,13 @@
 		return fallback
 	}
 
+	function parsePositiveInt( value, fallback )
+	{
+		var n = parseInt( value, 10 )
+
+		return ( Number.isInteger( n ) && n > 0 ) ? n : fallback
+	}
+
 	function isValidTrustProxyEntry( entry )
 	{
 		if ( entry === "loopback" || entry === "linklocal" || entry === "uniquelocal" ) return true
@@ -880,28 +887,28 @@
 		var loginLimiter = rateLimit(
 			{
 				windowMs: 10 * 60 * 1000,
-				max: parseInt( process.env.TC_LOGIN_MAX_ATTEMPTS || "10", 10 ),
+				max: parsePositiveInt( process.env.TC_LOGIN_MAX_ATTEMPTS, 10 ),
 				standardHeaders: true,
 				legacyHeaders: false
 			} )
 		var deleteLimiter = rateLimit(
 			{
 				windowMs: 60 * 1000,
-				max: parseInt( process.env.TC_DELETE_MAX_PER_MINUTE || "20", 10 ),
+				max: parsePositiveInt( process.env.TC_DELETE_MAX_PER_MINUTE, 20 ),
 				standardHeaders: true,
 				legacyHeaders: false
 			} )
 		var apiLimiter = rateLimit(
 			{
 				windowMs: 60 * 1000,
-				max: parseInt( process.env.TC_API_MAX_PER_MINUTE || "600", 10 ),
+				max: parsePositiveInt( process.env.TC_API_MAX_PER_MINUTE, 600 ),
 				standardHeaders: true,
 				legacyHeaders: false
 			} )
 		var shareCreateLimiter = rateLimit(
 			{
 				windowMs: 60 * 60 * 1000,
-				max: parseInt( process.env.TC_SHARE_MAX_PER_HOUR || "10", 10 ),
+				max: parsePositiveInt( process.env.TC_SHARE_MAX_PER_HOUR, 10 ),
 				standardHeaders: true,
 				legacyHeaders: false
 			} )
