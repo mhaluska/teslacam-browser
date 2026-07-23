@@ -54,7 +54,7 @@
     }
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.0",
+    "@biomejs/biome": "^2.5.5",
     "electron": "^42.4.0",
     "electron-builder": "^26.15.3",
     "lefthook": "^2.1.9",
