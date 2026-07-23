@@ -58,7 +58,7 @@
     "electron": "^42.4.0",
     "electron-builder": "^26.15.3",
     "lefthook": "^2.1.9",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.10"
   },
   "dependencies": {
     "bootstrap": "^5.3.8",
