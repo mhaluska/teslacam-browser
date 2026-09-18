@@ -33,6 +33,36 @@ function normalizeSpeedUnit( u )
 	return "auto"
 }
 
+function lastFolderPath()
+{
+	var folders = settings.getSync( "folders" )
+
+	if ( Array.isArray( folders ) && folders.length > 0 && typeof folders[ 0 ] === "string" ) return folders[ 0 ]
+
+	var folder = settings.getSync( "folder" )
+
+	return typeof folder === "string" ? folder : ""
+}
+
+// Electron 43+ no longer remembers the last dialog location (defaults to Downloads),
+// so point the picker at the folder the user opened last.
+function openDirectoryDialogOptions()
+{
+	var opts = { properties: [ "openDirectory" ] }
+	var last = lastFolderPath()
+
+	if ( last ) opts.defaultPath = last
+
+	return opts
+}
+
+// Electron 44+ clipboard methods return promises; log failures instead of leaving them unhandled.
+function writeClipboardText( text )
+{
+	return Promise.resolve( clipboard.writeText( text ) )
+		.catch( e => logger.warn( "clipboard_write_failed", { error: String( e && e.message ? e.message : e ) } ) )
+}
+
 function syncNativeThemeSource( preference )
 {
 	var p = normalizeThemePreference( preference )
@@ -44,7 +74,7 @@ function syncNativeThemeSource( preference )
 
 function selectFolders( webContents )
 {
-	const folders = dialog.showOpenDialogSync( { properties: [ "openDirectory" ] } )
+	const folders = dialog.showOpenDialogSync( openDirectoryDialogOptions() )
 
 	if ( !folders || folders.length < 1 ) return
 
@@ -216,7 +246,7 @@ function initialize()
 
 	async function open()
 	{
-		const folders = dialog.showOpenDialogSync( { properties: [ "openDirectory" ] } )
+		const folders = dialog.showOpenDialogSync( openDirectoryDialogOptions() )
 
 		if ( folders && folders.length > 0 ) settings.setSync( "folders", folders )
 
@@ -267,7 +297,7 @@ function initialize()
 
 		safeOn( "openBrowser", () => browse() )
 		safeOn( "deleteFiles", ( _event, files ) => services.deleteFiles( files ).catch( e => logger.warn( "ipc_delete_files_failed", { error: e } ) ) )
-		safeOn( "copyFilePaths", ( _event, filePaths ) => clipboard.writeText( services.copyFilePaths( filePaths ) ) )
+		safeOn( "copyFilePaths", ( _event, filePaths ) => writeClipboardText( services.copyFilePaths( filePaths ) ) )
 		safeOn( "deleteFolder", ( _event, folder ) => services.deleteFolder( folder ).catch( e => logger.warn( "ipc_delete_folder_failed", { error: e } ) ) )
 		safeHandle( "getDiskUsage", async () =>
 		{
@@ -313,7 +343,7 @@ function initialize()
 
 			return { deleted: deleted, failed: failed }
 		} )
-		safeOn( "copyPath", ( _event, p ) => clipboard.writeText( services.copyPath( p ) ) )
+		safeOn( "copyPath", ( _event, p ) => writeClipboardText( services.copyPath( p ) ) )
 		safeOn( "openExternal", ( _event, p ) => shell.showItemInFolder( p ) )
 
 		backendInitialized = true
