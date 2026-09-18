@@ -57,7 +57,7 @@
     "@biomejs/biome": "^2.5.14",
     "electron": "^42.4.0",
     "electron-builder": "^26.15.3",
-    "lefthook": "^2.1.10",
+    "lefthook": "^2.1.14",
     "vitest": "^4.1.10"
   },
   "dependencies": {
