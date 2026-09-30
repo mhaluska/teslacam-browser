@@ -209,10 +209,7 @@ function initialize()
 
 	services.setVersion( app.getVersion() )
 
-	var lastFolder = settings.getSync( "folders" )
-
-	if ( lastFolder ) lastFolder = lastFolder[ 0 ]
-	else lastFolder = settings.getSync( "folder" )
+	var lastFolder = lastFolderPath()
 
 	//If we have last folders, we need to make sure that the folder still exists before trying to open it
 	if ( lastFolder )
