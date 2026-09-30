@@ -64,7 +64,6 @@
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.13.1",
     "compression": "^1.8.2",
-    "electron-settings": "^4.0.4",
     "electron-updater": "^6.8.10",
     "express": "^5.2.1",
     "express-rate-limit": "^8.7.0",
