@@ -1325,7 +1325,7 @@
 		expressApp.get( "/node_modules/bootstrap-icons/font/bootstrap-icons.css", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( path.join( nodeModulesDir, "bootstrap-icons/font/bootstrap-icons.css" ) ) } )
 		expressApp.get( "/node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff2", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( path.join( nodeModulesDir, "bootstrap-icons/font/fonts/bootstrap-icons.woff2" ) ) } )
 		expressApp.get( "/node_modules/bootstrap-icons/font/fonts/bootstrap-icons.woff", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( path.join( nodeModulesDir, "bootstrap-icons/font/fonts/bootstrap-icons.woff" ) ) } )
-		expressApp.get( "/node_modules/vue/dist/vue.global.js", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( path.join( nodeModulesDir, "vue/dist/vue.global.js" ) ) } )
+		expressApp.get( "/node_modules/vue/dist/vue.global.prod.js", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( path.join( nodeModulesDir, "vue/dist/vue.global.prod.js" ) ) } )
 		expressApp.get( "/node_modules/leaflet/dist/leaflet.css", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( path.join( nodeModulesDir, "leaflet/dist/leaflet.css" ) ) } )
 		expressApp.get( "/node_modules/leaflet/dist/leaflet.js", ( request, response ) => { response.set( libCacheHeaders ); response.sendFile( path.join( nodeModulesDir, "leaflet/dist/leaflet.js" ) ) } )
 		expressApp.use( "/node_modules/leaflet/dist/images", express.static( path.join( nodeModulesDir, "leaflet/dist/images" ), { maxAge: "365d", immutable: true } ) )
