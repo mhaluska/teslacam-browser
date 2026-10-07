@@ -1278,7 +1278,10 @@
                                 if ( rec.state === "paused" ) rec.resume()
 
                                 drawFrame()
-                                self.controls.exportProgress = Math.min( 1, ( seg.start + seg.offset + t - a ) / ( b - a ) )
+                                // Whole percents only: the button re-renders on change, not every frame.
+                                var pct = Math.min( 100, Math.floor( ( seg.start + seg.offset + t - a ) / ( b - a ) * 100 ) ) / 100
+
+                                if ( pct !== self.controls.exportProgress ) self.controls.exportProgress = pct
                             }
                         }
 

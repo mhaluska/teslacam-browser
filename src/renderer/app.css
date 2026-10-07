@@ -997,6 +997,26 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
   letter-spacing: 0.02em;
 }
 
+/* The export button keeps one size while exporting (progress is a fill, not a label),
+   so the A/B/clear/mosaic buttons beside it don't shift. */
+.export-btn.exporting
+{
+  background: linear-gradient( to right, rgba( 13, 110, 253, 0.35 ) var( --export-progress, 0% ), transparent var( --export-progress, 0% ) );
+}
+
+.export-btn-icon
+{
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.125em;
+}
+
+.export-btn-icon.spinner-border
+{
+  border-width: 0.15em;
+}
+
 .loop-btn-label
 {
   font-weight: 600;
