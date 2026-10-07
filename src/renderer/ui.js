@@ -104,7 +104,9 @@
                     speed: 1,
                     loopStart: null,
                     loopEnd: null,
-                    exporting: false
+                    exporting: false,
+                    // Extra timespans kept mounted (hidden) while an A→B export runs.
+                    preloadTimespans: []
                 },
                 playing: null,
                 loading: null,
@@ -1006,6 +1008,20 @@
 
                     return this.currentTime
                 },
+                /** Timespans that play between a and b (range-relative seconds). */
+                timespansInRange: function( a, b )
+                {
+                    var startTime = 0
+
+                    return this.timespans.filter( function( ts )
+                    {
+                        var start = startTime
+
+                        startTime += ts.duration || 0
+
+                        return startTime > a && start < b
+                    } )
+                },
                 /** Telemetry for each front-camera file playing between a and b, keyed by filePath. */
                 loadRangeTelemetry: function( a, b )
                 {
@@ -1013,28 +1029,21 @@
 
                     if ( !handlers.getClipTelemetry ) return Promise.resolve( samplesByPath )
 
-                    var fetches = []
-                    var startTime = 0
-
-                    this.timespans.forEach( function( ts )
+                    var fetches = this.timespansInRange( a, b ).map( function( ts )
                     {
-                        var end = startTime + ( ts.duration || 0 )
                         var front = ts.viewMap ? ts.viewMap.get( "front" ) : null
 
-                        if ( front && front.filePath && end > a && startTime < b )
+                        if ( !front || !front.filePath ) return null
+
+                        return new Promise( function( resolve )
                         {
-                            fetches.push( new Promise( function( resolve )
+                            handlers.getClipTelemetry( front.filePath, function( res )
                             {
-                                handlers.getClipTelemetry( front.filePath, function( res )
-                                {
-                                    if ( res && Array.isArray( res.samples ) && res.samples.length ) samplesByPath.set( front.filePath, res.samples )
+                                if ( res && Array.isArray( res.samples ) && res.samples.length ) samplesByPath.set( front.filePath, res.samples )
 
-                                    resolve()
-                                } )
-                            } ) )
-                        }
-
-                        startTime = end
+                                resolve()
+                            } )
+                        } )
                     } )
 
                     return Promise.all( fetches ).then( function() { return samplesByPath } )
@@ -1086,6 +1095,7 @@
 
                         if ( handlers.setExporting ) handlers.setExporting( false )
 
+                        self.controls.preloadTimespans = []
                         self._stopExport = null
 
                         if ( stream ) stream.getTracks().forEach( function( t ) { t.stop() } )
@@ -1266,6 +1276,13 @@
                     }
 
                     if ( handlers.setExporting ) handlers.setExporting( true )
+
+                    // Every clip the range touches stays mounted for the whole export, and each of
+                    // their videos is unlocked while this click still counts as a user activation,
+                    // so browsers with strict autoplay rules let them start at clip changes.
+                    self.controls.preloadTimespans = self.timespansInRange( a, b )
+                    uiVideo.unlockForAutoplay( document.querySelectorAll( "video.video" ) )
+                    Vue.nextTick( function() { uiVideo.unlockForAutoplay( document.querySelectorAll( "video.video" ) ) } )
 
                     self.controls.exporting = true
                     self.controls.playing = false

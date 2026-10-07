@@ -33,6 +33,26 @@
 
     var telemetryPrimeCache = new Map()
 
+    /**
+     * Strict autoplay policies (e.g. Vivaldi with autoplay blocked) only let a <video> start
+     * without a click once it has been played during a user activation. Briefly playing and
+     * pausing paused elements while an activation is still live (~5 s after a click) unlocks
+     * them, so clip changes later on can start the next clip's videos.
+     */
+    function unlockForAutoplay( videos )
+    {
+        Array.prototype.forEach.call( videos || [], function( v )
+        {
+            if ( !v || !v.paused || typeof v.play !== "function" ) return
+
+            var p = v.play()
+
+            v.pause()
+
+            if ( p && typeof p.catch === "function" ) p.catch( function() { /* expected: interrupted by pause() */ } )
+        } )
+    }
+
     function primeClipTelemetry( filePath, handlers )
     {
         if ( !filePath || !handlers || typeof handlers.getClipTelemetry !== "function" ) return null
@@ -126,7 +146,7 @@
             template:
                 `<div>
                     <div v-for="timespan in timespans" :key="timespan.title">
-                        <div v-if="timespan === controls.timespan || isNextTimespan( timespan )" class="cam-grid" :class="{ 'cam-grid-current': timespan === controls.timespan }" :style="timespan !== controls.timespan ? 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;clip:rect(0,0,0,0)' : ''">
+                        <div v-if="timespan === controls.timespan || isNextTimespan( timespan ) || isPreloaded( timespan )" class="cam-grid" :class="{ 'cam-grid-current': timespan === controls.timespan }" :style="timespan !== controls.timespan ? 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;clip:rect(0,0,0,0)' : ''">
                             <div class="cam-row cam-row-top">
                                 <div v-for="camera in camGridTop" :key="camera + '-top'" class="cam-cell">
                                     <template v-if="viewFor( timespan, camera )">
@@ -174,6 +194,10 @@
                             ? playing
                             : false
                     }
+
+                    // Still inside the Play click's activation window: unlock the preloaded
+                    // next clip so it may start on its own when playback reaches it.
+                    if ( playing && this.$el ) unlockForAutoplay( this.$el.querySelectorAll( ".cam-grid:not(.cam-grid-current) video.video" ) )
                 }
             },
             methods:
@@ -200,6 +224,10 @@
                     {
                         return CAM_GRID_ALL.indexOf( v.camera ) < 0
                     } )
+                },
+                isPreloaded: function( timespan )
+                {
+                    return !!this.controls.preloadTimespans && this.controls.preloadTimespans.indexOf( timespan ) >= 0
                 },
                 isNextTimespan: function( timespan )
                 {
@@ -1097,6 +1125,7 @@
         createVideoComponent: createVideoComponent,
         createMetadataProbeComponent: createMetadataProbeComponent,
         primeClipTelemetry: primeClipTelemetry,
+        unlockForAutoplay: unlockForAutoplay,
         _probeQueueForTesting:
         {
             acquire: acquireProbeSlot,
