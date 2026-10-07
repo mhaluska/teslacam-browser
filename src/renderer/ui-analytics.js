@@ -5,6 +5,10 @@
 	else root.uiAnalytics = factory();
 }( typeof self !== 'undefined' ? self : this, function ()
 {
+    var uiConstants = ( typeof window !== "undefined" && window.uiConstants )
+        ? window.uiConstants
+        : require( "./ui-constants" )
+
     var uiUtils = ( typeof window !== "undefined" && window.uiUtils )
         ? window.uiUtils
         : require( "./ui-utils" )
@@ -421,11 +425,7 @@
 
                     this._trailMap = L.map( el, { zoomControl: true, attributionControl: true } )
 
-                    L.tileLayer( "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-                        maxZoom: 19,
-                        subdomains: "abcd",
-                        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-                    } ).addTo( this._trailMap )
+                    L.tileLayer( uiConstants.MAP_TILE_URL, uiConstants.MAP_TILE_OPTIONS ).addTo( this._trailMap )
 
                     this._trailPolylineGroup = L.layerGroup().addTo( this._trailMap )
                 },

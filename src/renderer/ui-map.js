@@ -5,6 +5,10 @@
 	else root.uiMap = factory();
 }( typeof self !== 'undefined' ? self : this, function ()
 {
+    var uiConstants = ( typeof window !== "undefined" && window.uiConstants )
+        ? window.uiConstants
+        : require( "./ui-constants" )
+
     function toFiniteNumber( value )
     {
         var n = ( typeof value === "number" ) ? value : parseFloat( value )
@@ -45,11 +49,7 @@
                 this._map = L.map( this.$refs.mapEl, { zoomControl: true, attributionControl: true } )
                     .setView( [ lat, lon ], 16 )
 
-                L.tileLayer( "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-                    maxZoom: 19,
-                    subdomains: "abcd",
-                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-                } ).addTo( this._map )
+                L.tileLayer( uiConstants.MAP_TILE_URL, uiConstants.MAP_TILE_OPTIONS ).addTo( this._map )
 
                 this._triggerMarker = L.marker( [ lat, lon ], { title: "Event location" } ).addTo( this._map )
                 this._triggerCoords = { lat: lat, lon: lon }

@@ -1,5 +1,5 @@
 // Modules to control application life and create native browser window
-const { app, BrowserWindow, dialog, ipcMain, shell, clipboard, nativeTheme } = require( "electron" )
+const { app, BrowserWindow, dialog, ipcMain, shell, clipboard, nativeTheme, session } = require( "electron" )
 const menu = require( "./menu" )
 const services = require( "../server/services" )
 const { autoUpdater } = require( "electron-updater" )
@@ -185,7 +185,20 @@ else
 		}
 	} )
 
-	app.whenReady().then( createWindow )
+	app.whenReady().then( () =>
+	{
+		// The renderer loads from file://, which never sends a Referer, but OpenStreetMap's
+		// tile usage policy requires one; identify the app on map tile requests instead.
+		session.defaultSession.webRequest.onBeforeSendHeaders(
+			{ urls: [ "https://tile.openstreetmap.org/*" ] },
+			( details, callback ) =>
+			{
+				details.requestHeaders.Referer = "https://github.com/mhaluska/teslacam-browser"
+				callback( { requestHeaders: details.requestHeaders } )
+			} )
+
+		createWindow()
+	} )
 }
 
 // Quit when all windows are closed.

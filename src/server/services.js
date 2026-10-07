@@ -936,7 +936,7 @@
 							scriptSrcAttr: [ "'none'" ],
 							scriptSrcElem: [ "'self'", "'unsafe-eval'" ],
 							styleSrc: [ "'self'", "'unsafe-inline'" ],
-							imgSrc: [ "'self'", "data:", "https://*.basemaps.cartocdn.com" ],
+							imgSrc: [ "'self'", "data:", "https://tile.openstreetmap.org" ],
 							fontSrc: [ "'self'", "data:" ],
 							connectSrc: [ "'self'" ],
 							frameSrc: [ "'self'", "https://www.openstreetmap.org" ],
