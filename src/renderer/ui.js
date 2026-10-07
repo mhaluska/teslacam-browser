@@ -34,6 +34,9 @@
     ]
     var EXPORT_MAX_WIDTH = 1920
     var EXPORT_VIDEO_BITRATE = 8000000
+    // Compositing is timer-paced: requestAnimationFrame and requestVideoFrameCallback
+    // drop to ~1 Hz while the window is occluded, timers and video playback don't.
+    var EXPORT_FPS = 36
 
     var uiVideo = ( typeof window !== "undefined" && window.uiVideo )
         ? window.uiVideo
@@ -1057,15 +1060,15 @@
                     var chunks = []
                     var samplesByPath = null
                     var stopTimer = null
-                    var rafHandle = null
+                    var frameTimer = null
                     var lastDrawn = { video: null, time: null }
 
                     function cleanup()
                     {
-                        if ( rafHandle )
+                        if ( frameTimer )
                         {
-                            window.cancelAnimationFrame( rafHandle )
-                            rafHandle = null
+                            window.clearTimeout( frameTimer )
+                            frameTimer = null
                         }
 
                         if ( stopTimer )
@@ -1087,12 +1090,24 @@
                         self.controls.playing = false
                     }
 
-                    // Composite the current front frame plus the HUD; only redraw when a new frame is showing.
+                    // Composite the current front frame plus the HUD and hand it to the recorder;
+                    // skipped while the video hasn't moved (seeking, stalled).
                     function drawFrame( video )
                     {
                         if ( !video || !video.videoWidth ) return
                         if ( lastDrawn.video === video && lastDrawn.time === video.currentTime ) return
 
+                        try { paintFrame( video ) }
+                        finally
+                        {
+                            var track = stream && stream.getVideoTracks()[ 0 ]
+
+                            if ( track && typeof track.requestFrame === "function" ) track.requestFrame()
+                        }
+                    }
+
+                    function paintFrame( video )
+                    {
                         lastDrawn.video = video
                         lastDrawn.time = video.currentTime
 
@@ -1129,8 +1144,16 @@
 
                         try
                         {
+                            // captureStream( 0 ) + requestFrame() emits exactly the frames we draw.
+                            stream = canvas.captureStream( 0 )
+
+                            if ( typeof stream.getVideoTracks()[ 0 ].requestFrame !== "function" )
+                            {
+                                stream.getTracks().forEach( function( t ) { t.stop() } )
+                                stream = canvas.captureStream( EXPORT_FPS )
+                            }
+
                             drawFrame( front )
-                            stream = canvas.captureStream()
                             rec = new MediaRecorder( stream, { mimeType: mime, videoBitsPerSecond: EXPORT_VIDEO_BITRATE } )
                         }
                         catch ( err ) { fail( "export setup failed:", err ); return }
@@ -1170,10 +1193,10 @@
 
                             drawFrame( video )
 
-                            rafHandle = window.requestAnimationFrame( poll )
+                            frameTimer = window.setTimeout( poll, 1000 / EXPORT_FPS )
                         }
 
-                        rafHandle = window.requestAnimationFrame( poll )
+                        frameTimer = window.setTimeout( poll, 1000 / EXPORT_FPS )
 
                         // Safety ceiling: 1.5x the wall-clock length of the range.
                         var maxMs = Math.max( 2000, Math.ceil( ( b - a ) * 1500 ) )
