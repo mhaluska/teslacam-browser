@@ -12,7 +12,8 @@ const INVOKE_CHANNELS = [
 
 const SEND_CHANNELS = [
 	"openBrowser", "deleteFiles", "deleteFolder",
-	"copyFilePaths", "copyPath", "openExternal"
+	"copyFilePaths", "copyPath", "openExternal",
+	"setExporting"
 ]
 
 contextBridge.exposeInMainWorld( "electronAPI", {

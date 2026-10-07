@@ -37,6 +37,11 @@
     // Compositing is timer-paced: requestAnimationFrame and requestVideoFrameCallback
     // drop to ~1 Hz while the window is occluded, timers and video playback don't.
     var EXPORT_FPS = 36
+    // While the front video isn't advancing (buffering, or paused by the browser while the
+    // window is in the background) the recorder is paused, so the file has no frozen stretch.
+    var EXPORT_STALL_PAUSE_MS = 250
+    // Give up (and save what was recorded) after this long without progress in a visible window.
+    var EXPORT_STALL_LIMIT_MS = 30000
 
     var uiVideo = ( typeof window !== "undefined" && window.uiVideo )
         ? window.uiVideo
@@ -1036,7 +1041,12 @@
                 },
                 exportRange: function()
                 {
-                    if ( this.controls.exporting ) return
+                    if ( this.controls.exporting )
+                    {
+                        if ( this._stopExport ) this._stopExport()
+
+                        return
+                    }
 
                     var a = this.controls.loopStart
                     var b = this.controls.loopEnd
@@ -1049,6 +1059,7 @@
                     if ( !mime ) { console.error( "no supported MP4/WebM recording type" ); return }
 
                     var self = this
+                    var exportId = self._exportId = ( self._exportId || 0 ) + 1
                     var savedSpeed = self.controls.speed
                     var fileName = sanitizeFilenamePart( self.currentClipBaseName() )
                         + "_range_" + a.toFixed( 3 ) + "-" + b.toFixed( 3 ) + "s"
@@ -1059,8 +1070,8 @@
                     var rec = null
                     var chunks = []
                     var samplesByPath = null
-                    var stopTimer = null
                     var frameTimer = null
+                    var progress = { time: -Infinity, at: 0 }
                     var lastDrawn = { video: null, time: null }
 
                     function cleanup()
@@ -1071,16 +1082,33 @@
                             frameTimer = null
                         }
 
-                        if ( stopTimer )
-                        {
-                            window.clearTimeout( stopTimer )
-                            stopTimer = null
-                        }
+                        document.removeEventListener( "visibilitychange", onVisibilityChange )
+
+                        if ( handlers.setExporting ) handlers.setExporting( false )
+
+                        self._stopExport = null
 
                         if ( stream ) stream.getTracks().forEach( function( t ) { t.stop() } )
 
                         self.controls.speed = savedSpeed
                         self.controls.exporting = false
+                    }
+
+                    // Chrome pauses video-only media in background windows; restart playback
+                    // (re-syncing every camera) once the window is visible again.
+                    function onVisibilityChange()
+                    {
+                        if ( document.visibilityState !== "visible" ) return
+
+                        progress.at = Date.now()
+
+                        var video = self.currentFrontVideo()
+
+                        if ( !video || !video.paused || video.ended || !self.controls.playing ) return
+
+                        self.controls.playing = false
+
+                        Vue.nextTick( function() { if ( self.controls.exporting ) self.controls.playing = true } )
                     }
 
                     function fail( message, err )
@@ -1132,6 +1160,8 @@
 
                     function startRecording()
                     {
+                        if ( !self.controls.exporting || self._exportId !== exportId ) return
+
                         var front = self.currentFrontVideo()
 
                         if ( !front || !front.videoWidth ) { fail( "front camera video not ready" ); return }
@@ -1180,36 +1210,59 @@
 
                         function poll()
                         {
-                            if ( rec.state !== "recording" ) return
+                            if ( rec.state === "inactive" ) return
 
                             var video = self.currentFrontVideo()
+                            var t = self.frontGlobalTime( video )
+                            var now = Date.now()
 
-                            if ( self.frontGlobalTime( video ) >= b )
+                            if ( t >= b )
                             {
                                 try { rec.stop() } catch ( _ ) { /* noop */ }
 
                                 return
                             }
 
-                            drawFrame( video )
+                            if ( t > progress.time )
+                            {
+                                progress = { time: t, at: now }
+
+                                if ( rec.state === "paused" ) rec.resume()
+
+                                drawFrame( video )
+                            }
+                            else if ( now - progress.at > EXPORT_STALL_PAUSE_MS )
+                            {
+                                if ( rec.state === "recording" ) rec.pause()
+
+                                if ( document.visibilityState === "visible" && now - progress.at > EXPORT_STALL_LIMIT_MS )
+                                {
+                                    console.warn( "export stalled — saving what was recorded" )
+                                    try { rec.stop() } catch ( _ ) { /* noop */ }
+
+                                    return
+                                }
+                            }
 
                             frameTimer = window.setTimeout( poll, 1000 / EXPORT_FPS )
                         }
 
+                        progress = { time: self.frontGlobalTime( front ), at: Date.now() }
+                        document.addEventListener( "visibilitychange", onVisibilityChange )
                         frameTimer = window.setTimeout( poll, 1000 / EXPORT_FPS )
-
-                        // Safety ceiling: 1.5x the wall-clock length of the range.
-                        var maxMs = Math.max( 2000, Math.ceil( ( b - a ) * 1500 ) )
-
-                        stopTimer = window.setTimeout( function()
-                        {
-                            if ( rec.state === "recording" )
-                            {
-                                console.warn( "export safety timeout — stopping recorder" )
-                                try { rec.stop() } catch ( _ ) { /* noop */ }
-                            }
-                        }, maxMs )
                     }
+
+                    // Second click on the export button: stop and save what was recorded so far.
+                    self._stopExport = function()
+                    {
+                        if ( rec && rec.state !== "inactive" )
+                        {
+                            try { rec.stop() } catch ( _ ) { /* noop */ }
+                        }
+                        else fail( "export cancelled" )
+                    }
+
+                    if ( handlers.setExporting ) handlers.setExporting( true )
 
                     self.controls.exporting = true
                     self.controls.playing = false
@@ -1218,6 +1271,8 @@
 
                     self.loadRangeTelemetry( a, b ).then( function( loaded )
                     {
+                        if ( !self.controls.exporting || self._exportId !== exportId ) return
+
                         samplesByPath = loaded
 
                         // Wait for the seek to A to land on the (possibly newly mounted) front camera.

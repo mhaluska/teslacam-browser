@@ -231,9 +231,8 @@
                       @click="snapshotMosaic" title="Save 3x2 mosaic PNG of all cameras"><span class="bi bi-grid-3x2-gap"></span></button>
                     <button type="button" class="btn btn-sm btn-outline-primary"
                       v-show="controls.loopStart != null && controls.loopEnd != null"
-                      :disabled="controls.exporting"
                       @click="exportRange"
-                      :title="controls.exporting ? 'Exporting…' : 'Export A→B as MP4 with dashboard overlay (front camera)'">
+                      :title="controls.exporting ? 'Exporting… click to stop and save what was recorded' : 'Export A→B as MP4 with dashboard overlay (front camera)'">
                       <span v-if="controls.exporting" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
                       <span v-else class="bi bi-record-circle"></span>
                     </button>
@@ -510,7 +509,7 @@
               <dt><span class="bi bi-grid-3x2-gap" aria-hidden="true"></span> Mosaic snapshot</dt>
               <dd>Saves a 3×2 mosaic PNG of all six cameras at the current frame.</dd>
               <dt><span class="bi bi-record-circle" aria-hidden="true"></span> Export A→B</dt>
-              <dd>Visible only when both A and B are set. Exports the A→B range of the front camera as an MP4 video with the dashboard overlay burned in. Recording runs in real time; browsers that cannot record MP4 (e.g. Firefox) save WebM instead.</dd>
+              <dd>Visible only when both A and B are set. Exports the A→B range of the front camera as an MP4 video with the dashboard overlay burned in. Recording runs in real time; click the button again to stop early and save what was recorded. Keep this tab in the foreground: the browser pauses background videos, so the export waits until you return. Browsers that cannot record MP4 (e.g. Firefox) save WebM instead.</dd>
             </dl>
 
           </div>

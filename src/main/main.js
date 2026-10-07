@@ -293,6 +293,9 @@ function initialize()
 		} )
 
 		safeOn( "openBrowser", () => browse() )
+		// Keep the page "visible" while an A→B export records, so Chromium doesn't pause the
+		// video-only <video> elements (and stall the export) when the window goes to the background.
+		safeOn( "setExporting", ( event, active ) => event.sender.setBackgroundThrottling( active !== true ) )
 		safeOn( "deleteFiles", ( _event, files ) => services.deleteFiles( files ).catch( e => logger.warn( "ipc_delete_files_failed", { error: e } ) ) )
 		safeOn( "copyFilePaths", ( _event, filePaths ) => writeClipboardText( services.copyFilePaths( filePaths ) ) )
 		safeOn( "deleteFolder", ( _event, folder ) => services.deleteFolder( folder ).catch( e => logger.warn( "ipc_delete_folder_failed", { error: e } ) ) )
