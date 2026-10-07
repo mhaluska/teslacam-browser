@@ -1213,8 +1213,11 @@
                             if ( rec.state === "inactive" ) return
 
                             var video = self.currentFrontVideo()
-                            var t = self.frontGlobalTime( video )
                             var now = Date.now()
+                            // A paused or seeking video (e.g. waiting out a delayed clip start) may
+                            // not report a meaningful position yet; treat it as no progress.
+                            var live = video && !video.seeking && ( !video.paused || video.ended )
+                            var t = live ? self.frontGlobalTime( video ) : progress.time
 
                             if ( t >= b )
                             {

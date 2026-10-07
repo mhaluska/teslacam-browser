@@ -68,13 +68,14 @@ describe("startPlayback", () => {
 	})
 
 	it("delays a shorter camera until the shared clock reaches its start", () => {
-		const video = makeVideo({ duration: 45 })
+		const video = makeVideo({ duration: 45, currentTime: 33 }) // stale position from an earlier play
 		const vm = makeVm({ camera: "back", timespan: { currentTime: 5, duration: 60 }, video })
 
 		vm.startPlayback() // adjusted time is -10s
 
 		expect(vi.getTimerCount()).toBe(1)
 		expect(video.play).not.toHaveBeenCalled()
+		expect(video.currentTime).toBe(0) // parked at the first frame while waiting
 
 		vi.advanceTimersByTime(10_000)
 

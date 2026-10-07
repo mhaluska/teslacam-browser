@@ -425,7 +425,7 @@
                             </svg>
                         </div>
                     </div>
-                    <video ref="video" class="video" :class="view.camera" :src="view.file" :playbackRate="playbackRate" crossorigin="anonymous" preload="auto" @durationchange="durationChanged" @timeupdate="timeChanged" @pause="onPause" @ended="ended" @waiting="onMediaWaiting" @stalled="onMediaStalled" @error="onMediaError" @playing="onMediaPlaying" title="Open in file explorer" @click="openExternal" playsinline></video>
+                    <video ref="video" class="video" :class="view.camera" :src="view.file" :playbackRate="playbackRate" crossorigin="anonymous" preload="auto" muted @durationchange="durationChanged" @timeupdate="timeChanged" @pause="onPause" @ended="ended" @waiting="onMediaWaiting" @stalled="onMediaStalled" @error="onMediaError" @playing="onMediaPlaying" title="Open in file explorer" @click="openExternal" playsinline></video>
                 </div>`,
             computed:
             {
@@ -686,6 +686,11 @@
                         var delay = -currentTime / this.playbackRate
 
                         console.log( `Delaying ${this.view.filePath} for ${delay}` )
+
+                        // Park at the first frame now: a preloaded clip may still sit where it was
+                        // last played, and that stale position would leak into the shared clock
+                        // (and the A→B export) until the delay elapses.
+                        video.currentTime = 0.0
 
                         this.timeout = window.setTimeout(
                             () =>
