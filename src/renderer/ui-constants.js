@@ -10,10 +10,15 @@
 	var CAM_GRID_ALL = CAM_GRID_TOP.concat( CAM_GRID_BOTTOM )
 
 	/** Seconds — when a follower camera's currentTime drifts further than this from the leader's
-	 *  shared clock during play, the follower is re-seeked. Wide enough to absorb decoder jitter
-	 *  and timeupdate scheduling slack (timeupdate fires ~every 250ms in Chrome) without spurious
-	 *  seeks; tight enough that a ~1s decoder stall is corrected on the next leader timeupdate. */
-	var DRIFT_CORRECTION_THRESHOLD_SEC = 0.25
+	 *  shared clock during play, the follower is re-seeked. Smaller drift is steered out with
+	 *  playback speed instead (DRIFT_NUDGE_*): every seek makes the follower re-fetch and
+	 *  re-decode, which on a constrained network stalls it and makes it drift again. */
+	var DRIFT_CORRECTION_THRESHOLD_SEC = 1
+
+	/** Drift above DRIFT_NUDGE_THRESHOLD_SEC (and up to the seek threshold) is corrected by
+	 *  playing the follower up to DRIFT_NUDGE_MAX_RATE faster or slower until it lines up. */
+	var DRIFT_NUDGE_THRESHOLD_SEC = 0.08
+	var DRIFT_NUDGE_MAX_RATE = 0.1
 
 	/** Seconds per frame-step. 1/30 covers both 30fps and 36fps footage without falling short of a frame. */
 	var FRAME_STEP_SECONDS = 1 / 30
@@ -38,6 +43,8 @@
 		CAM_GRID_BOTTOM: CAM_GRID_BOTTOM,
 		CAM_GRID_ALL: CAM_GRID_ALL,
 		DRIFT_CORRECTION_THRESHOLD_SEC: DRIFT_CORRECTION_THRESHOLD_SEC,
+		DRIFT_NUDGE_THRESHOLD_SEC: DRIFT_NUDGE_THRESHOLD_SEC,
+		DRIFT_NUDGE_MAX_RATE: DRIFT_NUDGE_MAX_RATE,
 		FRAME_STEP_SECONDS: FRAME_STEP_SECONDS,
 		FRAME_STEP_LARGE_MULTIPLIER: FRAME_STEP_LARGE_MULTIPLIER,
 		NEXT_CLIP_PRELOAD_LEAD_SEC: NEXT_CLIP_PRELOAD_LEAD_SEC,

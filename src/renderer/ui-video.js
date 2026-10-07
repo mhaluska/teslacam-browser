@@ -17,6 +17,8 @@
     var CAM_GRID_BOTTOM = uiConstants.CAM_GRID_BOTTOM
     var CAM_GRID_ALL = uiConstants.CAM_GRID_ALL
     var DRIFT_CORRECTION_THRESHOLD_SEC = uiConstants.DRIFT_CORRECTION_THRESHOLD_SEC
+    var DRIFT_NUDGE_THRESHOLD_SEC = uiConstants.DRIFT_NUDGE_THRESHOLD_SEC
+    var DRIFT_NUDGE_MAX_RATE = uiConstants.DRIFT_NUDGE_MAX_RATE
     var NEXT_CLIP_PRELOAD_LEAD_SEC = uiConstants.NEXT_CLIP_PRELOAD_LEAD_SEC
 
     var pickSeiInterpolationBracket = uiUtils.pickSeiInterpolationBracket
@@ -809,9 +811,9 @@
                 },
                 correctDriftDuringPlay: function()
                 {
-                    // Followers seek themselves back into alignment whenever they have drifted
-                    // more than DRIFT_CORRECTION_THRESHOLD_SEC from the shared (leader-driven)
-                    // clock. The leader doesn't follow itself.
+                    // Followers keep in line with the shared (leader-driven) clock: small drift is
+                    // steered out with playback speed, drift beyond DRIFT_CORRECTION_THRESHOLD_SEC
+                    // is re-seeked. The leader doesn't follow itself.
                     if ( this.view.camera === "front" ) return
                     if ( !this.timespan.playing ) return
 
@@ -826,11 +828,19 @@
                     if ( !isFinite( adjustedTime ) || adjustedTime < 0 ) return
 
                     var drift = video.currentTime - adjustedTime
+                    var rate = this.playbackRate
 
                     if ( Math.abs( drift ) > DRIFT_CORRECTION_THRESHOLD_SEC )
                     {
                         video.currentTime = adjustedTime
                     }
+                    else if ( Math.abs( drift ) > DRIFT_NUDGE_THRESHOLD_SEC )
+                    {
+                        // Ahead → play a little slower, behind → a little faster.
+                        rate = this.playbackRate * ( 1 - Math.max( -DRIFT_NUDGE_MAX_RATE, Math.min( DRIFT_NUDGE_MAX_RATE, drift * 0.5 ) ) )
+                    }
+
+                    if ( video.playbackRate !== rate ) video.playbackRate = rate
                 },
                 timeChanged: function( event )
                 {

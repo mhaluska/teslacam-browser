@@ -164,6 +164,27 @@ describe("correctDriftDuringPlay", () => {
 		expect(video.currentTime).toBe(adjusted + DRIFT)
 	})
 
+	it("steers small drift with playback speed instead of seeking", () => {
+		const ahead = driftSetup({ drift: 0.3 })
+		ahead.vm.correctDriftDuringPlay()
+		expect(ahead.video.currentTime).toBe(ahead.adjusted + 0.3)
+		expect(ahead.video.playbackRate).toBeLessThan(1)
+		expect(ahead.video.playbackRate).toBeGreaterThanOrEqual(1 - uiConstants.DRIFT_NUDGE_MAX_RATE)
+
+		const behind = driftSetup({ drift: -0.3 })
+		behind.vm.correctDriftDuringPlay()
+		expect(behind.video.currentTime).toBe(behind.adjusted - 0.3)
+		expect(behind.video.playbackRate).toBeGreaterThan(1)
+		expect(behind.video.playbackRate).toBeLessThanOrEqual(1 + uiConstants.DRIFT_NUDGE_MAX_RATE)
+	})
+
+	it("returns to the normal speed once lined up, relative to the chosen speed", () => {
+		const { vm, video } = driftSetup({ drift: 0.01, videoOverrides: { playbackRate: 1.07 } })
+		vm.playbackRate = 2
+		vm.correctDriftDuringPlay()
+		expect(video.playbackRate).toBe(2)
+	})
+
 	it("never corrects the leader", () => {
 		const { vm, video, adjusted } = driftSetup({ camera: "front", drift: 5 })
 		vm.correctDriftDuringPlay()
