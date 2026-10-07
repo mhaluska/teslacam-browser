@@ -16,7 +16,7 @@ Toolbar next to the scrubber:
 
 - **⏮ 10s / 10s ⏭** — jump the timeline back or forward 10 seconds.
 - **A / B / ✕** — set loop start, loop end, or clear the loop. Playback wraps from B back to A.
-- **Mosaic / Record** — save a 3×2 PNG of all cameras, or export the A→B range of the front camera as WebM.
+- **Mosaic / Record** — save a 3×2 PNG of all cameras, or export the A→B range of the front camera as MP4 with the dashboard overlay.
 
 Per-camera buttons appear on hover in the top-right of each tile:
 

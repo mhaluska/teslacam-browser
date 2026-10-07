@@ -14,6 +14,26 @@
         : require( "./ui-utils" )
     var downloadBlob = uiUtils.downloadBlob
     var sanitizeFilenamePart = uiUtils.sanitizeFilenamePart
+    var pickSeiInterpolationBracket = uiUtils.pickSeiInterpolationBracket
+    var blendDashSamples = uiUtils.blendDashSamples
+    var computeDashView = uiUtils.computeDashView
+
+    var uiHudCanvas = ( typeof window !== "undefined" && window.uiHudCanvas )
+        ? window.uiHudCanvas
+        : require( "./ui-hud-canvas" )
+    var drawDashHud = uiHudCanvas.drawDashHud
+
+    // A→B export: prefer H.264 MP4; fall back to WebM where the browser can't record MP4 (e.g. Firefox).
+    var EXPORT_MIME_TYPES = [
+        "video/mp4;codecs=avc1.640028",
+        "video/mp4;codecs=avc1.42E01E",
+        "video/mp4",
+        "video/webm;codecs=vp9",
+        "video/webm;codecs=vp8",
+        "video/webm"
+    ]
+    var EXPORT_MAX_WIDTH = 1920
+    var EXPORT_VIDEO_BITRATE = 8000000
 
     var uiVideo = ( typeof window !== "undefined" && window.uiVideo )
         ? window.uiVideo
@@ -951,7 +971,67 @@
 
                     return "teslacam-clip"
                 },
-                exportRangeWebm: function()
+                /** Front-camera <video> of the timespan currently on screen (the next one is preloaded hidden). */
+                currentFrontVideo: function()
+                {
+                    return document.querySelector( ".cam-grid-current video.video.front" )
+                },
+                /** Range-relative time of `video` (the current timespan's front camera), falling back to currentTime. */
+                frontGlobalTime: function( video )
+                {
+                    var startTime = 0
+
+                    for ( var ts of this.timespans )
+                    {
+                        if ( ts === this.controls.timespan )
+                        {
+                            if ( video && isFinite( video.duration ) && isFinite( ts.duration ) )
+                            {
+                                return startTime + video.currentTime + ( ts.duration - video.duration )
+                            }
+
+                            break
+                        }
+
+                        startTime += ts.duration
+                    }
+
+                    return this.currentTime
+                },
+                /** Telemetry for each front-camera file playing between a and b, keyed by filePath. */
+                loadRangeTelemetry: function( a, b )
+                {
+                    var samplesByPath = new Map()
+
+                    if ( !handlers.getClipTelemetry ) return Promise.resolve( samplesByPath )
+
+                    var fetches = []
+                    var startTime = 0
+
+                    this.timespans.forEach( function( ts )
+                    {
+                        var end = startTime + ( ts.duration || 0 )
+                        var front = ts.viewMap ? ts.viewMap.get( "front" ) : null
+
+                        if ( front && front.filePath && end > a && startTime < b )
+                        {
+                            fetches.push( new Promise( function( resolve )
+                            {
+                                handlers.getClipTelemetry( front.filePath, function( res )
+                                {
+                                    if ( res && Array.isArray( res.samples ) && res.samples.length ) samplesByPath.set( front.filePath, res.samples )
+
+                                    resolve()
+                                } )
+                            } ) )
+                        }
+
+                        startTime = end
+                    } )
+
+                    return Promise.all( fetches ).then( function() { return samplesByPath } )
+                },
+                exportRange: function()
                 {
                     if ( this.controls.exporting ) return
 
@@ -961,35 +1041,24 @@
                     if ( a == null || b == null || !( b > a ) ) return
                     if ( typeof MediaRecorder === "undefined" ) { console.error( "MediaRecorder unavailable" ); return }
 
-                    var front = document.querySelector( "video.video.front" )
+                    var mime = EXPORT_MIME_TYPES.find( function( m ) { return MediaRecorder.isTypeSupported( m ) } )
 
-                    if ( !front || typeof front.captureStream !== "function" )
-                    {
-                        console.error( "front camera video not ready or captureStream unsupported" )
-
-                        return
-                    }
-
-                    var mime = [
-                        "video/webm;codecs=vp9",
-                        "video/webm;codecs=vp8",
-                        "video/webm"
-                    ].find( function( m ) { return MediaRecorder.isTypeSupported( m ) } )
-
-                    if ( !mime ) { console.error( "no supported WebM MIME type" ); return }
+                    if ( !mime ) { console.error( "no supported MP4/WebM recording type" ); return }
 
                     var self = this
-                    var chunks = []
-                    var stream = front.captureStream( 36 )
-                    var rec = new MediaRecorder( stream, { mimeType: mime } )
-
-                    rec.ondataavailable = function( e ) { if ( e.data && e.data.size ) chunks.push( e.data ) }
-
                     var savedSpeed = self.controls.speed
                     var fileName = sanitizeFilenamePart( self.currentClipBaseName() )
-                        + "_range_" + a.toFixed( 3 ) + "-" + b.toFixed( 3 ) + "s.webm"
+                        + "_range_" + a.toFixed( 3 ) + "-" + b.toFixed( 3 ) + "s"
+                        + ( mime.indexOf( "video/mp4" ) === 0 ? ".mp4" : ".webm" )
+                    var canvas = document.createElement( "canvas" )
+                    var ctx = canvas.getContext( "2d" )
+                    var stream = null
+                    var rec = null
+                    var chunks = []
+                    var samplesByPath = null
                     var stopTimer = null
                     var rafHandle = null
+                    var lastDrawn = { video: null, time: null }
 
                     function cleanup()
                     {
@@ -1005,40 +1074,84 @@
                             stopTimer = null
                         }
 
+                        if ( stream ) stream.getTracks().forEach( function( t ) { t.stop() } )
+
                         self.controls.speed = savedSpeed
                         self.controls.exporting = false
                     }
 
-                    rec.onstop = function()
+                    function fail( message, err )
                     {
+                        console.error( message, err || "" )
                         cleanup()
                         self.controls.playing = false
-
-                        var blob = new Blob( chunks, { type: mime } )
-
-                        if ( blob.size ) downloadBlob( fileName, blob )
-                        else console.error( "export produced 0 bytes" )
                     }
 
-                    rec.onerror = function( e )
+                    // Composite the current front frame plus the HUD; only redraw when a new frame is showing.
+                    function drawFrame( video )
                     {
-                        console.error( "MediaRecorder error:", e && e.error ? e.error : e )
-                        cleanup()
+                        if ( !video || !video.videoWidth ) return
+                        if ( lastDrawn.video === video && lastDrawn.time === video.currentTime ) return
+
+                        lastDrawn.video = video
+                        lastDrawn.time = video.currentTime
+
+                        ctx.drawImage( video, 0, 0, canvas.width, canvas.height )
+
+                        var ts = self.controls.timespan
+                        var view = ts && ts.viewMap ? ts.viewMap.get( "front" ) : null
+                        var samples = view && samplesByPath ? samplesByPath.get( view.filePath ) : null
+
+                        if ( !samples ) return
+
+                        var dur = isFinite( video.duration ) ? video.duration : 0
+                        var br = pickSeiInterpolationBracket( samples, video.currentTime, dur )
+
+                        if ( !br ) return
+
+                        drawDashHud(
+                            ctx,
+                            computeDashView( blendDashSamples( br.cur, br.next, br.alpha ), self.resolvedSpeedUnit === "mi" ? "mi" : "km" ),
+                            { width: canvas.width, height: canvas.height, videoTime: video.currentTime } )
                     }
 
-                    self.controls.exporting = true
-                    self.controls.playing = false
-                    self.controls.speed = 1
-                    self.currentTime = a
-
-                    // Wait one seeked event on the front camera before starting, then
-                    // kick off playback and poll currentTime for the stop condition.
-                    function onSeeked()
+                    function startRecording()
                     {
-                        front.removeEventListener( "seeked", onSeeked )
+                        var front = self.currentFrontVideo()
+
+                        if ( !front || !front.videoWidth ) { fail( "front camera video not ready" ); return }
+
+                        var scale = Math.min( 1, EXPORT_MAX_WIDTH / front.videoWidth )
+
+                        // H.264 needs even dimensions.
+                        canvas.width = Math.round( front.videoWidth * scale / 2 ) * 2
+                        canvas.height = Math.round( front.videoHeight * scale / 2 ) * 2
+
+                        try
+                        {
+                            drawFrame( front )
+                            stream = canvas.captureStream()
+                            rec = new MediaRecorder( stream, { mimeType: mime, videoBitsPerSecond: EXPORT_VIDEO_BITRATE } )
+                        }
+                        catch ( err ) { fail( "export setup failed:", err ); return }
+
+                        rec.ondataavailable = function( e ) { if ( e.data && e.data.size ) chunks.push( e.data ) }
+
+                        rec.onstop = function()
+                        {
+                            cleanup()
+                            self.controls.playing = false
+
+                            var blob = new Blob( chunks, { type: mime.split( ";" )[ 0 ] } )
+
+                            if ( blob.size ) downloadBlob( fileName, blob )
+                            else console.error( "export produced 0 bytes" )
+                        }
+
+                        rec.onerror = function( e ) { fail( "MediaRecorder error:", e && e.error ? e.error : e ) }
 
                         try { rec.start( 100 ) }
-                        catch ( err ) { console.error( "rec.start failed:", err ); cleanup(); return }
+                        catch ( err ) { fail( "rec.start failed:", err ); return }
 
                         self.controls.playing = true
 
@@ -1046,12 +1159,16 @@
                         {
                             if ( rec.state !== "recording" ) return
 
-                            if ( self.currentTime >= b )
+                            var video = self.currentFrontVideo()
+
+                            if ( self.frontGlobalTime( video ) >= b )
                             {
                                 try { rec.stop() } catch ( _ ) { /* noop */ }
 
                                 return
                             }
+
+                            drawFrame( video )
 
                             rafHandle = window.requestAnimationFrame( poll )
                         }
@@ -1071,7 +1188,41 @@
                         }, maxMs )
                     }
 
-                    front.addEventListener( "seeked", onSeeked )
+                    self.controls.exporting = true
+                    self.controls.playing = false
+                    self.controls.speed = 1
+                    self.currentTime = a
+
+                    self.loadRangeTelemetry( a, b ).then( function( loaded )
+                    {
+                        samplesByPath = loaded
+
+                        // Wait for the seek to A to land on the (possibly newly mounted) front camera.
+                        Vue.nextTick( function()
+                        {
+                            var front = self.currentFrontVideo()
+
+                            if ( !front ) { fail( "front camera video not found" ); return }
+
+                            if ( front.seeking || front.readyState < 2 )
+                            {
+                                var started = false
+                                var go = function()
+                                {
+                                    if ( started ) return
+
+                                    started = true
+                                    front.removeEventListener( "seeked", go )
+                                    front.removeEventListener( "loadeddata", go )
+                                    startRecording()
+                                }
+
+                                front.addEventListener( "seeked", go )
+                                front.addEventListener( "loadeddata", go )
+                            }
+                            else startRecording()
+                        } )
+                    } ).catch( function( err ) { fail( "export failed:", err ) } )
                 },
                 snapshotMosaic: function()
                 {

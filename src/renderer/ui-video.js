@@ -126,7 +126,7 @@
             template:
                 `<div>
                     <div v-for="timespan in timespans" :key="timespan.title">
-                        <div v-if="timespan === controls.timespan || isNextTimespan( timespan )" class="cam-grid" :style="timespan !== controls.timespan ? 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;clip:rect(0,0,0,0)' : ''">
+                        <div v-if="timespan === controls.timespan || isNextTimespan( timespan )" class="cam-grid" :class="{ 'cam-grid-current': timespan === controls.timespan }" :style="timespan !== controls.timespan ? 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;clip:rect(0,0,0,0)' : ''">
                             <div class="cam-row cam-row-top">
                                 <div v-for="camera in camGridTop" :key="camera + '-top'" class="cam-cell">
                                     <template v-if="viewFor( timespan, camera )">
