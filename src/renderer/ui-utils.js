@@ -99,6 +99,74 @@
 		}
 	}
 
+	var STANDARD_GRAVITY = 9.80665
+	var G_METER_MAX_G = 1.2
+
+	/** Turn a blended dash sample into what the HUD shows; shared by the DOM overlay and the export renderer. */
+	function computeDashView( d, speedUnit )
+	{
+		var unitLabel = speedUnit === "mi" ? "mph" : "km/h"
+		var speed = { value: "—", unit: unitLabel }
+
+		if ( d && d.speedMps != null )
+		{
+			var factor = speedUnit === "mi" ? 2.2369362920544 : 3.6
+
+			speed.value = Math.round( d.speedMps * factor )
+		}
+
+		var throttlePct = ( d && d.acceleratorPedal != null )
+			? Math.round( Math.max( 0, Math.min( 1, d.acceleratorPedal ) ) * 100 )
+			: 0
+
+		var gMeter = { visible: false, x: 0, y: 0, clipped: false, title: "" }
+
+		if ( d && d.accelX != null && d.accelY != null )
+		{
+			// Axis mapping verified empirically against real clips:
+			//   accelY  → longitudinal, with positive = deceleration/braking
+			//   accelX  → lateral (right-positive assumed; flip if a right turn
+			//             produces the wrong side).
+			// "Ball in bowl" convention: the dot lags the felt force, so
+			// accelerating forward pushes the dot down (toward the rear).
+			var longG = -d.accelY / STANDARD_GRAVITY
+			var latG = d.accelX / STANDARD_GRAVITY
+			var magSq = longG * longG + latG * latG
+			var clamped = false
+			var dotX = -latG
+			var dotY = longG
+
+			if ( magSq > G_METER_MAX_G * G_METER_MAX_G )
+			{
+				var mag = Math.sqrt( magSq )
+				dotX = dotX * G_METER_MAX_G / mag
+				dotY = dotY * G_METER_MAX_G / mag
+				clamped = true
+			}
+
+			gMeter = {
+				visible: true,
+				x: dotX,
+				y: dotY,
+				clipped: clamped,
+				title: "G: " + ( Math.sqrt( magSq ) ).toFixed( 2 ) + "g"
+			}
+		}
+
+		return {
+			gear: d && d.gear ? d.gear : null,
+			speed: speed,
+			throttlePct: throttlePct,
+			brake: !!( d && d.brakeApplied ),
+			blinkerLeft: !!( d && d.blinkerLeft ),
+			blinkerRight: !!( d && d.blinkerRight ),
+			autopilotOn: !!( d && d.autopilot && d.autopilot !== "NONE" ),
+			wheelAngle: d && d.steeringWheelAngle != null ? d.steeringWheelAngle : null,
+			headingDeg: d && d.headingDeg != null ? d.headingDeg : null,
+			gMeter: gMeter
+		}
+	}
+
 	function normalizeThemePreference( p )
 	{
 		if ( p === "light" || p === "dark" || p === "system" ) return p
@@ -528,6 +596,7 @@
 	return {
 		pickSeiInterpolationBracket: pickSeiInterpolationBracket,
 		blendDashSamples: blendDashSamples,
+		computeDashView: computeDashView,
 		lerpAngleDeg: lerpAngleDeg,
 		detectSeqGaps: detectSeqGaps,
 		normalizeThemePreference: normalizeThemePreference,

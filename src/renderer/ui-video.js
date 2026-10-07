@@ -20,6 +20,7 @@
 
     var pickSeiInterpolationBracket = uiUtils.pickSeiInterpolationBracket
     var blendDashSamples = uiUtils.blendDashSamples
+    var computeDashView = uiUtils.computeDashView
     var lerpAngleDeg = uiUtils.lerpAngleDeg
     var detectSeqGaps = uiUtils.detectSeqGaps
     var downloadBlob = uiUtils.downloadBlob
@@ -441,13 +442,15 @@
 
                     return blendDashSamples( br.cur, br.next, br.alpha )
                 },
+                dashView: function()
+                {
+                    var unit = this.getSpeedUnit && this.getSpeedUnit() === "mi" ? "mi" : "km"
+
+                    return computeDashView( this.dashDisplay, unit )
+                },
                 throttleFillPct: function()
                 {
-                    var d = this.dashDisplay
-
-                    if ( !d || d.acceleratorPedal == null ) return 0
-
-                    return Math.round( Math.max( 0, Math.min( 1, d.acceleratorPedal ) ) * 100 )
+                    return this.dashView.throttlePct
                 },
                 telemetryGapSummary: function()
                 {
@@ -470,40 +473,7 @@
                 },
                 gMeter: function()
                 {
-                    var d = this.dashDisplay
-                    var G = 9.80665
-                    var MAX_G = 1.2
-
-                    if ( !d || d.accelX == null || d.accelY == null ) return { visible: false, x: 0, y: 0, clipped: false, title: "" }
-
-                    // Axis mapping verified empirically against real clips:
-                    //   accelY  → longitudinal, with positive = deceleration/braking
-                    //   accelX  → lateral (right-positive assumed; flip if a right turn
-                    //             produces the wrong side).
-                    // "Ball in bowl" convention: the dot lags the felt force, so
-                    // accelerating forward pushes the dot down (toward the rear).
-                    var longG = -d.accelY / G
-                    var latG = d.accelX / G
-                    var magSq = longG * longG + latG * latG
-                    var clamped = false
-                    var dotX = -latG
-                    var dotY = longG
-
-                    if ( magSq > MAX_G * MAX_G )
-                    {
-                        var mag = Math.sqrt( magSq )
-                        dotX = dotX * MAX_G / mag
-                        dotY = dotY * MAX_G / mag
-                        clamped = true
-                    }
-
-                    return {
-                        visible: true,
-                        x: dotX,
-                        y: dotY,
-                        clipped: clamped,
-                        title: "G: " + ( Math.sqrt( magSq ) ).toFixed( 2 ) + "g"
-                    }
+                    return this.dashView.gMeter
                 },
                 pipSupported: function()
                 {
@@ -511,23 +481,7 @@
                 },
                 speedDisplay: function()
                 {
-                    var unit = "km"
-
-                    if ( this.getSpeedUnit )
-                    {
-                        var resolved = this.getSpeedUnit()
-
-                        if ( resolved === "mi" ) unit = "mi"
-                    }
-
-                    var unitLabel = unit === "mi" ? "mph" : "km/h"
-                    var d = this.dashDisplay
-
-                    if ( !d || d.speedMps == null ) return { value: "—", unit: unitLabel }
-
-                    var factor = unit === "mi" ? 2.2369362920544 : 3.6
-
-                    return { value: Math.round( d.speedMps * factor ), unit: unitLabel }
+                    return this.dashView.speed
                 }
             },
             mounted: function()
