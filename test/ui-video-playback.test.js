@@ -255,3 +255,25 @@ describe("ended", () => {
 		expect(timespan.ended).toBe(false)
 	})
 })
+
+describe("next-clip preload", () => {
+	const { preloadFor } = uiVideo.createVideoGroupComponent({}).methods
+	const LEAD = uiConstants.NEXT_CLIP_PRELOAD_LEAD_SEC
+	const call = (current, timespan) => preloadFor.call({ controls: { timespan: current } }, timespan)
+
+	it("buffers the clip on screen fully", () => {
+		const cur = { currentTime: 3, duration: 60 }
+		expect(call(cur, cur)).toBe("auto")
+	})
+
+	it("keeps the hidden next clip at metadata until the current one nears its end", () => {
+		const next = { currentTime: 0, duration: 60 }
+		expect(call({ currentTime: 3, duration: 60 }, next)).toBe("metadata")
+		expect(call({ currentTime: 60 - LEAD - 0.1, duration: 60 }, next)).toBe("metadata")
+		expect(call({ currentTime: 60 - LEAD, duration: 60 }, next)).toBe("auto")
+	})
+
+	it("stays at metadata while the current clip's duration is unknown", () => {
+		expect(call({ currentTime: 0, duration: null }, {})).toBe("metadata")
+	})
+})

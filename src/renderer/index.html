@@ -232,8 +232,9 @@
                     <button type="button" class="btn btn-sm btn-outline-primary"
                       v-show="controls.loopStart != null && controls.loopEnd != null"
                       @click="exportRange"
-                      :title="controls.exporting ? 'Exporting… click to stop and save what was recorded' : 'Export A→B as MP4 with dashboard overlay (front camera)'">
+                      :title="controls.exporting ? 'Exporting… ' + Math.round( ( controls.exportProgress || 0 ) * 100 ) + '% — click to stop and save what was recorded' : 'Export A→B as MP4 with dashboard overlay (front camera)'">
                       <span v-if="controls.exporting" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                      <small v-if="controls.exporting && controls.exportProgress != null" class="ms-1">{{ Math.round( controls.exportProgress * 100 ) }}%</small>
                       <span v-else class="bi bi-record-circle"></span>
                     </button>
                   </div>

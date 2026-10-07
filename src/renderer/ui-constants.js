@@ -19,6 +19,11 @@
 	var FRAME_STEP_SECONDS = 1 / 30
 	var FRAME_STEP_LARGE_MULTIPLIER = 10
 
+	/** Seconds before the current clip ends at which the hidden next clip starts buffering in
+	 *  earnest (preload "auto"); until then it only loads metadata so the six cameras on screen
+	 *  keep the bandwidth. Long enough to buffer the next clip's opening seconds. */
+	var NEXT_CLIP_PRELOAD_LEAD_SEC = 10
+
 	/** Map tiles: OpenStreetMap's standard layer needs no API key. Its tile usage policy
 	 *  requires a Referer, so tiles opt back in to one (the app page itself sends none). */
 	var MAP_TILE_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -35,6 +40,7 @@
 		DRIFT_CORRECTION_THRESHOLD_SEC: DRIFT_CORRECTION_THRESHOLD_SEC,
 		FRAME_STEP_SECONDS: FRAME_STEP_SECONDS,
 		FRAME_STEP_LARGE_MULTIPLIER: FRAME_STEP_LARGE_MULTIPLIER,
+		NEXT_CLIP_PRELOAD_LEAD_SEC: NEXT_CLIP_PRELOAD_LEAD_SEC,
 		MAP_TILE_URL: MAP_TILE_URL,
 		MAP_TILE_OPTIONS: MAP_TILE_OPTIONS
 	}

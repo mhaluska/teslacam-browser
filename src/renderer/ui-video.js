@@ -17,6 +17,7 @@
     var CAM_GRID_BOTTOM = uiConstants.CAM_GRID_BOTTOM
     var CAM_GRID_ALL = uiConstants.CAM_GRID_ALL
     var DRIFT_CORRECTION_THRESHOLD_SEC = uiConstants.DRIFT_CORRECTION_THRESHOLD_SEC
+    var NEXT_CLIP_PRELOAD_LEAD_SEC = uiConstants.NEXT_CLIP_PRELOAD_LEAD_SEC
 
     var pickSeiInterpolationBracket = uiUtils.pickSeiInterpolationBracket
     var blendDashSamples = uiUtils.blendDashSamples
@@ -32,26 +33,6 @@
     var probeQueue = []
 
     var telemetryPrimeCache = new Map()
-
-    /**
-     * Strict autoplay policies (e.g. Vivaldi with autoplay blocked) only let a <video> start
-     * without a click once it has been played during a user activation. Briefly playing and
-     * pausing paused elements while an activation is still live (~5 s after a click) unlocks
-     * them, so clip changes later on can start the next clip's videos.
-     */
-    function unlockForAutoplay( videos )
-    {
-        Array.prototype.forEach.call( videos || [], function( v )
-        {
-            if ( !v || !v.paused || typeof v.play !== "function" ) return
-
-            var p = v.play()
-
-            v.pause()
-
-            if ( p && typeof p.catch === "function" ) p.catch( function() { /* expected: interrupted by pause() */ } )
-        } )
-    }
 
     function primeClipTelemetry( filePath, handlers )
     {
@@ -146,13 +127,13 @@
             template:
                 `<div>
                     <div v-for="timespan in timespans" :key="timespan.title">
-                        <div v-if="timespan === controls.timespan || isNextTimespan( timespan ) || isPreloaded( timespan )" class="cam-grid" :class="{ 'cam-grid-current': timespan === controls.timespan }" :style="timespan !== controls.timespan ? 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;clip:rect(0,0,0,0)' : ''">
+                        <div v-if="timespan === controls.timespan || isNextTimespan( timespan )" class="cam-grid" :style="timespan !== controls.timespan ? 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;clip:rect(0,0,0,0)' : ''">
                             <div class="cam-row cam-row-top">
                                 <div v-for="camera in camGridTop" :key="camera + '-top'" class="cam-cell">
                                     <template v-if="viewFor( timespan, camera )">
                                         <div class="text-center cam-label" :title="labelTitle( timespan, camera )">{{ camera }}</div>
                                         <div class="cam-video-wrap">
-                                            <synchronized-video :timespan="timespan" :view="viewFor( timespan, camera )" :playbackRate="controls.speed"></synchronized-video>
+                                            <synchronized-video :timespan="timespan" :view="viewFor( timespan, camera )" :playbackRate="controls.speed" :preload="preloadFor( timespan )"></synchronized-video>
                                         </div>
                                     </template>
                                 </div>
@@ -161,7 +142,7 @@
                                 <div v-for="camera in camGridBottom" :key="camera + '-bottom'" class="cam-cell">
                                     <template v-if="viewFor( timespan, camera )">
                                         <div class="cam-video-wrap">
-                                            <synchronized-video :timespan="timespan" :view="viewFor( timespan, camera )" :playbackRate="controls.speed"></synchronized-video>
+                                            <synchronized-video :timespan="timespan" :view="viewFor( timespan, camera )" :playbackRate="controls.speed" :preload="preloadFor( timespan )"></synchronized-video>
                                         </div>
                                         <div class="text-center cam-label" :title="labelTitle( timespan, camera )">{{ camera }}</div>
                                     </template>
@@ -170,7 +151,7 @@
                             <div v-if="extraViews( timespan ).length" class="cam-row cam-row-extras d-flex flex-wrap">
                                 <div v-for="view in extraViews( timespan )" :key="view.camera + '-' + view.fileName" class="cam-cell cam-cell-extra">
                                     <div class="text-center cam-label" :title="view.fileName">{{ view.camera }}</div>
-                                    <synchronized-video :timespan="timespan" :view="view" :playbackRate="controls.speed"></synchronized-video>
+                                    <synchronized-video :timespan="timespan" :view="view" :playbackRate="controls.speed" :preload="preloadFor( timespan )"></synchronized-video>
                                 </div>
                             </div>
                         </div>
@@ -194,10 +175,6 @@
                             ? playing
                             : false
                     }
-
-                    // Still inside the Play click's activation window: unlock the preloaded
-                    // next clip so it may start on its own when playback reaches it.
-                    if ( playing && this.$el ) unlockForAutoplay( this.$el.querySelectorAll( ".cam-grid:not(.cam-grid-current) video.video" ) )
                 }
             },
             methods:
@@ -225,9 +202,17 @@
                         return CAM_GRID_ALL.indexOf( v.camera ) < 0
                     } )
                 },
-                isPreloaded: function( timespan )
+                /** preload for a mounted clip: the hidden next clip only fetches metadata until the
+                 *  current one nears its end, so it doesn't compete with the cameras on screen. */
+                preloadFor: function( timespan )
                 {
-                    return !!this.controls.preloadTimespans && this.controls.preloadTimespans.indexOf( timespan ) >= 0
+                    if ( timespan === this.controls.timespan ) return "auto"
+
+                    var cur = this.controls.timespan
+
+                    if ( !cur || !( cur.duration > 0 ) || !isFinite( cur.currentTime ) ) return "metadata"
+
+                    return cur.duration - cur.currentTime <= NEXT_CLIP_PRELOAD_LEAD_SEC ? "auto" : "metadata"
                 },
                 isNextTimespan: function( timespan )
                 {
@@ -362,7 +347,7 @@
     function createVideoComponent( handlers )
     {
         return {
-            props: [ "timespan", "view", "playbackRate" ],
+            props: [ "timespan", "view", "playbackRate", "preload" ],
             inject: {
                 publishGps: { default: null },
                 getSpeedUnit: { default: null }
@@ -453,7 +438,7 @@
                             </svg>
                         </div>
                     </div>
-                    <video ref="video" class="video" :class="view.camera" :src="view.file" :playbackRate="playbackRate" crossorigin="anonymous" preload="auto" muted @durationchange="durationChanged" @timeupdate="timeChanged" @pause="onPause" @ended="ended" @waiting="onMediaWaiting" @stalled="onMediaStalled" @error="onMediaError" @playing="onMediaPlaying" title="Open in file explorer" @click="openExternal" playsinline></video>
+                    <video ref="video" class="video" :class="view.camera" :src="view.file" :playbackRate="playbackRate" crossorigin="anonymous" :preload="preload || 'auto'" muted @durationchange="durationChanged" @timeupdate="timeChanged" @pause="onPause" @ended="ended" @waiting="onMediaWaiting" @stalled="onMediaStalled" @error="onMediaError" @playing="onMediaPlaying" title="Open in file explorer" @click="openExternal" playsinline></video>
                 </div>`,
             computed:
             {
@@ -1125,7 +1110,6 @@
         createVideoComponent: createVideoComponent,
         createMetadataProbeComponent: createMetadataProbeComponent,
         primeClipTelemetry: primeClipTelemetry,
-        unlockForAutoplay: unlockForAutoplay,
         _probeQueueForTesting:
         {
             acquire: acquireProbeSlot,

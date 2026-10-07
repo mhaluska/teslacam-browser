@@ -105,8 +105,7 @@
                     loopStart: null,
                     loopEnd: null,
                     exporting: false,
-                    // Extra timespans kept mounted (hidden) while an A→B export runs.
-                    preloadTimespans: []
+                    exportProgress: null
                 },
                 playing: null,
                 loading: null,
@@ -981,73 +980,53 @@
 
                     return "teslacam-clip"
                 },
-                /** Front-camera <video> of the timespan currently on screen (the next one is preloaded hidden). */
-                currentFrontVideo: function()
+                /** Front-camera pieces of each clip between a and b (range seconds); from/to are clip-relative. */
+                exportSegments: function( a, b )
                 {
-                    return document.querySelector( ".cam-grid-current video.video.front" )
-                },
-                /** Range-relative time of `video` (the current timespan's front camera), falling back to currentTime. */
-                frontGlobalTime: function( video )
-                {
-                    var startTime = 0
+                    var segments = []
+                    var start = 0
 
-                    for ( var ts of this.timespans )
+                    this.timespans.forEach( function( ts )
                     {
-                        if ( ts === this.controls.timespan )
-                        {
-                            if ( video && isFinite( video.duration ) && isFinite( ts.duration ) )
-                            {
-                                return startTime + video.currentTime + ( ts.duration - video.duration )
-                            }
+                        var end = start + ( ts.duration || 0 )
+                        var view = ts.viewMap ? ts.viewMap.get( "front" ) : null
 
-                            break
+                        if ( view && view.file && end > a && start < b )
+                        {
+                            segments.push( { timespan: ts, view: view, start: start, from: Math.max( a, start ) - start, to: Math.min( b, end ) - start } )
                         }
 
-                        startTime += ts.duration
-                    }
-
-                    return this.currentTime
-                },
-                /** Timespans that play between a and b (range-relative seconds). */
-                timespansInRange: function( a, b )
-                {
-                    var startTime = 0
-
-                    return this.timespans.filter( function( ts )
-                    {
-                        var start = startTime
-
-                        startTime += ts.duration || 0
-
-                        return startTime > a && start < b
+                        start = end
                     } )
+
+                    return segments
                 },
-                /** Telemetry for each front-camera file playing between a and b, keyed by filePath. */
-                loadRangeTelemetry: function( a, b )
+                /** Telemetry for each segment's front-camera file, keyed by filePath. */
+                loadSegmentTelemetry: function( segments )
                 {
                     var samplesByPath = new Map()
 
                     if ( !handlers.getClipTelemetry ) return Promise.resolve( samplesByPath )
 
-                    var fetches = this.timespansInRange( a, b ).map( function( ts )
+                    return Promise.all( segments.map( function( seg )
                     {
-                        var front = ts.viewMap ? ts.viewMap.get( "front" ) : null
-
-                        if ( !front || !front.filePath ) return null
-
                         return new Promise( function( resolve )
                         {
-                            handlers.getClipTelemetry( front.filePath, function( res )
+                            handlers.getClipTelemetry( seg.view.filePath, function( res )
                             {
-                                if ( res && Array.isArray( res.samples ) && res.samples.length ) samplesByPath.set( front.filePath, res.samples )
+                                if ( res && Array.isArray( res.samples ) && res.samples.length ) samplesByPath.set( seg.view.filePath, res.samples )
 
                                 resolve()
                             } )
                         } )
-                    } )
-
-                    return Promise.all( fetches ).then( function() { return samplesByPath } )
+                    } ) ).then( function() { return samplesByPath } )
                 },
+                /**
+                 * Record A→B of the front camera, with the dashboard HUD, to MP4 (WebM fallback).
+                 * Plays the front-camera files through a private <video> of its own rather than the
+                 * on-screen players, so it never competes with (or depends on) normal playback, and
+                 * that one element is unlocked for autoplay by the export click itself.
+                 */
                 exportRange: function()
                 {
                     if ( this.controls.exporting )
@@ -1067,21 +1046,46 @@
 
                     if ( !mime ) { console.error( "no supported MP4/WebM recording type" ); return }
 
+                    var segments = this.exportSegments( a, b )
+
+                    if ( !segments.length ) { console.error( "no front-camera clips between A and B" ); return }
+
                     var self = this
-                    var exportId = self._exportId = ( self._exportId || 0 ) + 1
-                    var savedSpeed = self.controls.speed
                     var fileName = sanitizeFilenamePart( self.currentClipBaseName() )
                         + "_range_" + a.toFixed( 3 ) + "-" + b.toFixed( 3 ) + "s"
                         + ( mime.indexOf( "video/mp4" ) === 0 ? ".mp4" : ".webm" )
+                    var video = document.createElement( "video" )
                     var canvas = document.createElement( "canvas" )
                     var ctx = canvas.getContext( "2d" )
                     var stream = null
                     var rec = null
                     var chunks = []
-                    var samplesByPath = null
+                    var samplesByPath = new Map()
                     var frameTimer = null
-                    var progress = { time: -Infinity, at: 0 }
-                    var lastDrawn = { video: null, time: null }
+                    var segIndex = -1
+                    var seg = null
+                    var loadedFile = null
+                    var switching = true
+                    var progress = { seg: -1, time: -Infinity, at: Date.now() }
+                    var lastDrawnTime = null
+
+                    video.muted = true
+                    video.playsInline = true
+                    video.crossOrigin = "anonymous"
+                    video.preload = "auto"
+                    video.style.cssText = "position:fixed;left:0;top:0;width:2px;height:2px;opacity:0;pointer-events:none"
+                    document.body.appendChild( video )
+
+                    // Unlock this element while the click still counts as a user activation, so
+                    // browsers that block autoplay outright let it start every later segment.
+                    loadedFile = segments[ 0 ].view.file
+                    video.src = loadedFile
+
+                    var unlock = video.play()
+
+                    video.pause()
+
+                    if ( unlock && typeof unlock.catch === "function" ) unlock.catch( function() { /* interrupted by pause() */ } )
 
                     function cleanup()
                     {
@@ -1095,65 +1099,50 @@
 
                         if ( handlers.setExporting ) handlers.setExporting( false )
 
-                        self.controls.preloadTimespans = []
-                        self._stopExport = null
-
                         if ( stream ) stream.getTracks().forEach( function( t ) { t.stop() } )
 
-                        self.controls.speed = savedSpeed
+                        video.pause()
+                        video.removeAttribute( "src" )
+                        video.load()
+                        video.remove()
+
+                        self._stopExport = null
                         self.controls.exporting = false
-                    }
-
-                    // Chrome pauses video-only media in background windows; restart playback
-                    // (re-syncing every camera) once the window is visible again.
-                    function onVisibilityChange()
-                    {
-                        if ( document.visibilityState !== "visible" ) return
-
-                        progress.at = Date.now()
-
-                        var video = self.currentFrontVideo()
-
-                        if ( !video || !video.paused || video.ended || !self.controls.playing ) return
-
-                        self.controls.playing = false
-
-                        Vue.nextTick( function() { if ( self.controls.exporting ) self.controls.playing = true } )
+                        self.controls.exportProgress = null
                     }
 
                     function fail( message, err )
                     {
                         console.error( message, err || "" )
                         cleanup()
-                        self.controls.playing = false
                     }
 
-                    // Composite the current front frame plus the HUD and hand it to the recorder;
-                    // skipped while the video hasn't moved (seeking, stalled).
-                    function drawFrame( video )
+                    function stop()
                     {
-                        if ( !video || !video.videoWidth ) return
-                        if ( lastDrawn.video === video && lastDrawn.time === video.currentTime ) return
-
-                        try { paintFrame( video ) }
-                        finally
+                        if ( rec && rec.state !== "inactive" )
                         {
-                            var track = stream && stream.getVideoTracks()[ 0 ]
-
-                            if ( track && typeof track.requestFrame === "function" ) track.requestFrame()
+                            try { rec.stop() } catch ( _ ) { /* noop */ }
                         }
+                        else fail( "export cancelled" )
                     }
 
-                    function paintFrame( video )
+                    // Chrome pauses video-only media in background windows; resume when visible again.
+                    function onVisibilityChange()
                     {
-                        lastDrawn.video = video
-                        lastDrawn.time = video.currentTime
+                        if ( document.visibilityState !== "visible" ) return
+
+                        progress.at = Date.now()
+
+                        if ( !switching && video.paused && !video.ended ) video.play().catch( function() { /* stall handling takes over */ } )
+                    }
+
+                    function paintFrame()
+                    {
+                        lastDrawnTime = video.currentTime
 
                         ctx.drawImage( video, 0, 0, canvas.width, canvas.height )
 
-                        var ts = self.controls.timespan
-                        var view = ts && ts.viewMap ? ts.viewMap.get( "front" ) : null
-                        var samples = view && samplesByPath ? samplesByPath.get( view.filePath ) : null
+                        var samples = samplesByPath.get( seg.view.filePath )
 
                         if ( !samples ) return
 
@@ -1168,158 +1157,167 @@
                             { width: canvas.width, height: canvas.height, videoTime: video.currentTime } )
                     }
 
-                    function startRecording()
+                    // Composite the current frame plus the HUD and hand it to the recorder.
+                    function drawFrame()
                     {
-                        if ( !self.controls.exporting || self._exportId !== exportId ) return
+                        if ( !video.videoWidth || lastDrawnTime === video.currentTime ) return
 
-                        var front = self.currentFrontVideo()
+                        try { paintFrame() }
+                        finally
+                        {
+                            var track = stream && stream.getVideoTracks()[ 0 ]
 
-                        if ( !front || !front.videoWidth ) { fail( "front camera video not ready" ); return }
+                            if ( track && typeof track.requestFrame === "function" ) track.requestFrame()
+                        }
+                    }
 
-                        var scale = Math.min( 1, EXPORT_MAX_WIDTH / front.videoWidth )
+                    function startRecorder()
+                    {
+                        var scale = Math.min( 1, EXPORT_MAX_WIDTH / video.videoWidth )
 
                         // H.264 needs even dimensions.
-                        canvas.width = Math.round( front.videoWidth * scale / 2 ) * 2
-                        canvas.height = Math.round( front.videoHeight * scale / 2 ) * 2
+                        canvas.width = Math.round( video.videoWidth * scale / 2 ) * 2
+                        canvas.height = Math.round( video.videoHeight * scale / 2 ) * 2
 
-                        try
+                        // captureStream( 0 ) + requestFrame() emits exactly the frames we draw.
+                        stream = canvas.captureStream( 0 )
+
+                        if ( typeof stream.getVideoTracks()[ 0 ].requestFrame !== "function" )
                         {
-                            // captureStream( 0 ) + requestFrame() emits exactly the frames we draw.
-                            stream = canvas.captureStream( 0 )
-
-                            if ( typeof stream.getVideoTracks()[ 0 ].requestFrame !== "function" )
-                            {
-                                stream.getTracks().forEach( function( t ) { t.stop() } )
-                                stream = canvas.captureStream( EXPORT_FPS )
-                            }
-
-                            drawFrame( front )
-                            rec = new MediaRecorder( stream, { mimeType: mime, videoBitsPerSecond: EXPORT_VIDEO_BITRATE } )
+                            stream.getTracks().forEach( function( t ) { t.stop() } )
+                            stream = canvas.captureStream( EXPORT_FPS )
                         }
-                        catch ( err ) { fail( "export setup failed:", err ); return }
 
+                        drawFrame()
+                        rec = new MediaRecorder( stream, { mimeType: mime, videoBitsPerSecond: EXPORT_VIDEO_BITRATE } )
                         rec.ondataavailable = function( e ) { if ( e.data && e.data.size ) chunks.push( e.data ) }
-
                         rec.onstop = function()
                         {
                             cleanup()
-                            self.controls.playing = false
 
                             var blob = new Blob( chunks, { type: mime.split( ";" )[ 0 ] } )
 
                             if ( blob.size ) downloadBlob( fileName, blob )
                             else console.error( "export produced 0 bytes" )
                         }
-
                         rec.onerror = function( e ) { fail( "MediaRecorder error:", e && e.error ? e.error : e ) }
+                        rec.start( 100 )
+                    }
 
-                        try { rec.start( 100 ) }
-                        catch ( err ) { fail( "rec.start failed:", err ); return }
+                    function once( name, fn )
+                    {
+                        video.addEventListener( name, fn, { once: true } )
+                    }
 
-                        self.controls.playing = true
+                    // Load segment i, seek to its start and play it; the recorder is paused meanwhile.
+                    function startSegment( i )
+                    {
+                        switching = true
+                        segIndex = i
+                        seg = segments[ i ]
+                        progress.at = Date.now()
 
-                        function poll()
+                        if ( rec && rec.state === "recording" ) rec.pause()
+
+                        function seekAndPlay()
                         {
-                            if ( rec.state === "inactive" ) return
+                            // A front file shorter than the clip starts late (see startPlayback).
+                            var offset = isFinite( video.duration ) ? seg.timespan.duration - video.duration : 0
 
-                            var video = self.currentFrontVideo()
-                            var now = Date.now()
-                            // A paused or seeking video (e.g. waiting out a delayed clip start) may
-                            // not report a meaningful position yet; treat it as no progress.
-                            var live = video && !video.seeking && ( !video.paused || video.ended )
-                            var t = live ? self.frontGlobalTime( video ) : progress.time
+                            seg.offset = isFinite( offset ) && offset > 0 ? offset : 0
+                            seg.end = Math.min( video.duration, seg.to - seg.offset )
 
-                            if ( t >= b )
+                            once( "seeked", function()
                             {
-                                try { rec.stop() } catch ( _ ) { /* noop */ }
+                                if ( !self.controls.exporting ) return
 
-                                return
+                                try { if ( !rec ) startRecorder() }
+                                catch ( err ) { fail( "export setup failed:", err ); return }
+
+                                switching = false
+                                video.play().catch( function( err ) { fail( "export playback was blocked by the browser:", err ) } )
+                            } )
+
+                            video.currentTime = Math.max( 0, seg.from - seg.offset )
+                        }
+
+                        if ( loadedFile === seg.view.file && video.readyState >= 1 ) seekAndPlay()
+                        else
+                        {
+                            once( "loadedmetadata", seekAndPlay )
+
+                            if ( loadedFile !== seg.view.file )
+                            {
+                                loadedFile = seg.view.file
+                                video.src = loadedFile
                             }
+                        }
+                    }
 
-                            if ( t > progress.time )
+                    function poll()
+                    {
+                        if ( !self.controls.exporting || ( rec && rec.state === "inactive" ) ) return
+
+                        var now = Date.now()
+
+                        if ( !switching )
+                        {
+                            var t = video.currentTime
+
+                            if ( t >= seg.end - 0.001 || video.ended )
                             {
-                                progress = { time: t, at: now }
+                                if ( segIndex >= segments.length - 1 ) { stop(); return }
+
+                                video.pause()
+                                startSegment( segIndex + 1 )
+                            }
+                            else if ( segIndex !== progress.seg || t > progress.time )
+                            {
+                                progress = { seg: segIndex, time: t, at: now }
 
                                 if ( rec.state === "paused" ) rec.resume()
 
-                                drawFrame( video )
+                                drawFrame()
+                                self.controls.exportProgress = Math.min( 1, ( seg.start + seg.offset + t - a ) / ( b - a ) )
                             }
-                            else if ( now - progress.at > EXPORT_STALL_PAUSE_MS )
-                            {
-                                if ( rec.state === "recording" ) rec.pause()
-
-                                if ( document.visibilityState === "visible" && now - progress.at > EXPORT_STALL_LIMIT_MS )
-                                {
-                                    console.warn( "export stalled — saving what was recorded" )
-                                    try { rec.stop() } catch ( _ ) { /* noop */ }
-
-                                    return
-                                }
-                            }
-
-                            frameTimer = window.setTimeout( poll, 1000 / EXPORT_FPS )
                         }
 
-                        progress = { time: self.frontGlobalTime( front ), at: Date.now() }
-                        document.addEventListener( "visibilitychange", onVisibilityChange )
+                        // Buffering or paused in the background: hold the recorder so the file has
+                        // no frozen stretch; give up only after a long stall in a visible window.
+                        if ( now - progress.at > EXPORT_STALL_PAUSE_MS )
+                        {
+                            if ( rec && rec.state === "recording" ) rec.pause()
+
+                            if ( document.visibilityState === "visible" && now - progress.at > EXPORT_STALL_LIMIT_MS )
+                            {
+                                console.warn( "export stalled — saving what was recorded" )
+                                stop()
+
+                                return
+                            }
+                        }
+
                         frameTimer = window.setTimeout( poll, 1000 / EXPORT_FPS )
                     }
 
                     // Second click on the export button: stop and save what was recorded so far.
-                    self._stopExport = function()
-                    {
-                        if ( rec && rec.state !== "inactive" )
-                        {
-                            try { rec.stop() } catch ( _ ) { /* noop */ }
-                        }
-                        else fail( "export cancelled" )
-                    }
+                    self._stopExport = stop
 
                     if ( handlers.setExporting ) handlers.setExporting( true )
 
-                    // Every clip the range touches stays mounted for the whole export, and each of
-                    // their videos is unlocked while this click still counts as a user activation,
-                    // so browsers with strict autoplay rules let them start at clip changes.
-                    self.controls.preloadTimespans = self.timespansInRange( a, b )
-                    uiVideo.unlockForAutoplay( document.querySelectorAll( "video.video" ) )
-                    Vue.nextTick( function() { uiVideo.unlockForAutoplay( document.querySelectorAll( "video.video" ) ) } )
-
-                    self.controls.exporting = true
+                    // Pause the on-screen cameras so they don't compete for bandwidth.
                     self.controls.playing = false
-                    self.controls.speed = 1
-                    self.currentTime = a
+                    self.controls.exporting = true
+                    self.controls.exportProgress = 0
 
-                    self.loadRangeTelemetry( a, b ).then( function( loaded )
+                    self.loadSegmentTelemetry( segments ).then( function( loaded )
                     {
-                        if ( !self.controls.exporting || self._exportId !== exportId ) return
+                        if ( !self.controls.exporting ) return
 
                         samplesByPath = loaded
-
-                        // Wait for the seek to A to land on the (possibly newly mounted) front camera.
-                        Vue.nextTick( function()
-                        {
-                            var front = self.currentFrontVideo()
-
-                            if ( !front ) { fail( "front camera video not found" ); return }
-
-                            if ( front.seeking || front.readyState < 2 )
-                            {
-                                var started = false
-                                var go = function()
-                                {
-                                    if ( started ) return
-
-                                    started = true
-                                    front.removeEventListener( "seeked", go )
-                                    front.removeEventListener( "loadeddata", go )
-                                    startRecording()
-                                }
-
-                                front.addEventListener( "seeked", go )
-                                front.addEventListener( "loadeddata", go )
-                            }
-                            else startRecording()
-                        } )
+                        document.addEventListener( "visibilitychange", onVisibilityChange )
+                        startSegment( 0 )
+                        frameTimer = window.setTimeout( poll, 1000 / EXPORT_FPS )
                     } ).catch( function( err ) { fail( "export failed:", err ) } )
                 },
                 snapshotMosaic: function()
