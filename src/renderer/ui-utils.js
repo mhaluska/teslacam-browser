@@ -5,18 +5,26 @@
 	else root.uiUtils = factory();
 }( typeof self !== 'undefined' ? self : this, function ()
 {
-	/** Map video currentTime to two SEI samples + blend factor (uses tSec from server when present). */
+	// How far video time may sit from the nearest SEI sample before the HUD has
+	// nothing to show (e.g. a parked car often records the first part of a clip
+	// without SEI).
+	var SEI_COVERAGE_TOLERANCE_SEC = 0.5
+
+	/** Map video currentTime to two SEI samples + blend factor (uses tSec from server when present).
+	 *  Returns null when the time falls outside the samples' coverage. */
 	function pickSeiInterpolationBracket( samples, t, dur )
 	{
 		var n = samples.length
 
 		if ( !n ) return null
 
-		if ( n === 1 ) return { cur: samples[ 0 ], next: samples[ 0 ], alpha: 0 }
-
 		if ( samples[ 0 ].tSec != null && samples[ n - 1 ].tSec != null && isFinite( samples[ 0 ].tSec ) )
 		{
 			if ( typeof t !== "number" || !isFinite( t ) || t < 0 ) t = 0
+
+			if ( t < samples[ 0 ].tSec - SEI_COVERAGE_TOLERANCE_SEC ) return null
+
+			if ( t > samples[ n - 1 ].tSec + SEI_COVERAGE_TOLERANCE_SEC ) return null
 
 			if ( t <= samples[ 0 ].tSec ) return { cur: samples[ 0 ], next: samples[ 0 ], alpha: 0 }
 
@@ -35,6 +43,10 @@
 
 			var cur = samples[ lo ]
 			var next = samples[ lo + 1 ]
+
+			// Inside a hole in the SEI stream: nothing recorded for this moment.
+			if ( t - cur.tSec > SEI_COVERAGE_TOLERANCE_SEC && next.tSec - t > SEI_COVERAGE_TOLERANCE_SEC ) return null
+
 			var denom = next.tSec - cur.tSec
 			var alpha = denom > 0 ? ( t - cur.tSec ) / denom : 0
 
