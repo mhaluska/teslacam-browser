@@ -780,13 +780,6 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
 .tc-arrow.on
 {
   color: #4ade80;
-  animation: tc-blink 0.6s step-end infinite;
-}
-
-@keyframes tc-blink
-{
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0; }
 }
 
 .tc-ico-pedal

@@ -13,6 +13,10 @@
         ? window.uiUtils
         : require( "./ui-utils" )
 
+    var uiHudCanvas = ( typeof window !== "undefined" && window.uiHudCanvas )
+        ? window.uiHudCanvas
+        : require( "./ui-hud-canvas" )
+
     var CAM_GRID_TOP = uiConstants.CAM_GRID_TOP
     var CAM_GRID_BOTTOM = uiConstants.CAM_GRID_BOTTOM
     var CAM_GRID_ALL = uiConstants.CAM_GRID_ALL
@@ -23,11 +27,13 @@
 
     var pickSeiInterpolationBracket = uiUtils.pickSeiInterpolationBracket
     var blendDashSamples = uiUtils.blendDashSamples
+    var stabilizeBlinkers = uiUtils.stabilizeBlinkers
     var computeDashView = uiUtils.computeDashView
     var lerpAngleDeg = uiUtils.lerpAngleDeg
     var detectSeqGaps = uiUtils.detectSeqGaps
     var downloadBlob = uiUtils.downloadBlob
     var sanitizeFilenamePart = uiUtils.sanitizeFilenamePart
+    var isBlinkVisible = uiHudCanvas.isBlinkVisible
 
     var METADATA_PROBE_CONCURRENCY = 3
     var METADATA_PROBE_SAFETY_TIMEOUT_MS = 15000
@@ -413,12 +419,12 @@
                                     <line x1="9" y1="24" x2="23" y2="24" stroke="currentColor" stroke-width="2"/>
                                 </svg>
                             </div>
-                            <svg class="tc-arrow" :class="{ on: dashDisplay.blinkerLeft }" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M10 3L2 12l8 9v-6h12V9H10V3z"/></svg>
+                            <svg class="tc-arrow" :class="{ on: dashDisplay.blinkerLeft && blinkLit }" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M10 3L2 12l8 9v-6h12V9H10V3z"/></svg>
                             <div class="tc-speed-block">
                                 <div class="tc-speed-val">{{ speedDisplay.value }}</div>
                                 <div class="tc-speed-unit">{{ speedDisplay.unit }}</div>
                             </div>
-                            <svg class="tc-arrow" :class="{ on: dashDisplay.blinkerRight }" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M14 3l8 9-8 9v-6H2V9h12V3z"/></svg>
+                            <svg class="tc-arrow" :class="{ on: dashDisplay.blinkerRight && blinkLit }" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M14 3l8 9-8 9v-6H2V9h12V3z"/></svg>
                             <div class="tc-dash-col tc-dash-col-right">
                                 <svg class="tc-ico-wheel" :class="{ on: dashDisplay.autopilot && dashDisplay.autopilot !== 'NONE' }" :style="dashDisplay.steeringWheelAngle != null ? { transform: 'rotate(' + dashDisplay.steeringWheelAngle + 'deg)' } : {}" viewBox="0 0 40 40" aria-hidden="true">
                                     <circle cx="20" cy="20" r="15" fill="none" stroke="currentColor" stroke-width="2.5"/>
@@ -456,6 +462,11 @@
                     if ( !br ) return null
 
                     return blendDashSamples( br.cur, br.next, br.alpha )
+                },
+                // Both arrows share one phase clock (same as the export renderer), so hazards stay in sync.
+                blinkLit: function()
+                {
+                    return isBlinkVisible( this.overlayVideoTime )
                 },
                 dashView: function()
                 {
@@ -627,7 +638,7 @@
                             return
                         }
 
-                        self.telemetrySamples = res.samples
+                        self.telemetrySamples = stabilizeBlinkers( res.samples )
                         self.telemetryGaps = detectSeqGaps( res.samples )
                         self.telemetryGapsExpanded = false
                         self.telemetryStatus = "ready"

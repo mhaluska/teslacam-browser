@@ -16,6 +16,7 @@
     var sanitizeFilenamePart = uiUtils.sanitizeFilenamePart
     var pickSeiInterpolationBracket = uiUtils.pickSeiInterpolationBracket
     var blendDashSamples = uiUtils.blendDashSamples
+    var stabilizeBlinkers = uiUtils.stabilizeBlinkers
     var computeDashView = uiUtils.computeDashView
 
     var uiHudCanvas = ( typeof window !== "undefined" && window.uiHudCanvas )
@@ -1014,7 +1015,7 @@
                         {
                             handlers.getClipTelemetry( seg.view.filePath, function( res )
                             {
-                                if ( res && Array.isArray( res.samples ) && res.samples.length ) samplesByPath.set( seg.view.filePath, res.samples )
+                                if ( res && Array.isArray( res.samples ) && res.samples.length ) samplesByPath.set( seg.view.filePath, stabilizeBlinkers( res.samples ) )
 
                                 resolve()
                             } )

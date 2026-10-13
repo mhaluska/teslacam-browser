@@ -30,7 +30,7 @@
 	var AUTOPILOT_ON = "#3b82f6"
 	var ALERT = "#f87171"
 
-	// Same period as the tc-blink CSS animation (visible for the first half).
+	// Shared blinker phase for the DOM overlay and the export (lit for the first half).
 	var BLINK_PERIOD_SEC = 0.6
 
 	var LEFT_ARROW = [ [ 10, 3 ], [ 2, 12 ], [ 10, 21 ], [ 10, 15 ], [ 22, 15 ], [ 22, 9 ], [ 10, 9 ] ]
@@ -141,11 +141,11 @@
 
 	function drawArrow( ctx, x, y, size, points, on, videoTime )
 	{
-		if ( on && !isBlinkVisible( videoTime ) ) return
+		var lit = on && isBlinkVisible( videoTime )
 
 		withViewBox( ctx, x, y, size, size, [ 0, 0, 24, 24 ], function()
 		{
-			ctx.fillStyle = on ? BLINKER_ON : DIM
+			ctx.fillStyle = lit ? BLINKER_ON : DIM
 			ctx.beginPath()
 			ctx.moveTo( points[ 0 ][ 0 ], points[ 0 ][ 1 ] )
 

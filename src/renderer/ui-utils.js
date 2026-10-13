@@ -99,6 +99,46 @@
 		}
 	}
 
+	var BLINKER_HOLD_SEC = 1.0
+
+	/** Fill short off-gaps in the blinker flags so an active signal reads as one
+	 *  continuous span, whether the car reports the stalk or the lamp state. The
+	 *  HUD then blinks it from a single shared phase (see isBlinkVisible). */
+	function stabilizeBlinkers( samples )
+	{
+		if ( !Array.isArray( samples ) || samples.length < 3 ) return samples
+
+		var out = samples.map( function( s ) { return Object.assign( {}, s ) } )
+
+		function fill( key )
+		{
+			var lastOn = -1
+
+			for ( var i = 0; i < out.length; i++ )
+			{
+				if ( !out[ i ][ key ] ) continue
+
+				if ( lastOn >= 0 && i - lastOn > 1 )
+				{
+					var t0 = out[ lastOn ].tSec
+					var t1 = out[ i ].tSec
+
+					if ( typeof t0 === "number" && typeof t1 === "number" && t1 - t0 < BLINKER_HOLD_SEC )
+					{
+						for ( var j = lastOn + 1; j < i; j++ ) out[ j ][ key ] = true
+					}
+				}
+
+				lastOn = i
+			}
+		}
+
+		fill( "blinkerLeft" )
+		fill( "blinkerRight" )
+
+		return out
+	}
+
 	var STANDARD_GRAVITY = 9.80665
 	var G_METER_MAX_G = 1.2
 
@@ -596,6 +636,7 @@
 	return {
 		pickSeiInterpolationBracket: pickSeiInterpolationBracket,
 		blendDashSamples: blendDashSamples,
+		stabilizeBlinkers: stabilizeBlinkers,
 		computeDashView: computeDashView,
 		lerpAngleDeg: lerpAngleDeg,
 		detectSeqGaps: detectSeqGaps,

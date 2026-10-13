@@ -88,6 +88,23 @@ describe("drawDashHud", () => {
 		expect(green(on)).toBe(1)
 		expect(green(off)).toBe(0)
 	})
+
+	it("blinks both arrows in phase for hazard lights", () => {
+		const view = computeDashView({ ...FULL, blinkerLeft: true, blinkerRight: true }, "km")
+		const green = ctx => ctx.calls.filter(c => c.fn === "fill" && c.fillStyle === "#4ade80").length
+		const dim = ctx => ctx.calls.filter(c => c.fn === "fill" && c.fillStyle === "rgba( 255, 255, 255, 0.35 )").length
+		for (const t of [0.1, 0.7, 1.3]) {
+			const ctx = makeCtx()
+			drawDashHud(ctx, view, { ...opts, videoTime: t })
+			expect(green(ctx)).toBe(2)
+		}
+		for (const t of [0.4, 1.0, 1.6]) {
+			const ctx = makeCtx()
+			drawDashHud(ctx, view, { ...opts, videoTime: t })
+			expect(green(ctx)).toBe(0)
+			expect(dim(ctx)).toBeGreaterThanOrEqual(2)
+		}
+	})
 })
 
 describe("isBlinkVisible", () => {
