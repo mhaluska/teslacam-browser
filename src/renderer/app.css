@@ -772,7 +772,7 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
 .tc-assist-label
 {
   margin-top: 0.1rem;
-  font-size: 0.6rem;
+  font-size: 0.85rem;
   font-weight: 600;
   line-height: 1;
   color: #3b82f6;

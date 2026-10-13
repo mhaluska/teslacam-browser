@@ -21,7 +21,7 @@
 	var DIAL_SIZE = 3.75
 	var COL_MIN_WIDTH = 2.5
 	var ARROW_SIZE = 1.6
-	var ASSIST_FONT = 0.6
+	var ASSIST_FONT = 0.85
 	var ASSIST_GAP = 0.1
 
 	var WHITE = "#fff"
