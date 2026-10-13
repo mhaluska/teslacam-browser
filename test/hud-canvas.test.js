@@ -89,6 +89,33 @@ describe("drawDashHud", () => {
 		expect(green(off)).toBe(0)
 	})
 
+	it("writes the driver-assist mode under the speed and keeps the wheel grey", () => {
+		const ctx = makeCtx()
+		const strokes = []
+		const recording = new Proxy(ctx, {
+			get(target, prop) {
+				if (prop === "stroke") return () => strokes.push(target.strokeStyle)
+				return target[prop]
+			},
+			set(target, prop, value) {
+				target[prop] = value
+				return true
+			},
+		})
+		drawDashHud(recording, computeDashView({ ...FULL, autopilot: "SELF_DRIVING" }, "km"), opts)
+		const t = texts(ctx)
+		expect(t).toContain("Self-Driving")
+		expect(t.indexOf("Self-Driving")).toBeGreaterThan(t.indexOf("km/h"))
+		expect(ctx.calls.find(c => c.fn === "fillText" && c.args[0] === "Self-Driving").fillStyle).toBe("#3b82f6")
+		expect(strokes).not.toContain("#3b82f6")
+	})
+
+	it("omits the driver-assist label when no assist is active", () => {
+		const ctx = makeCtx()
+		drawDashHud(ctx, computeDashView({ ...FULL, autopilot: "NONE" }, "km"), opts)
+		expect(texts(ctx)).not.toEqual(expect.arrayContaining(["TACC", "Autosteer", "Self-Driving"]))
+	})
+
 	it("blinks both arrows in phase for hazard lights", () => {
 		const view = computeDashView({ ...FULL, blinkerLeft: true, blinkerRight: true }, "km")
 		const green = ctx => ctx.calls.filter(c => c.fn === "fill" && c.fillStyle === "#4ade80").length

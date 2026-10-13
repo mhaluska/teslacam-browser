@@ -423,10 +423,11 @@
                             <div class="tc-speed-block">
                                 <div class="tc-speed-val">{{ speedDisplay.value }}</div>
                                 <div class="tc-speed-unit">{{ speedDisplay.unit }}</div>
+                                <div v-if="dashView.assistLabel" class="tc-assist-label">{{ dashView.assistLabel }}</div>
                             </div>
                             <svg class="tc-arrow" :class="{ on: dashDisplay.blinkerRight && blinkLit }" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M14 3l8 9-8 9v-6H2V9h12V3z"/></svg>
                             <div class="tc-dash-col tc-dash-col-right">
-                                <svg class="tc-ico-wheel" :class="{ on: dashDisplay.autopilot && dashDisplay.autopilot !== 'NONE' }" :style="dashDisplay.steeringWheelAngle != null ? { transform: 'rotate(' + dashDisplay.steeringWheelAngle + 'deg)' } : {}" viewBox="0 0 40 40" aria-hidden="true">
+                                <svg class="tc-ico-wheel" :style="dashDisplay.steeringWheelAngle != null ? { transform: 'rotate(' + dashDisplay.steeringWheelAngle + 'deg)' } : {}" viewBox="0 0 40 40" aria-hidden="true">
                                     <circle cx="20" cy="20" r="15" fill="none" stroke="currentColor" stroke-width="2.5"/>
                                     <circle cx="20" cy="20" r="4" fill="currentColor" stroke="none"/>
                                     <line x1="16" y1="20" x2="5" y2="20" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>

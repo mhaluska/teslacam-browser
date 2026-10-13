@@ -58,4 +58,14 @@ describe("computeDashView", () => {
 		})
 		expect(computeDashView({ autopilot: "NONE" }, "km").autopilotOn).toBe(false)
 	})
+
+	it("labels the active driver-assist mode", () => {
+		const label = autopilot => computeDashView({ autopilot }, "km").assistLabel
+		expect(label("TACC")).toBe("TACC")
+		expect(label("AUTOSTEER")).toBe("Autosteer")
+		expect(label("SELF_DRIVING")).toBe("Self-Driving")
+		expect(label("NONE")).toBeNull()
+		expect(label(undefined)).toBeNull()
+		expect(computeDashView(null, "km").assistLabel).toBeNull()
+	})
 })

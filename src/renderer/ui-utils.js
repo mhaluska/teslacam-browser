@@ -139,6 +139,8 @@
 		return out
 	}
 
+	var ASSIST_LABELS = { TACC: "TACC", AUTOSTEER: "Autosteer", SELF_DRIVING: "Self-Driving" }
+
 	var STANDARD_GRAVITY = 9.80665
 	var G_METER_MAX_G = 1.2
 
@@ -201,6 +203,7 @@
 			blinkerLeft: !!( d && d.blinkerLeft ),
 			blinkerRight: !!( d && d.blinkerRight ),
 			autopilotOn: !!( d && d.autopilot && d.autopilot !== "NONE" ),
+			assistLabel: ( d && ASSIST_LABELS[ d.autopilot ] ) || null,
 			wheelAngle: d && d.steeringWheelAngle != null ? d.steeringWheelAngle : null,
 			headingDeg: d && d.headingDeg != null ? d.headingDeg : null,
 			gMeter: gMeter

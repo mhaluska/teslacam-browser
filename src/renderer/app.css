@@ -769,6 +769,16 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
   opacity: 0.9;
 }
 
+.tc-assist-label
+{
+  margin-top: 0.1rem;
+  font-size: 0.6rem;
+  font-weight: 600;
+  line-height: 1;
+  color: #3b82f6;
+  white-space: nowrap;
+}
+
 .tc-arrow
 {
   width: 1.6rem;
@@ -803,10 +813,6 @@ html[data-theme="dark"] .flatpickr-day.today:not( .selected ):not( .flatpickr-di
   transition: transform 0.08s linear;
 }
 
-.tc-ico-wheel.on
-{
-  color: #3b82f6;
-}
 
 .tc-throttle
 {

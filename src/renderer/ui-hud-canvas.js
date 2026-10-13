@@ -21,6 +21,8 @@
 	var DIAL_SIZE = 3.75
 	var COL_MIN_WIDTH = 2.5
 	var ARROW_SIZE = 1.6
+	var ASSIST_FONT = 0.6
+	var ASSIST_GAP = 0.1
 
 	var WHITE = "#fff"
 	var DIM = "rgba( 255, 255, 255, 0.35 )"
@@ -156,7 +158,7 @@
 		} )
 	}
 
-	function drawWheel( ctx, x, y, size, on, angleDeg )
+	function drawWheel( ctx, x, y, size, angleDeg )
 	{
 		withViewBox( ctx, x, y, size, size, [ 0, 0, 40, 40 ], function()
 		{
@@ -167,10 +169,8 @@
 				ctx.translate( -20, -20 )
 			}
 
-			var color = on ? AUTOPILOT_ON : DIM
-
-			ctx.strokeStyle = color
-			ctx.fillStyle = color
+			ctx.strokeStyle = DIM
+			ctx.fillStyle = DIM
 			ctx.lineWidth = 2.5
 			circle( ctx, 20, 20, 15 )
 			ctx.stroke()
@@ -253,6 +253,7 @@
 		var hasGMeter = !!( view.gMeter && view.gMeter.visible )
 		var speedText = String( view.speed && view.speed.value != null ? view.speed.value : "—" )
 		var unitText = view.speed && view.speed.unit ? view.speed.unit : ""
+		var assistText = view.assistLabel || ""
 
 		ctx.save()
 
@@ -260,6 +261,12 @@
 		var speedW = ctx.measureText( speedText ).width
 		ctx.font = font( 400, 0.65 * u )
 		speedW = Math.max( speedW, ctx.measureText( unitText ).width )
+
+		if ( assistText )
+		{
+			ctx.font = font( 600, ASSIST_FONT * u )
+			speedW = Math.max( speedW, ctx.measureText( assistText ).width )
+		}
 
 		var items = []
 
@@ -313,7 +320,8 @@
 					drawArrow( ctx, x, midY - it.w / 2, it.w, RIGHT_ARROW, view.blinkerRight, opts.videoTime )
 					break
 				case "speed":
-					var blockH = 1.75 * u + 0.65 * u * 1.5
+					var assistY = 1.75 * u + 0.65 * u * 1.5 + ASSIST_GAP * u
+					var blockH = assistText ? assistY + ASSIST_FONT * u : 1.75 * u + 0.65 * u * 1.5
 					var top = midY - blockH / 2
 
 					ctx.fillStyle = WHITE
@@ -325,9 +333,16 @@
 					ctx.font = font( 400, 0.65 * u )
 					ctx.fillText( unitText, cx, top + 1.75 * u + 0.65 * u * 0.25 )
 					ctx.globalAlpha = 1
+
+					if ( assistText )
+					{
+						ctx.fillStyle = AUTOPILOT_ON
+						ctx.font = font( 600, ASSIST_FONT * u )
+						ctx.fillText( assistText, cx, top + assistY )
+					}
 					break
 				case "right":
-					drawWheel( ctx, cx - 0.8 * u, innerY, 1.6 * u, view.autopilotOn, view.wheelAngle )
+					drawWheel( ctx, cx - 0.8 * u, innerY, 1.6 * u, view.wheelAngle )
 					drawThrottle( ctx, cx - 0.625 * u, innerY + innerH - 2 * u, 1.25 * u, 2 * u, view.throttlePct || 0, u )
 					break
 				case "gmeter":
